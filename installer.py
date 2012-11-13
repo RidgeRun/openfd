@@ -26,7 +26,6 @@ import os
 import sys
 import rrutils
 
-
 # ==========================================================================
 # Global variables
 # ==========================================================================
@@ -61,12 +60,25 @@ def _clean_exit(code=0):
         _logger.error('Exiting with code ' + str(code)) 
 
     exit(code)
+   
+def _validate_mode(mode):    
+    """
+    Checks for the mode input to be valid.
+    """
+    
+    valid = False
+    if mode == 'sd': 
+        valid = True
+    return valid
     
 # ==========================================================================
 # Command line arguments
 # ==========================================================================
 
+_parser.set_usage('Usage: %prog --mode <mode> [options]')
+
 _parser.add_option('', '--devdir', help="DEVDIR path", metavar='<path>', dest='devdir_path')
+_parser.add_option('', '--mode', help="Installation mode: sd", metavar='<mode>', dest='installation_mode')
 _parser.add_option('-v', '--verbose', help="Enable debug", dest="verbose", action='store_true')
 _parser.add_option('-q', '--quiet', help="Be as quiet as possible", dest="quiet", action='store_true')
     
@@ -81,6 +93,16 @@ if _options.verbose:
 
 if _options.quiet:
     _logger.setLevel(rrutils.logger.CRITICAL)
+
+# Check installation mode (required)
+
+if not _options.installation_mode:
+    _parser.print_help()
+    _clean_exit(-1)
+elif not _validate_mode(_options.installation_mode):
+    print 'Invalid mode.'
+    print _parser.get_try_help_message()
+    _clean_exit(-1)
 
 # Check devdir path
 
@@ -100,8 +122,19 @@ if not os.path.isfile(bspconfig):
     _logger.error('Unable to find ' + bspconfig)
     _clean_exit(-1)
 
-# Initialize global config  
+# Initialize global config
 _config = rrutils.config.get_global_config(bspconfig)
+
+# ==========================================================================
+# Main logic
+# ==========================================================================
+
+if _options.installation_mode == 'sd':
+    
+    sdcard_mmap_filename  = _options.devdir_path.rstrip('/')
+    sdcard_mmap_filename += '/images/sd-mmap.config'
+    
+    # @todo
 
 # the end
 _clean_exit(0)
