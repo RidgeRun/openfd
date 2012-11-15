@@ -34,32 +34,59 @@ class SDCardInstaller:
         
         self._config   = rrutils.config.get_global_config()
         self._logger   = rrutils.logger.get_global_logger()
-        self._executer = rrutils.Executer()
+        self._executer = rrutils.executer.Executer()
+        
+    def set_logger(self, logger):
+        """
+        Sets the logger to use
+        """
+        
+        self._logger = logger
+        self._executer.set_logger(logger)
         
     def device_exists(self, device):
         """
         Returns true if the device exists, false otherwise.
         """
         
-        retcode = 0
+        ret     = 0
         output  = ''
-        exists = True
+        exists  = True
+        
         cmd = 'sudo fdisk -l ' + device + ' 2>/dev/null'
         
-        retcode, output = self._executer.check_output(cmd)
+        ret, output = self._executer.check_output(cmd)
         
         if output == "":
             exists = False
             
         return exists
+    
+    def device_is_mounted(self, device):
+        """
+        Returns true if the device is mounted or if it's part of RAID array,
+        false otherwise.
+        """
+        
+        is_mounted = False
+        
+        cmd1 = 'grep --quiet ' + device + ' /proc/mounts'
+        cmd2 = 'grep --quiet ' + device + ' /proc/mdstat'
+        
+        if self._executer.check_call(cmd1) == 0: is_mounted = True
+        if self._executer.check_call(cmd2) == 0: is_mounted = True
+        
+        return is_mounted
 
 if __name__ == '__main__':
 
     # Initialize global config and logger
     
-    rrutils.logger.get_global_logger('sdcard-test')
+    rrutils.logger.basic_config()
+    logger = rrutils.logger.get_global_logger('sdcard-test')
     
     sd_installer = SDCardInstaller()
+    sd_installer.set_logger(logger)
     
 
     # Check device existence (positive test case)
@@ -78,4 +105,19 @@ if __name__ == '__main__':
     else:
         print "Device " + device + " doesn't exist."
 
-
+    # Check if the device is mounted (positive test case)
+    
+    device = "/dev/sdb1"
+    if sd_installer.device_is_mounted(device):
+        print "Device " + device + " is mounted."
+    else:
+        print "Device " + device + " isn't mounted."
+        
+    # Check if the device is mounted (negative test case)
+    
+    device = "/dev/sdbX"
+    if sd_installer.device_is_mounted(device):
+        print "Device " + device + " is mounted."
+    else:
+        print "Device " + device + " isn't mounted."
+    
