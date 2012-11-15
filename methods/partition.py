@@ -24,9 +24,9 @@ class Partition:
         Constructor.
         """
         
-        self.name  = name
-        self.start = 0
-        self.size  = 0
+        self._name  = name
+        self._start = 0
+        self._size  = 0
         
     @classmethod
     def hex_format(self, decimal_value, width=8, upper=True):
@@ -64,7 +64,7 @@ class Partition:
         Sets the partition start address (decimal).
         """
         
-        self.start = start
+        self._start = start
         
     def get_start(self, hex_format=False):
         """
@@ -72,9 +72,9 @@ class Partition:
         """
         
         if hex_format:
-            return Partition.hex_format(self.start)
+            return Partition.hex_format(self._start)
         else:
-            return self.start
+            return self._start
         
     def set_size(self, size):
         """
@@ -82,7 +82,7 @@ class Partition:
         the max size available (where not specified).
         """
         
-        self.size = size
+        self._size = size
         
     def get_size(self, hex_format=False):
         """
@@ -92,24 +92,26 @@ class Partition:
         padded to 8 digits and with the '0x' prefix.     
         """
     
-        if self.size == '-':
+        if self._size == '-':
             return '-'
         
         if hex_format:
-            return Partition.hex_format(self.size)
+            return Partition.hex_format(self._size)
         else:
-            return self.size
+            return self._size
     
     def get_name(self):
         """
         Gets the partition name.
         """
         
-        return self.name
+        return self._name
         
 if __name__ == '__main__':
     
     p = Partition('test-partition')
+    
+    print p.get_name()
     
     p.set_size(100)
     
