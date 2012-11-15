@@ -35,6 +35,7 @@ class SDCardInstaller:
         self._config   = rrutils.config.get_global_config()
         self._logger   = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
+        self._dryrun   = False
         
     def set_logger(self, logger):
         """
@@ -43,6 +44,15 @@ class SDCardInstaller:
         
         self._logger = logger
         self._executer.set_logger(logger)
+        
+    def set_dryrun(self, dryrun):
+        """
+        Sets on/off the dryrun mode. In dryrun mode any commands will
+        not be executed.
+        """
+        
+        self._dryrun = dryrun
+        self._executer.set_dryrun(dryrun)
         
     def device_exists(self, device):
         """
