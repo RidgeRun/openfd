@@ -27,6 +27,7 @@ class Partition:
         self._name  = name
         self._start = 0
         self._size  = 0
+        self._bootable = False
         
     @classmethod
     def hex_format(self, decimal_value, width=8, upper=True):
@@ -107,6 +108,20 @@ class Partition:
         
         return self._name
         
+    def set_bootable(self, bootable):
+        """
+        Sets the bootable property (true/false) for this partition. 
+        """
+        
+        self._bootable = bootable
+        
+    def is_bootable(self):
+        """
+        Returns true if the partition is bootable, false otherwise.
+        """
+        
+        return self._bootable
+        
 if __name__ == '__main__':
     
     p = Partition('test-partition')
@@ -130,4 +145,9 @@ if __name__ == '__main__':
     print p.get_start()
     print p.get_start(hex_format=True)
     
+    p.set_bootable(True)
+    if p.is_bootable():
+        print "Partition " + p.get_name() + " is bootable"
+    else:
+        print "Partition " + p.get_name() + " is not bootable"
     
