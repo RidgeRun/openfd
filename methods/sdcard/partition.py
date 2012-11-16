@@ -121,7 +121,23 @@ class Partition:
         """
         
         return self._bootable
+    
+    def __str__(self):
+        """
+        To string.
+        """
         
+        _str  = ''
+        _str += 'Name:     ' + self._name + '\n'
+        _str += 'Start:    ' + str(self._start) + '\n'
+        _str += 'Size:     ' + str(self._size) + '\n'
+        _str += 'Bootable: ' + ('Yes' if self._bootable else 'No') + '\n'
+        return _str
+
+# ==========================================================================
+# Test cases
+# ==========================================================================        
+
 if __name__ == '__main__':
     
     p = Partition('test-partition')
@@ -150,4 +166,6 @@ if __name__ == '__main__':
         print "Partition " + p.get_name() + " is bootable"
     else:
         print "Partition " + p.get_name() + " is not bootable"
+    
+    print p.__str__()
     

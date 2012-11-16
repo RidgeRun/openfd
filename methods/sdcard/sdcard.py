@@ -148,8 +148,23 @@ class SDCardInstaller:
                     
                 if config.has_option(section, 'size'):
                     part.set_size(config.get(section, 'size'))
+                    
+                if config.has_option(section, 'bootable'):
+                    part.set_bootable(config.getboolean(section, 'bootable'))
                 
                 self._partitions.append(part)
+                
+    def __str__(self):
+        """
+        To string.
+        """
+        
+        _str  = ''
+        _str += 'Dryrun mode: ' + ('On' if self._dryrun else "Off") + '\n'
+        _str += 'Partitions: ' + '\n'
+        for part in self._partitions:
+            _str +=  part.__str__()
+        return _str
 
 # ==========================================================================
 # Test cases
@@ -224,3 +239,7 @@ if __name__ == '__main__':
     device = "/dev/sdb"
     size = sd_installer.get_device_size_cyl(device)
     print "Device " + device + " has " + str(size) + " cylinders"
+
+    # Test to string
+    
+    print sd_installer.__str__()
