@@ -17,7 +17,9 @@ Copyright (C) 2012 Ridgerun (http://www.ridgerun.com).
 # ==========================================================================
 
 import os
+import math
 import partition
+import geometry
 import ConfigParser
 import rrutils
 
@@ -39,15 +41,8 @@ class SDCardInstaller:
         self._logger     = rrutils.logger.get_global_logger()
         self._executer   = rrutils.executer.Executer()
         self._dryrun     = False
-        self._partitions = [] 
-        
-    def set_logger(self, logger):
-        """
-        Sets the logger to use
-        """
-        
-        self._logger = logger
-        self._executer.set_logger(logger)
+        self._partitions = []
+        self._executer.set_logger(self._logger)
         
     def set_dryrun(self, dryrun):
         """
@@ -92,6 +87,36 @@ class SDCardInstaller:
         
         return is_mounted
 
+    def get_device_size_b(self, device):
+        """
+        Returns the given device size, in bytes.
+        """
+        
+        size   = 0
+        ret    = 0
+        output = ""
+        
+        cmd = 'sudo fdisk -l /dev/sdb | grep ' + device + \
+                  ' | grep Disk | cut -f 5 -d " "'
+        
+        ret, output = self._executer.check_output(cmd)
+
+        if output == "":
+            self._logger.error("Unable to obtain the size for " + device)
+        else:
+            size = long(output) 
+        
+        return size
+    
+    def get_device_size_cyl(self, device):
+        """
+        Returns the given device size, in cylinders.
+        """
+        
+        size_b   = self.get_device_size_b(device)
+        size_cyl = size_b / geometry.CYLINDER_BYTE_SIZE 
+        
+        return int(math.floor(size_cyl))  
 
     def read_partitions(self, filename):
         """
@@ -148,7 +173,6 @@ if __name__ == '__main__':
     logger = rrutils.logger.get_global_logger('sdcard-test')
     
     sd_installer = SDCardInstaller()
-    sd_installer.set_logger(logger)
     
     # Check device existence (positive test case)
     
@@ -188,3 +212,15 @@ if __name__ == '__main__':
     sdcard_mmap_filename += '/images/sd-mmap.config'
     
     sd_installer.read_partitions(sdcard_mmap_filename)
+
+    # Test get_device_size_b
+    
+    device = "/dev/sdb"
+    size = sd_installer.get_device_size_b(device)
+    print "Device " + device + " has " + str(size) + " bytes"
+
+    # Test get_device_size_cyl
+    
+    device = "/dev/sdb"
+    size = sd_installer.get_device_size_cyl(device)
+    print "Device " + device + " has " + str(size) + " cylinders"
