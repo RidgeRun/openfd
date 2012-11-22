@@ -109,7 +109,7 @@ class SDCardInstaller:
         ret    = 0
         output = ""
         
-        cmd = 'sudo fdisk -l /dev/sdb | grep ' + device + \
+        cmd = 'sudo fdisk -l ' + device + ' | grep ' + device + \
                   ' | grep Disk | cut -f 5 -d " "'
         
         ret, output = self._executer.check_output(cmd)
