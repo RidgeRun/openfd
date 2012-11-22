@@ -1,6 +1,13 @@
+#!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012 Ridgerun (http://www.ridgerun.com).
+# Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+# All Rights Reserved.
+#
+# The contents of this software are proprietary and confidential to RidgeRun,
+# LLC.  No part of this program may be photocopied, reproduced or translated
+# into another programming language without prior written consent of 
+# RidgeRun, LLC.
 #
 # The installer tool objective is to provide several ways to deploy the
 # firmware to the target board. 
@@ -15,7 +22,13 @@ firmware to the target board. Current methods are:
     - Deploy all the firmware to an SD card.
     - Create and SD card installer for flash memory.
 
-Copyright (C) 2012 Ridgerun (http://www.ridgerun.com).
+Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+All Rights Reserved.
+
+The contents of this software are proprietary and confidential to RidgeRun,
+LLC.  No part of this program may be photocopied, reproduced or translated
+into another programming language without prior written consent of 
+RidgeRun, LLC.
 """
 
 # ==========================================================================

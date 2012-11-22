@@ -1,6 +1,13 @@
+#!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012 Ridgerun (http://www.ridgerun.com).
+# Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+# All Rights Reserved.
+#
+# The contents of this software are proprietary and confidential to RidgeRun,
+# LLC.  No part of this program may be photocopied, reproduced or translated
+# into another programming language without prior written consent of 
+# RidgeRun, LLC.
 #
 # Geometry associated definitions.
 #
@@ -9,7 +16,13 @@
 """
 Geometry associated definitions.
 
-Copyright (C) 2012 Ridgerun (http://www.ridgerun.com).
+Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+All Rights Reserved.
+
+The contents of this software are proprietary and confidential to RidgeRun,
+LLC.  No part of this program may be photocopied, reproduced or translated
+into another programming language without prior written consent of 
+RidgeRun, LLC.
 """
 
 # ==========================================================================
