@@ -114,10 +114,11 @@ class SDCardInstaller:
         
         ret, output = self._executer.check_output(cmd)
 
-        if output == "":
-            self._logger.error("Unable to obtain the size for " + device)
-        else:
-            size = long(output) 
+        if not self._dryrun:
+            if output == "":
+                self._logger.error("Unable to obtain the size for " + device)
+            else:
+                size = long(output) 
         
         return size
     
@@ -288,7 +289,9 @@ if __name__ == '__main__':
     # Test create partitions
     
     device = "/dev/sdb"
+    sd_installer.set_dryrun(True)
     sd_installer.create_partitions(device)
+    sd_installer.set_dryrun(False)
 
     # Test to string
     
