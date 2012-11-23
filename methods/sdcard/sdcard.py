@@ -129,7 +129,36 @@ class SDCardInstaller:
         size_b   = self.get_device_size_b(device)
         size_cyl = size_b / geometry.CYLINDER_BYTE_SIZE 
         
-        return int(math.floor(size_cyl))  
+        return int(math.floor(size_cyl))
+    
+    def create_partitions(self, device):
+        """
+        Create the partitions in the given device. To register
+        partitions use read_partitions().
+        """
+        
+        cylinders = self.get_device_size_cyl(device)
+        heads     = int(geometry.HEADS)
+        sectors   = int(geometry.SECTORS)
+        
+        cmd = 'sudo sfdisk -D' + \
+              ' -C' + str(cylinders) + \
+              ' -H' + str(heads) + \
+              ' -S' + str(sectors) + \
+              ' '   + device + ' << EOF\n'
+        
+        for part in self._partitions:
+            cmd += str(part.get_start()) + ','
+            cmd += str(part.get_size()) + ','
+            cmd += str(part.get_type())
+            if part.is_bootable():
+                cmd += ',*'
+            cmd += '\n'
+        
+        cmd += 'EOF'
+        
+        if self._executer.call(cmd) != 0:
+            self._logger.error('Unable to partition device ' + device)
 
     def read_partitions(self, filename):
         """
@@ -255,6 +284,11 @@ if __name__ == '__main__':
     device = "/dev/sdb"
     size = sd_installer.get_device_size_cyl(device)
     print "Device " + device + " has " + str(size) + " cylinders"
+
+    # Test create partitions
+    
+    device = "/dev/sdb"
+    sd_installer.create_partitions(device)
 
     # Test to string
     
