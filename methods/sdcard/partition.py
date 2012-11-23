@@ -32,15 +32,22 @@ RidgeRun, LLC.
 class Partition:
     """ Class that represents a file system partition. """
     
+    # Common partition types definitions that can be used in combination
+    # with the 'sfdisk' command.
+    
+    PARTITION_TYPE_LINUX_NATIVE = 'L'
+    PARTITION_TYPE_FAT32 = '0xc'
+    
     def __init__(self, name):
         """
         Constructor.
         """
         
-        self._name  = name
-        self._start = 0
-        self._size  = 0
+        self._name     = name
+        self._start    = 0
+        self._size     = 0
         self._bootable = False
+        self._type     = ''
         
     @classmethod
     def hex_format(self, decimal_value, width=8, upper=True):
@@ -128,6 +135,29 @@ class Partition:
         
         self._bootable = bootable
         
+    def set_type(self, type):
+        """
+        Sets the partition type, according to the specification given
+        in the 'sfdisk' command. Last retrieved:
+        
+          Id is given in hex, without the 0x prefix, or is [E|S|L|X],
+          where L (LINUX_NATIVE (83)) is the default, S is LINUX_SWAP (82),
+          E is EXTENDED_PARTITION  (5), and X is LINUX_EXTENDED (85).
+          
+        Most common types used at RR are '0xc' for FAT32 and 'L' to host
+        an ext3 partition. 
+        """
+        
+        self._type = type
+        
+    def get_type(self):
+        """
+        Gets the partition type. See set_type() documentation for more info
+        on common partition types.
+        """
+        
+        return self._type
+        
     def is_bootable(self):
         """
         Returns true if the partition is bootable, false otherwise.
@@ -145,6 +175,7 @@ class Partition:
         _str += 'Start:    ' + str(self._start) + '\n'
         _str += 'Size:     ' + str(self._size) + '\n'
         _str += 'Bootable: ' + ('Yes' if self._bootable else 'No') + '\n'
+        _str += 'Type:     ' + self._type + '\n'
         return _str
 
 # ==========================================================================
@@ -179,6 +210,8 @@ if __name__ == '__main__':
         print "Partition " + p.get_name() + " is bootable"
     else:
         print "Partition " + p.get_name() + " is not bootable"
+        
+    p.set_type(Partition.PARTITION_TYPE_FAT32)
     
     print p.__str__()
     
