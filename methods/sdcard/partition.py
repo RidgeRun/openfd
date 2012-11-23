@@ -35,9 +35,9 @@ class Partition:
     # Common partition types definitions that can be used in combination
     # with the 'sfdisk' command.
     
-    PARTITION_TYPE_UNKNOWN = 'unknown'
-    PARTITION_TYPE_LINUX_NATIVE = 'L'
-    PARTITION_TYPE_FAT32 = '0xc'
+    TYPE_UNKNOWN = 'unknown'
+    TYPE_LINUX_NATIVE = 'L'
+    TYPE_FAT32 = '0xc'
     
     def __init__(self, name):
         """
@@ -89,11 +89,11 @@ class Partition:
         'Linux Native' or 'FAT32'.
         """
         
-        friendly_type = Partition.PARTITION_TYPE_UNKNOWN
+        friendly_type = Partition.TYPE_UNKNOWN
         
-        if partition_type == Partition.PARTITION_TYPE_FAT32:
-            friendly_type = 'FAT32'
-        elif partition_type == Partition.PARTITION_TYPE_LINUX_NATIVE:
+        if partition_type == Partition.TYPE_FAT32:
+            friendly_type = 'W95 FAT32 (LBA)'
+        elif partition_type == Partition.TYPE_LINUX_NATIVE:
             friendly_type = 'Linux Native'
         
         return friendly_type
@@ -229,7 +229,6 @@ if __name__ == '__main__':
     else:
         print "Partition " + p.get_name() + " is not bootable"
         
-    p.set_type(Partition.PARTITION_TYPE_FAT32)
+    p.set_type(Partition.TYPE_FAT32)
     
     print p.__str__()
-    
