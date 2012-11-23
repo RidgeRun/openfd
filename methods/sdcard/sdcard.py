@@ -86,7 +86,7 @@ class SDCardInstaller:
     
     def device_is_mounted(self, device):
         """
-        Returns true if the device is mounted or if it's part of RAID array,
+        Returns true if the device is mounted or if it's part of a RAID array,
         false otherwise.
         """
         
@@ -164,6 +164,9 @@ class SDCardInstaller:
                     
                 if config.has_option(section, 'bootable'):
                     part.set_bootable(config.getboolean(section, 'bootable'))
+                
+                if config.has_option(section, 'type'):
+                    part.set_type(config.get(section, 'type'))
                 
                 self._partitions.append(part)
                 
