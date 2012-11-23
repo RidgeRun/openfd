@@ -35,6 +35,7 @@ class Partition:
     # Common partition types definitions that can be used in combination
     # with the 'sfdisk' command.
     
+    PARTITION_TYPE_UNKNOWN = 'unknown'
     PARTITION_TYPE_LINUX_NATIVE = 'L'
     PARTITION_TYPE_FAT32 = '0xc'
     
@@ -79,6 +80,23 @@ class Partition:
             hex_value = hex_value.upper()
        
         return '0x' + hex_value
+    
+    @classmethod
+    def decode_partition_type(self, partition_type):
+        """
+        Given a string indicating the type of a partition, such as 'L' for
+        Linux Native or '0xc' for FAT32, returns a friendly name, such as 
+        'Linux Native' or 'FAT32'.
+        """
+        
+        friendly_type = Partition.PARTITION_TYPE_UNKNOWN
+        
+        if partition_type == Partition.PARTITION_TYPE_FAT32:
+            friendly_type = 'FAT32'
+        elif partition_type == Partition.PARTITION_TYPE_LINUX_NATIVE:
+            friendly_type = 'Linux Native'
+        
+        return friendly_type
                     
     def set_start(self, start):
         """
