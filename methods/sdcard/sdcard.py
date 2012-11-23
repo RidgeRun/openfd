@@ -157,7 +157,7 @@ class SDCardInstaller:
         
         cmd += 'EOF'
         
-        if self._executer.call(cmd) != 0:
+        if self._executer.check_call(cmd) != 0:
             self._logger.error('Unable to partition device ' + device)
 
     def read_partitions(self, filename):
