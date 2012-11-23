@@ -39,16 +39,23 @@ class Partition:
     TYPE_LINUX_NATIVE = 'L'
     TYPE_FAT32 = '0xc'
     
+    # Common partition filesystems
+    
+    FILESYSTEM_UNKNOWN = 'unknown'
+    FILESYSTEM_VFAT = 'vfat'
+    FILESYSTEM_EXT3 = 'ext3'
+    
     def __init__(self, name):
         """
         Constructor.
         """
         
-        self._name     = name
-        self._start    = 0
-        self._size     = 0
-        self._bootable = False
-        self._type     = ''
+        self._name       = name
+        self._start      = 0
+        self._size       = 0
+        self._bootable   = False
+        self._type       = ''
+        self._filesystem = ''
         
     @classmethod
     def hex_format(self, decimal_value, width=8, upper=True):
@@ -162,8 +169,9 @@ class Partition:
           where L (LINUX_NATIVE (83)) is the default, S is LINUX_SWAP (82),
           E is EXTENDED_PARTITION  (5), and X is LINUX_EXTENDED (85).
           
-        Most common types used at RR are '0xc' for FAT32 and 'L' to host
-        an ext3 partition. 
+        Most common types:
+            - Partition.TYPE_FAT32: '0xc'
+            - Partition.TYPE_LINUX_NATIVE: 'L'
         """
         
         self._type = type
@@ -175,6 +183,25 @@ class Partition:
         """
         
         return self._type
+    
+    def set_filesystem(self, filesystem):
+        """
+        Sets the filesystem.
+        
+        Most common filesystems:
+            - Partition.FILESYSTEM_VFAT
+            - Partition.FILESYSTEM_EXT3
+        """
+        
+        self._filesystem = filesystem
+        
+    def get_filesystem(self):
+        """
+        Gets the filesystem. See set_filesystem() documentation for more info
+        on common filesystems.
+        """
+        
+        return self._filesystem
         
     def is_bootable(self):
         """
@@ -189,11 +216,12 @@ class Partition:
         """
         
         _str  = ''
-        _str += 'Name:     ' + self._name + '\n'
-        _str += 'Start:    ' + str(self._start) + '\n'
-        _str += 'Size:     ' + str(self._size) + '\n'
-        _str += 'Bootable: ' + ('Yes' if self._bootable else 'No') + '\n'
-        _str += 'Type:     ' + self._type + '\n'
+        _str += 'Name:       ' + self._name + '\n'
+        _str += 'Start:      ' + str(self._start) + '\n'
+        _str += 'Size:       ' + str(self._size) + '\n'
+        _str += 'Bootable:   ' + ('Yes' if self._bootable else 'No') + '\n'
+        _str += 'Type:       ' + self._type + '\n'
+        _str += 'Filesystem: ' + self._filesystem + '\n'
         return _str
 
 # ==========================================================================
@@ -230,5 +258,6 @@ if __name__ == '__main__':
         print "Partition " + p.get_name() + " is not bootable"
         
     p.set_type(Partition.TYPE_FAT32)
+    p.set_filesystem(Partition.FILESYSTEM_VFAT)
     
     print p.__str__()
