@@ -168,13 +168,17 @@ class SDCardInstaller:
         use read_partitions().
         """
         
-        partition_count = 1
+        partition_index = 1
         
         for part in self._partitions:
             
-            # Compose the device + partition index to reference
-            # the new partition
-            device_part = device + str(partition_count)
+            # Compose the device + partition suffix to reference the new
+            # partition. For example, first partition in device /dev/sdb
+            # is going to be /dev/sbd1, while a device like /dev/mmcblk0
+            # will have the first partition named /dev/mmcblk0p1
+            device_part = device + str(partition_index)
+            if device.find('mmcblk') != -1:
+                device_part = device + 'p' + str(partition_index)
             
             # Format
             cmd = ''
@@ -191,11 +195,12 @@ class SDCardInstaller:
             
             if cmd:
                 if self._executer.check_call(cmd) == 0:
-                    self._logger.info('Partitioned ' + part.get_name() +
+                    self._logger.info('Formatted ' + part.get_name() +
+                                      ' (' + part.get_filesystem() + ')' +
                                       ' into ' + device_part)
-                    partition_count += 1
+                    partition_index += 1
                 else:
-                    self._logger.error('Unable to partition ' +
+                    self._logger.error('Unable to format ' +
                                        part.get_name() + ' into ' +
                                        device_part)
 
@@ -338,6 +343,8 @@ if __name__ == '__main__':
     
     device = "/dev/sdb"
     sd_installer.set_dryrun(True)
+    sd_installer.format_partitions(device)
+    device = "/dev/mmcblk0"
     sd_installer.format_partitions(device)
     sd_installer.set_dryrun(False)
 
