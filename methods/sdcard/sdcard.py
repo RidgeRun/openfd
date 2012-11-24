@@ -57,6 +57,21 @@ class SDCardInstaller:
         self._partitions = []
         self._executer.set_logger(self._logger)
         
+    def validate_config(self):
+        """
+        Returns true if the associated bspconfig has all the required
+        configurations for this installation mode; false otherwise.
+        """
+        
+        valid = True
+        
+        if self._config.has_option('CONFIG_FS_TARGET_SD'):
+            if not self._config.has_option('CONFIG_INSTALLER_SD_DEVICE'):
+                self._logger.error('Missing CONFIG_INSTALLER_SD_DEVICE.')
+                valid = False
+        
+        return valid
+        
     def set_dryrun(self, dryrun):
         """
         Sets on/off the dryrun mode. In dryrun mode any commands will
@@ -136,6 +151,8 @@ class SDCardInstaller:
         """
         Create the partitions in the given device. To register
         partitions use read_partitions().
+        
+        Returns true on success; false otherwise
         """
         
         cylinders = self.get_device_size_cyl(device)
@@ -160,12 +177,17 @@ class SDCardInstaller:
         
         if self._executer.check_call(cmd) != 0:
             self._logger.error('Unable to partition device ' + device)
+            return False
+        
+        return True
 
     def format_partitions(self, device):
         """
         Format the partitions in the given device, assuming these partitions
         were already created (see create_partitions()). To register partitions
         use read_partitions().
+        
+        Returns true on success; false otherwise.
         """
         
         partition_index = 1
@@ -174,7 +196,7 @@ class SDCardInstaller:
             
             # Compose the device + partition suffix to reference the new
             # partition. For example, first partition in device /dev/sdb
-            # is going to be /dev/sbd1, while a device like /dev/mmcblk0
+            # is going to be /dev/sdb1, while a device like /dev/mmcblk0
             # will have the first partition named /dev/mmcblk0p1
             device_part = device + str(partition_index)
             if device.find('mmcblk') != -1:
@@ -203,11 +225,66 @@ class SDCardInstaller:
                     self._logger.error('Unable to format ' +
                                        part.get_name() + ' into ' +
                                        device_part)
+                    return False
+        
+        return True
+
+    def format_sd(self, filename):
+        """
+        This function will create and format the partitions as specified
+        by the given file containing the partitions configurations (i.e.
+        $DEVDIR/images/sd-mmap.config). It will also select the device
+        to partition using the configuration option CONFIG_INSTALLER_SD_DEVICE
+        from the bspconfig file.
+        
+        Returns true on success; false otherwise
+        
+        Assumes that all the required configurations exist in the bspconfig
+        file, which should be verified by the caller using validate_config(). 
+        """
+        
+        # Config variables
+        device = self._config.get_clean('CONFIG_INSTALLER_SD_DEVICE')
+        
+        # Check device existence
+        if not self.device_exists(device) and not self._dryrun:
+            self._logger.info('Try inserting the SD card again and ' +
+                               'unmounting the partitions.')
+            self._logger.error('No valid disk is available on ' + device + '.')
+            return False
+        
+        # Check device is not mounted
+        if self.device_is_mounted(device) and not self._dryrun:
+            self._logger.info('Your device ' + device + ' seems to be ' +
+                               'either mounted, or belongs to a RAID array ' +
+                               'in your system.')
+            self._logger.error('Device ' + device + ' is mounted, refusing ' +
+                               'to install.')
+            return False
+        
+        # Read the partitions
+        self._logger.info('Reading ' + filename + ' ...')
+        if not self.read_partitions(filename):    
+            return False
+        
+        # Create partitions
+        self._logger.info('Creating partitions on ' + device + ' ...')
+        if not self.create_partitions(device):
+            return False
+        
+        # Format partitions
+        self._logger.info('Formatting partitions on ' + device + ' ...')
+        if not self.format_partitions(device):
+            return False
+        
+        return True
 
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given filename
-        (i.e. $DEVDIR/images/sd-mmap.config).  
+        (i.e. $DEVDIR/images/sd-mmap.config).
+        
+        Returns true on success; false otherwise.  
         """
         
         # Reset the partitions list
@@ -216,7 +293,7 @@ class SDCardInstaller:
         
         if not os.path.exists(filename):
             self._logger.error("File " + filename + " does not exist.")
-            return
+            return False
         
         config = ConfigParser.RawConfigParser()
         config.readfp(open(filename))
@@ -246,6 +323,8 @@ class SDCardInstaller:
                 
                 self._partitions.append(part)
                 
+        return True
+                
     def __str__(self):
         """
         To string.
@@ -274,12 +353,17 @@ if __name__ == '__main__':
         print 'Unable to obtain $DEVDIR from the environment.'
         exit(-1)
     
-    # Initialize global config and logger
+    bspconfig = devdir + '/bsp/mach/bspconfig'
     
+    # Initialize global config and logger
+    rrutils.config.get_global_config(bspconfig)
     rrutils.logger.basic_config()
     logger = rrutils.logger.get_global_logger('sdcard-test')
     
     sd_installer = SDCardInstaller()
+    if not sd_installer.validate_config():
+        print 'Test can\'t go on, check your bspconfig variables.'
+        exit(-1)
     
     # Check device existence (positive test case)
     
@@ -348,6 +432,12 @@ if __name__ == '__main__':
     sd_installer.format_partitions(device)
     sd_installer.set_dryrun(False)
 
+    # Test format sd
+    
+    sd_installer.set_dryrun(True)
+    sd_installer.format_sd(sdcard_mmap_filename)
+    sd_installer.set_dryrun(False)
+    
     # Test to string
     
     print sd_installer.__str__()
