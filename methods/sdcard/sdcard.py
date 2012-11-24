@@ -159,12 +159,36 @@ class SDCardInstaller:
         heads     = int(geometry.HEADS)
         sectors   = int(geometry.SECTORS)
         
+        # Check we were able to get correctly the device size
+        if cylinders == 0 and not self._dryrun:
+            self._logger.error('Unable to partition device ' + device +
+                               ' (size is 0).')
+            return False
+        
+        # Check we have enough size to fit all the partitions.
+        # Starting the count at cylinder 1 leaving space for
+        # the Master Boot Record.
+        min_cyl_size = 1
+        for part in self._partitions:
+            if part.get_size() == geometry.FULL_SIZE:
+                # If size is unspecified, at least estimate 1 cylinder for
+                # that partition
+                min_cyl_size += 1
+            else:
+                min_cyl_size += int(part.get_size())
+        
+        if cylinders < min_cyl_size and not self._dryrun:
+            self._logger.error('Size of partitions is too large to fit in ' +
+                               device + '.')
+            return False
+
+        # Create the partitions        
         cmd = 'sudo sfdisk -D' + \
               ' -C' + str(cylinders) + \
               ' -H' + str(heads) + \
               ' -S' + str(sectors) + \
               ' '   + device + ' << EOF\n'
-        
+  
         for part in self._partitions:
             cmd += str(part.get_start()) + ','
             cmd += str(part.get_size()) + ','
