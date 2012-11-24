@@ -118,7 +118,7 @@ class SDCardInstaller:
             if output == "":
                 self._logger.error("Unable to obtain the size for " + device)
             else:
-                size = long(output) 
+                size = long(output)
         
         return size
     
@@ -161,6 +161,44 @@ class SDCardInstaller:
         if self._executer.check_call(cmd) != 0:
             self._logger.error('Unable to partition device ' + device)
 
+    def format_partitions(self, device):
+        """
+        Format the partitions in the given device, assuming these partitions
+        were already created (see create_partitions()). To register partitions
+        use read_partitions().
+        """
+        
+        partition_count = 1
+        
+        for part in self._partitions:
+            
+            # Compose the device + partition index to reference
+            # the new partition
+            device_part = device + str(partition_count)
+            
+            # Format
+            cmd = ''
+            if part.get_filesystem() == partition.Partition.FILESYSTEM_VFAT:
+                cmd  = 'sudo mkfs.vfat -F 32 '
+                cmd += device_part + ' -n ' + part.get_name()
+            elif part.get_filesystem() == partition.Partition.FILESYSTEM_EXT3:
+                cmd  = 'sudo mkfs.ext3 ' + device_part
+                cmd += ' -L ' + part.get_name()
+            else:
+                self._logger.warning("Can't format partition " +
+                                     part.get_name() + ", unknown filesystem: " +
+                                     part.get_filesystem())
+            
+            if cmd:
+                if self._executer.check_call(cmd) == 0:
+                    self._logger.info('Partitioned ' + part.get_name() +
+                                      ' into ' + device_part)
+                    partition_count += 1
+                else:
+                    self._logger.error('Unable to partition ' +
+                                       part.get_name() + ' into ' +
+                                       device_part)
+
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given filename
@@ -197,6 +235,9 @@ class SDCardInstaller:
                 
                 if config.has_option(section, 'type'):
                     part.set_type(config.get(section, 'type'))
+                    
+                if config.has_option(section, 'filesystem'):
+                    part.set_filesystem(config.get(section, 'filesystem'))
                 
                 self._partitions.append(part)
                 
@@ -291,6 +332,13 @@ if __name__ == '__main__':
     device = "/dev/sdb"
     sd_installer.set_dryrun(True)
     sd_installer.create_partitions(device)
+    sd_installer.set_dryrun(False)
+    
+    # Test format partitions
+    
+    device = "/dev/sdb"
+    sd_installer.set_dryrun(True)
+    sd_installer.format_partitions(device)
     sd_installer.set_dryrun(False)
 
     # Test to string
