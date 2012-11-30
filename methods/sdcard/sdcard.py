@@ -57,25 +57,10 @@ class SDCardInstaller:
         self._partitions = []
         self._executer.set_logger(self._logger)
         
-    def validate_config(self):
-        """
-        Returns true if the associated bspconfig has all the required
-        configurations for this installation mode; false otherwise.
-        """
-        
-        valid = True
-        
-        if self._config.has_option('CONFIG_FS_TARGET_SD'):
-            if not self._config.has_option('CONFIG_INSTALLER_SD_DEVICE'):
-                self._logger.error('Missing CONFIG_INSTALLER_SD_DEVICE.')
-                valid = False
-        
-        return valid
-        
     def set_dryrun(self, dryrun):
         """
         Sets on/off the dryrun mode. In dryrun mode any commands will
-        not be executed.
+        not be executed (just logged).
         """
         
         self._dryrun = dryrun
@@ -253,22 +238,13 @@ class SDCardInstaller:
         
         return True
 
-    def format_sd(self, filename):
+    def format_sd(self, filename, device):
         """
         This function will create and format the partitions as specified
-        by the given file containing the partitions configurations (i.e.
-        $DEVDIR/images/sd-mmap.config). It will also select the device
-        to partition using the configuration option CONFIG_INSTALLER_SD_DEVICE
-        from the bspconfig file.
+        by 'mmap-config-file' to the sd-card referenced by 'device'.
         
-        Returns true on success; false otherwise
-        
-        Assumes that all the required configurations exist in the bspconfig
-        file, which should be verified by the caller using validate_config(). 
+        Returns true on success; false otherwise. 
         """
-        
-        # Config variables
-        device = self._config.get_clean('CONFIG_INSTALLER_SD_DEVICE')
         
         # Check device existence
         if not self.device_exists(device) and not self._dryrun:
@@ -305,8 +281,7 @@ class SDCardInstaller:
 
     def read_partitions(self, filename):
         """
-        Reads the partitions information from the given filename
-        (i.e. $DEVDIR/images/sd-mmap.config).
+        Reads the partitions information from the given file.
         
         Returns true on success; false otherwise.  
         """
@@ -367,27 +342,11 @@ class SDCardInstaller:
 
 if __name__ == '__main__':
 
-    # DEVDIR info
-
-    devdir = ''
-    try:
-        if os.environ['DEVDIR']:
-            devdir = os.environ['DEVDIR'] 
-    except KeyError:
-        print 'Unable to obtain $DEVDIR from the environment.'
-        exit(-1)
-    
-    bspconfig = devdir + '/bsp/mach/bspconfig'
-    
-    # Initialize global config and logger
-    rrutils.config.get_global_config(bspconfig)
-    rrutils.logger.basic_config()
+    # Initialize the logger
+    rrutils.logger.basic_config(verbose=True)
     logger = rrutils.logger.get_global_logger('sdcard-test')
     
     sd_installer = SDCardInstaller()
-    if not sd_installer.validate_config():
-        print 'Test can\'t go on, check your bspconfig variables.'
-        exit(-1)
     
     # Check device existence (positive test case)
     
@@ -422,9 +381,7 @@ if __name__ == '__main__':
         print "Device " + device + " isn't mounted."
     
     # Test read_partitions
-    
-    sdcard_mmap_filename  = devdir.rstrip('/')
-    sdcard_mmap_filename += '/images/sd-mmap.config'
+    sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
     
     sd_installer.read_partitions(sdcard_mmap_filename)
 
@@ -457,9 +414,10 @@ if __name__ == '__main__':
     sd_installer.set_dryrun(False)
 
     # Test format sd
-    
+
+    device = "/dev/sdb"    
     sd_installer.set_dryrun(True)
-    sd_installer.format_sd(sdcard_mmap_filename)
+    sd_installer.format_sd(sdcard_mmap_filename, device)
     sd_installer.set_dryrun(False)
     
     # Test to string

@@ -88,10 +88,10 @@ def _validate_mode(mode):
 # Command line arguments
 # ==========================================================================
 
-_parser.set_usage('Usage: %prog --mode <mode> [options]')
+_parser.set_usage('Usage: %prog -m <mode> -f <mmap_config_file> [options]')
 
-_parser.add_option('', '--devdir', help="DEVDIR path", metavar='<path>', dest='devdir_path')
-_parser.add_option('', '--mode', help="Installation mode: sd", metavar='<mode>', dest='installation_mode')
+_parser.add_option('-m', '--mode', help="Installation mode: sd", metavar='<mode>', dest='installation_mode')
+_parser.add_option('-f', '--mmap-config-file', help="Memory map config file", metavar='<mmap>', dest='mmap_file')
 _parser.add_option('-v', '--verbose', help="Enable debug", dest="verbose", action='store_true')
 _parser.add_option('-q', '--quiet', help="Be as quiet as possible", dest="quiet", action='store_true')
     
@@ -110,6 +110,7 @@ if _options.quiet:
 # Check installation mode (required)
 
 if not _options.installation_mode:
+    _logger.error('Installation mode required (--mode)')
     _parser.print_help()
     _clean_exit(-1)
 elif not _validate_mode(_options.installation_mode):
@@ -117,26 +118,16 @@ elif not _validate_mode(_options.installation_mode):
     print _parser.get_try_help_message()
     _clean_exit(-1)
 
-# Check devdir path
+# Check mmap file
 
-if not _options.devdir_path:
-    try:
-        if os.environ['DEVDIR']:
-            _options.devdir_path = os.environ['DEVDIR']
-        _logger.info('Using DEVDIR ' + _options.devdir_path)
-    except KeyError:
-        _logger.error('Unable to obtain the $DEVDIR path from the environment.')
-        _clean_exit(-1)
-
-# Check bspconfig
-
-bspconfig = _options.devdir_path.rstrip('/') + '/bsp/mach/bspconfig'
-if not os.path.isfile(bspconfig):
-    _logger.error('Unable to find ' + bspconfig)
+if not _options.mmap_file:
+    _logger.error('Memory map config file required (--mmap-config-file)')
+    _parser.print_help()
     _clean_exit(-1)
-
-# Initialize global config
-_config = rrutils.config.get_global_config(bspconfig)
+    
+if not os.path.isfile(_options.mmap_file):
+    _logger.error('Unable to find ' + _options.mmap_file)
+    _clean_exit(-1)
 
 # ==========================================================================
 # Main logic
@@ -144,10 +135,8 @@ _config = rrutils.config.get_global_config(bspconfig)
 
 if _options.installation_mode == 'sd':
     
-    sdcard_mmap_filename  = _options.devdir_path.rstrip('/')
-    sdcard_mmap_filename += '/images/sd-mmap.config'
-    
     # @todo
+    pass
 
 # the end
 _clean_exit(0)
