@@ -83,7 +83,7 @@ class SDCardInstaller:
             
             msg_color = SDCardInstaller.WARN_COLOR 
             
-            confirmed = self._executer.user_confirmed(msg, msg_color)
+            confirmed = self._executer.prompt_user(msg, msg_color)
                  
             if not confirmed:
                 size_is_good = False
