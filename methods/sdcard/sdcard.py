@@ -191,6 +191,13 @@ class SDCardInstaller:
                                device + '.')
             return False
 
+        # Just before creating the partitions, prompt the user
+        if self._interactive:
+            msg  = 'You are about to repartition your device ' + device
+            msg += ' (all your data will be lost)'
+            if self._executer.user_confirmed(msg, 'yellow') is False:
+                return False
+            
         # Create the partitions        
         cmd = 'sudo sfdisk -D' + \
               ' -C' + str(cylinders) + \

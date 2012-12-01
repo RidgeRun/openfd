@@ -110,9 +110,9 @@ _parser.add_option('-d', '--device',
 
 _parser.add_option('-y', '--assume-yes',
                    help="Automatic 'yes' to prompts; run non-interactively",
-                   dest='noninteractive',
-                   action='store_true',
-                   default=False)
+                   dest='interactive',
+                   action='store_false',
+                   default=True)
 
 _parser.add_option('-v', '--verbose',
                    help="Enable debug",
@@ -134,8 +134,6 @@ _parser.add_option('', '--dryrun',
                    default=False)
 
 _options = _parser.get_options()
-_parser.print_help()
-exit
 
 # Check verbose
 
@@ -186,16 +184,20 @@ _options.device = _options.device.rstrip('/')
 # ==========================================================================
 
 if _options.installation_mode == MODE_SD:
-    
+
     sd_installer = methods.sdcard.SDCardInstaller()
     
-    if _options.noninteractive:
+    if not _options.interactive:
         sd_installer.set_interactive(False)
         
     if _options.dryrun:
         sd_installer.set_dryrun(True)
     
-    sd_installer.format_sd(_options.mmap_file, _options.device)
+    ret = sd_installer.format_sd(_options.mmap_file, _options.device)
+    
+    if ret is False:
+        _logger.error('Installation aborted')
+        _clean_exit(-1)
 
 # the end
 _clean_exit(0)
