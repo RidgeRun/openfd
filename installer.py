@@ -38,6 +38,7 @@ RidgeRun, LLC.
 import os
 import sys
 import rrutils
+import methods
 
 # ==========================================================================
 # Global variables
@@ -46,7 +47,10 @@ import rrutils
 _options = []
 _parser  = rrutils.Parser()
 _logger  = None
-_config  = None
+
+# Constants
+
+MODE_SD = 'sd'
 
 # ==========================================================================
 # Logging
@@ -76,13 +80,12 @@ def _clean_exit(code=0):
    
 def _validate_mode(mode):    
     """
-    Checks for the mode input to be valid.
+    Checks for the input mode to be valid.
     """
     
-    valid = False
-    if mode == 'sd': 
-        valid = True
-    return valid
+    if mode == MODE_SD: return True
+    
+    return False
     
 # ==========================================================================
 # Command line arguments
@@ -92,6 +95,7 @@ _parser.set_usage('Usage: %prog -m <mode> -f <mmap_config_file> [options]')
 
 _parser.add_option('-m', '--mode', help="Installation mode: sd", metavar='<mode>', dest='installation_mode')
 _parser.add_option('-f', '--mmap-config-file', help="Memory map config file", metavar='<mmap>', dest='mmap_file')
+_parser.add_option('-d', '--device', help="Device to install", metavar='<device>', dest='device')
 _parser.add_option('-v', '--verbose', help="Enable debug", dest="verbose", action='store_true')
 _parser.add_option('-q', '--quiet', help="Be as quiet as possible", dest="quiet", action='store_true')
     
@@ -123,20 +127,32 @@ elif not _validate_mode(_options.installation_mode):
 if not _options.mmap_file:
     _logger.error('Memory map config file required (--mmap-config-file)')
     _parser.print_help()
-    _clean_exit(-1)
-    
+    _clean_exit(-1)    
+
 if not os.path.isfile(_options.mmap_file):
     _logger.error('Unable to find ' + _options.mmap_file)
     _clean_exit(-1)
+
+# Check device
+
+if _options.installation_mode == MODE_SD:
+    if not _options.device:
+        _logger.error('No device supplied (--device)')
+        _parser.print_help()
+        _clean_exit(-1)
+        
+# Clean the device string
+
+_options.device = _options.device.rstrip('/')
 
 # ==========================================================================
 # Main logic
 # ==========================================================================
 
-if _options.installation_mode == 'sd':
+if _options.installation_mode == MODE_SD:
     
-    # @todo
-    pass
+    sd_installer = methods.sdcard.SDCardInstaller()
+    sd_installer.format_sd(_options.mmap_file, _options.device)
 
 # the end
 _clean_exit(0)
