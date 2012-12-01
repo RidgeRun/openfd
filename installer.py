@@ -78,7 +78,7 @@ def _clean_exit(code=0):
 
     exit(code)
    
-def _validate_mode(mode):    
+def _is_valid_mode(mode):    
     """
     Checks for the input mode to be valid.
     """
@@ -151,7 +151,7 @@ if not _options.installation_mode:
     _logger.error('Installation mode required (--mode)')
     _parser.print_help()
     _clean_exit(-1)
-elif not _validate_mode(_options.installation_mode):
+elif not _is_valid_mode(_options.installation_mode):
     print 'Invalid mode.'
     print _parser.get_try_help_message()
     _clean_exit(-1)
