@@ -89,6 +89,31 @@ class SDCardInstaller:
                 size_is_good = False
             
         return size_is_good
+    
+    def _min_total_cyl_size(self):
+        """
+        Sums all the partitions' sizes and returns the total. It is actually
+        the minimum size because there could be partitions which size is
+        unknown as they can be specified to take as much space as they can.
+        The size calculated for such partitions is 1 cylinder - their minimum,
+        and hence the total size is also minimum.
+        
+        Additionally to the partitions' size, the total includes 1 cylinder
+        for the Master Boot Record.
+        """
+        
+        # Leave room for the MBR
+        min_cyl_size = 1
+        
+        for part in self._partitions:
+            if part.get_size() == geometry.FULL_SIZE:
+                # If size is unspecified, at least estimate 1 cylinder for
+                # that partition
+                min_cyl_size += 1
+            else:
+                min_cyl_size += int(part.get_size())
+        
+        return min_cyl_size
             
     def set_dryrun(self, dryrun):
         """
@@ -214,19 +239,8 @@ class SDCardInstaller:
                                ' (size is 0).')
             return False
         
-        # Check we have enough size to fit all the partitions.
-        # Starting the count at cylinder 1 leaving space for
-        # the Master Boot Record.
-        min_cyl_size = 1
-        for part in self._partitions:
-            if part.get_size() == geometry.FULL_SIZE:
-                # If size is unspecified, at least estimate 1 cylinder for
-                # that partition
-                min_cyl_size += 1
-            else:
-                min_cyl_size += int(part.get_size())
-        
-        if cylinders < min_cyl_size and not self._dryrun:
+        # Check we have enough size to fit all the partitions and the MBR.
+        if cylinders < self._min_total_cyl_size() and not self._dryrun:
             self._logger.error('Size of partitions is too large to fit in ' +
                                device + '.')
             return False
