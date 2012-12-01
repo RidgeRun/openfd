@@ -117,14 +117,25 @@ _parser.add_option('-y', '--assume-yes',
 _parser.add_option('-v', '--verbose',
                    help="Enable debug",
                    dest="verbose",
-                   action='store_true')
+                   action='store_true',
+                   default=False)
 
 _parser.add_option('-q', '--quiet',
                    help="Be as quiet as possible",
                    dest="quiet",
-                   action='store_true')
-    
+                   action='store_true',
+                   default=False)
+
+_parser.add_option('', '--dryrun',
+                   help="Sets the dryrun mode On (shell commands will be " \
+                        "logged, but not executed)",
+                   dest='dryrun',
+                   action='store_true',
+                   default=False)
+
 _options = _parser.get_options()
+_parser.print_help()
+exit
 
 # Check verbose
 
@@ -177,6 +188,13 @@ _options.device = _options.device.rstrip('/')
 if _options.installation_mode == MODE_SD:
     
     sd_installer = methods.sdcard.SDCardInstaller()
+    
+    if _options.noninteractive:
+        sd_installer.set_interactive(False)
+        
+    if _options.dryrun:
+        sd_installer.set_dryrun(True)
+    
     sd_installer.format_sd(_options.mmap_file, _options.device)
 
 # the end
