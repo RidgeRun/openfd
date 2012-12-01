@@ -50,11 +50,12 @@ class SDCardInstaller:
         Constructor.
         """
         
-        self._config     = rrutils.config.get_global_config()
-        self._logger     = rrutils.logger.get_global_logger()
-        self._executer   = rrutils.executer.Executer()
-        self._dryrun     = False
-        self._partitions = []
+        self._config      = rrutils.config.get_global_config()
+        self._logger      = rrutils.logger.get_global_logger()
+        self._executer    = rrutils.executer.Executer()
+        self._dryrun      = False
+        self._interactive = True
+        self._partitions  = []
         self._executer.set_logger(self._logger)
         
     def set_dryrun(self, dryrun):
@@ -65,6 +66,29 @@ class SDCardInstaller:
         
         self._dryrun = dryrun
         self._executer.set_dryrun(dryrun)
+    
+    def get_dryrun(self):
+        """
+        Returns true if the dryrun mode is on; false otherwise.
+        """
+        
+        return self._dryrun
+    
+    def set_interactive(self, interactive):
+        """
+        Sets on/off the interactive mode. In interactive mode the user
+        will be prompted before some actions, such as partitioning a device.
+        When the interactive mode is off, it will run non-interactively.
+        """
+        
+        self._interactive = interactive
+    
+    def get_interactive(self):
+        """
+        Returns true if the interactive mode is on; false otherwise.
+        """
+        
+        return self._interactive
         
     def device_exists(self, device):
         """

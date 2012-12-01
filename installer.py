@@ -93,11 +93,36 @@ def _validate_mode(mode):
 
 _parser.set_usage('Usage: %prog -m <mode> -f <mmap_config_file> [options]')
 
-_parser.add_option('-m', '--mode', help="Installation mode: sd", metavar='<mode>', dest='installation_mode')
-_parser.add_option('-f', '--mmap-config-file', help="Memory map config file", metavar='<mmap>', dest='mmap_file')
-_parser.add_option('-d', '--device', help="Device to install", metavar='<device>', dest='device')
-_parser.add_option('-v', '--verbose', help="Enable debug", dest="verbose", action='store_true')
-_parser.add_option('-q', '--quiet', help="Be as quiet as possible", dest="quiet", action='store_true')
+_parser.add_option('-m', '--mode',
+                   help="Installation mode: sd",
+                   metavar='<mode>',
+                   dest='installation_mode')
+
+_parser.add_option('-f', '--mmap-config-file',
+                   help="Memory map config file",
+                   metavar='<mmap>',
+                   dest='mmap_file')
+
+_parser.add_option('-d', '--device',
+                   help="Device to install",
+                   metavar='<device>',
+                   dest='device')
+
+_parser.add_option('-y', '--assume-yes',
+                   help="Automatic 'yes' to prompts; run non-interactively",
+                   dest='noninteractive',
+                   action='store_true',
+                   default=False)
+
+_parser.add_option('-v', '--verbose',
+                   help="Enable debug",
+                   dest="verbose",
+                   action='store_true')
+
+_parser.add_option('-q', '--quiet',
+                   help="Be as quiet as possible",
+                   dest="quiet",
+                   action='store_true')
     
 _options = _parser.get_options()
 
