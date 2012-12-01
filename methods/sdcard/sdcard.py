@@ -45,6 +45,12 @@ class SDCardInstaller:
     Class to handle SD-card operations.
     """
 
+    # Used to warn the user when partitioning a device above this size
+    WARN_DEVICE_SIZE_GB = 128
+    
+    # Used for dangerous warning messages
+    WARN_COLOR = 'yellow'
+
     def __init__(self):
         """
         Constructor.
@@ -57,7 +63,33 @@ class SDCardInstaller:
         self._interactive = True
         self._partitions  = []
         self._executer.set_logger(self._logger)
+    
+    def _confirm_device_size(self, device):
+        """
+        Checks the device's size against WARN_DEVICE_SIZE_GB, if it's bigger
+        it warns the user that the device does not look like an SD card.
         
+        Returns false if the user confirms the device is not an SD card; true
+        otherwise. 
+        """
+        
+        size_is_good = True
+        size_gb = self.get_device_size_gb(device) 
+        
+        if size_gb > SDCardInstaller.WARN_DEVICE_SIZE_GB:
+            
+            msg  = 'Device ' + device + ' has ' + str(size_gb) + ' gigabytes, '
+            msg += 'it does not look like an SD card'
+            
+            msg_color = SDCardInstaller.WARN_COLOR 
+            
+            confirmed = self._executer.user_confirmed(msg, msg_color)
+                 
+            if not confirmed:
+                size_is_good = False
+            
+        return size_is_good
+            
     def set_dryrun(self, dryrun):
         """
         Sets on/off the dryrun mode. In dryrun mode any commands will
@@ -123,6 +155,14 @@ class SDCardInstaller:
         if self._executer.check_call(cmd2) == 0: is_mounted = True
         
         return is_mounted
+
+    def get_device_size_gb(self, device):
+        """
+        Returns the given device size, in gigabytes.
+        """
+        
+        size_b = self.get_device_size_b(device)
+        return long(size_b >> 30)
 
     def get_device_size_b(self, device):
         """
@@ -193,9 +233,15 @@ class SDCardInstaller:
 
         # Just before creating the partitions, prompt the user
         if self._interactive:
+            
             msg  = 'You are about to repartition your device ' + device
             msg += ' (all your data will be lost)'
-            if self._executer.user_confirmed(msg, 'yellow') is False:
+            
+            msg_color = SDCardInstaller.WARN_COLOR
+            
+            confirmed = self._executer.prompt_user(msg, msg_color)
+                
+            if not confirmed:
                 return False
             
         # Create the partitions        
@@ -276,6 +322,12 @@ class SDCardInstaller:
         
         Returns true on success; false otherwise. 
         """
+        
+        # Dummy check to try to verify with the user if the device is
+        # actually an SD card
+        if self._interactive:
+            if self._confirm_device_size(device) is False:
+                return False
         
         # Check device existence
         if not self.device_exists(device) and not self._dryrun:
@@ -422,6 +474,12 @@ if __name__ == '__main__':
     size = sd_installer.get_device_size_b(device)
     print "Device " + device + " has " + str(size) + " bytes"
 
+    # Test get_device_size_gb
+    
+    device = "/dev/sdb"
+    size = sd_installer.get_device_size_gb(device)
+    print "Device " + device + " has " + str(size) + " gigabytes"
+
     # Test get_device_size_cyl
     
     device = "/dev/sdb"
@@ -450,6 +508,11 @@ if __name__ == '__main__':
     sd_installer.set_dryrun(True)
     sd_installer.format_sd(sdcard_mmap_filename, device)
     sd_installer.set_dryrun(False)
+    
+    # Test _confirm_device_size 
+    device = "/dev/sdb"
+    if sd_installer._confirm_device_size(device) is False:
+        print "User declined device as SD card"
     
     # Test to string
     
