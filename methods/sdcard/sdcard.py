@@ -479,6 +479,9 @@ if __name__ == '__main__':
     
     # Test read_partitions
     sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
+    if not os.path.isfile(sdcard_mmap_filename):
+        print 'Unable to find ' + sdcard_mmap_filename
+        exit(-1)
     
     sd_installer.read_partitions(sdcard_mmap_filename)
 
