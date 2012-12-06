@@ -69,7 +69,7 @@ class SDCardInstaller:
         Checks the device's size against WARN_DEVICE_SIZE_GB, if it's bigger
         it warns the user that the device does not look like an SD card.
         
-        Returns false if the user confirms the device is not an SD card; true
+        Returns true if the user confirms the device is an SD card; false
         otherwise. 
         """
         
@@ -89,6 +89,34 @@ class SDCardInstaller:
                 size_is_good = False
             
         return size_is_good
+    
+    def _confirm_device_auto_unmount(self, device):
+        """
+        Checks for mounted partitions on the device, if there are it warns
+        the user that the partitions will be auto-unmounted.
+        
+        Returns true if the user confirms the auto-unmount operations; false
+        otherwise. 
+        """
+        
+        auto_unmount = True
+        
+        partitions = self.get_device_mounted_partitions(device)
+        
+        if partitions:
+        
+            msg  = 'The following partitions from device ' + device
+            msg += ' will be unmounted:\n'
+            for partition in partitions:
+                msg += partition + '\n'
+        
+            msg_color = SDCardInstaller.WARN_COLOR
+            confirmed = self._executer.prompt_user(msg, msg_color)
+        
+            if not confirmed:
+                auto_unmount = False
+        
+        return auto_unmount
     
     def _min_total_cyl_size(self):
         """
@@ -456,7 +484,7 @@ if __name__ == '__main__':
 
     import time
 
-    def tc_start(tc_id, sleep_time=2):
+    def tc_start(tc_id, sleep_time=1):
         """
         Sleeps for 'sleep_time' and then prints the given test case header.
         """
@@ -485,7 +513,7 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.set_dryrun(False)
+    sd_installer.set_dryrun(True)
     sd_installer.set_interactive(True)
     
 # ==========================================================================
@@ -599,7 +627,7 @@ if __name__ == '__main__':
 
     # --------------- TC 11 ---------------
     
-    tc_start(11, sleep_time=3)
+    tc_start(11)
 
     # Test format sd
 
@@ -607,7 +635,7 @@ if __name__ == '__main__':
     
     # --------------- TC 12 ---------------
     
-    tc_start(12, sleep_time=3)
+    tc_start(12)
     
     # Test _confirm_device_size 
     
@@ -617,6 +645,15 @@ if __name__ == '__main__':
     # --------------- TC 13 ---------------
     
     tc_start(13)
+    
+    # Test _confirm_device_auto_unmount
+
+    if sd_installer._confirm_device_auto_unmount(device) is False:
+        print "User declined to auto-unmount"
+
+    # --------------- TC 14 ---------------
+    
+    tc_start(14)
     
     # Test to string
     
