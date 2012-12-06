@@ -410,12 +410,16 @@ class SDCardInstaller:
         
         # Check device is not mounted
         if self.device_is_mounted(device) and not self._dryrun:
-            self._logger.info('Your device ' + device + ' seems to be ' +
-                               'either mounted, or belongs to a RAID array ' +
-                               'in your system.')
-            self._logger.error('Device ' + device + ' is mounted, refusing ' +
-                               'to install.')
-            return False
+            
+            if self._interactive:
+                if self._confirm_device_auto_unmount(device) is False:
+                    return False
+                
+            # Auto-unmount
+            if not self.auto_unmount(device):
+                self._logger.error('Failed auto-unmounting ' + device +
+                                   ', refusing to install.')
+                return False
         
         # Read the partitions
         self._logger.info('Reading ' + filename + ' ...')
