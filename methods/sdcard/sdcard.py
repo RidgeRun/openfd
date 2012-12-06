@@ -107,8 +107,8 @@ class SDCardInstaller:
         
             msg  = 'The following partitions from device ' + device
             msg += ' will be unmounted:\n'
-            for partition in partitions:
-                msg += partition + '\n'
+            for part in partitions:
+                msg += part + '\n'
         
             msg_color = SDCardInstaller.WARN_COLOR
             confirmed = self._executer.prompt_user(msg, msg_color)
@@ -259,6 +259,25 @@ class SDCardInstaller:
             partitions = output.strip().split('\n')
         
         return partitions
+    
+    def auto_unmount(self, device):
+        """
+        Auto-unmounts the partitions of the given device.
+        
+        Returns true on success;false otherwise.
+        """
+        
+        partitions = self.get_device_mounted_partitions(device)
+        
+        for part in partitions:
+        
+            cmd = 'sudo umount ' + part
+            
+            if self._executer.check_call(cmd) != 0:
+                self._logger.error('Failed to unmount ' + part)
+                return False
+        
+        return True
     
     def create_partitions(self, device):
         """
@@ -641,6 +660,8 @@ if __name__ == '__main__':
     
     if sd_installer._confirm_device_size(device) is False:
         print "User declined device as SD card"
+    else:
+        print "Device " + device + " confirmed as SD card"
 
     # --------------- TC 13 ---------------
     
@@ -655,6 +676,20 @@ if __name__ == '__main__':
     
     tc_start(14)
     
+    # Test device_auto_unmount
+
+    sd_installer.set_dryrun(False)        
+    if sd_installer.auto_unmount(device):
+        print "Device " + device + " is unmounted"
+    else:
+        print "Failed auto-unmounting " + device
+
+    # --------------- TC 15 ---------------
+    
+    tc_start(15)
+    
     # Test to string
     
     print sd_installer.__str__()
+
+    print "Test cases finished"
