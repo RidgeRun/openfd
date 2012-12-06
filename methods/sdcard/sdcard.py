@@ -217,6 +217,21 @@ class SDCardInstaller:
         
         return int(math.floor(size_cyl))
     
+    def get_device_mounted_partitions(self, device):
+        """
+        Returns a list with the mounted partitions from the given device.
+        """
+        
+        partitions = []
+        
+        cmd = 'mount | grep ' + device + '  | cut -f 3 -d " "'
+        output = self._executer.check_output(cmd)[1]
+        
+        if output:
+            partitions = output.strip().split('\n')
+        
+        return partitions
+    
     def create_partitions(self, device):
         """
         Create the partitions in the given device. To register
@@ -451,20 +466,26 @@ if __name__ == '__main__':
     sd_installer.set_dryrun(True)
     sd_installer.set_interactive(True)
     
+    print "================== TEST CASE 001 =================="
+    
     # Check device existence (positive test case)
-            
+    
     if sd_installer.device_exists(device + "1"):
         print "Device " + device + " exists."
     else:
         print "Device " + device + " doesn't exist."
     
+    print "================== TEST CASE 002 =================="
+    
     # Check device existence (negative test case)
-        
+    
     temp_device = "/dev/sdbX"    
     if sd_installer.device_exists(temp_device):
         print "Device " + device + " exists."
     else:
         print "Device " + device + " doesn't exist."
+
+    print "================== TEST CASE 003 =================="
 
     # Check if the device is mounted (positive test case)
     
@@ -472,6 +493,8 @@ if __name__ == '__main__':
         print "Device " + device + " is mounted."
     else:
         print "Device " + device + " isn't mounted."
+    
+    print "================== TEST CASE 004 =================="
         
     # Check if the device is mounted (negative test case)
     
@@ -480,6 +503,8 @@ if __name__ == '__main__':
         print "Device " + temp_device + " is mounted."
     else:
         print "Device " + temp_device + " isn't mounted."
+    
+    print "================== TEST CASE 005 =================="
     
     # Test read_partitions
     sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
@@ -490,24 +515,41 @@ if __name__ == '__main__':
     
     sd_installer.read_partitions(sdcard_mmap_filename)
 
+    print "================== TEST CASE 006 =================="
+
     # Test get_device_size_b
     
     size = sd_installer.get_device_size_b(device)
     print "Device " + device + " has " + str(size) + " bytes"
+
+    print "================== TEST CASE 007 =================="
 
     # Test get_device_size_gb
     
     size = sd_installer.get_device_size_gb(device)
     print "Device " + device + " has " + str(size) + " gigabytes"
 
+    print "================== TEST CASE 008 =================="
+
     # Test get_device_size_cyl
     
     size = sd_installer.get_device_size_cyl(device)
     print "Device " + device + " has " + str(size) + " cylinders"
 
+    print "================== TEST CASE 009 =================="
+
+    # Test get_device_mounted_partitions
+    
+    print "Device " + device + " mounted partitions:"
+    print sd_installer.get_device_mounted_partitions(device)
+    
+    print "================== TEST CASE 010 =================="
+
     # Test create partitions
     
     sd_installer.create_partitions(device)
+
+    print "================== TEST CASE 011 =================="
     
     # Test format partitions
     
@@ -516,14 +558,20 @@ if __name__ == '__main__':
     temp_device = "/dev/mmcblk0"
     sd_installer.format_partitions(temp_device)
 
+    print "================== TEST CASE 012 =================="
+
     # Test format sd
 
     sd_installer.format_sd(sdcard_mmap_filename, device)
+    
+    print "================== TEST CASE 013 =================="
     
     # Test _confirm_device_size 
     
     if sd_installer._confirm_device_size(device) is False:
         print "User declined device as SD card"
+
+    print "================== TEST CASE 014 =================="
     
     # Test to string
     
