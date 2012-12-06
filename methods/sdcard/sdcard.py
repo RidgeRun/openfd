@@ -151,16 +151,14 @@ class SDCardInstaller:
         """
         Returns true if the device exists, false otherwise.
         """
-        
-        ret     = 0
-        output  = ''
+
         exists  = True
         
         cmd = 'sudo fdisk -l ' + device + ' 2>/dev/null'
         
-        ret, output = self._executer.check_output(cmd)
+        output = self._executer.check_output(cmd)[1]
         
-        if output == "":
+        if not output:
             exists = False
             
         return exists
@@ -195,16 +193,14 @@ class SDCardInstaller:
         """
         
         size   = 0
-        ret    = 0
-        output = ""
         
         cmd = 'sudo fdisk -l ' + device + ' | grep ' + device + \
                   ' | grep Disk | cut -f 5 -d " "'
         
-        ret, output = self._executer.check_output(cmd)
+        output = self._executer.check_output(cmd)[1]
 
         if not self._dryrun:
-            if output == "":
+            if not output:
                 self._logger.error("Unable to obtain the size for " + device)
             else:
                 size = long(output)
