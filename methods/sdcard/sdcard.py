@@ -450,6 +450,28 @@ class SDCardInstaller:
 
 if __name__ == '__main__':
 
+# ==========================================================================
+# Test cases  - Support functions
+# ==========================================================================
+
+    import time
+
+    def tc_start(tc_id, sleep_time=2):
+        """
+        Sleeps for 'sleep_time' and then prints the given test case header.
+        """
+        
+        tc_header  = '=' * 20
+        tc_header += 'TEST CASE ' + str(tc_id)
+        tc_header += '=' * 20
+        
+        time.sleep(sleep_time)
+        print tc_header
+
+# ==========================================================================
+# Test cases  - Initialization
+# ==========================================================================
+
     # Initialize the logger
     rrutils.logger.basic_config(verbose=True)
     logger = rrutils.logger.get_global_logger('sdcard-test')
@@ -457,16 +479,22 @@ if __name__ == '__main__':
     sd_installer = SDCardInstaller()
     
     # The following test cases will be run over the following device,
-    # in the given dryrung mode, unless otherwise specified in the test case.
+    # in the given dryrun mode, unless otherwise specified in the test case.
     
     # WARNING: Dryrun mode is set by default, but be careful
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.set_dryrun(True)
+    sd_installer.set_dryrun(False)
     sd_installer.set_interactive(True)
     
-    print "================== TEST CASE 001 =================="
+# ==========================================================================
+# Test cases - Unit tests
+# ==========================================================================
+    
+    # --------------- TC 1 ---------------
+    
+    tc_start(1, sleep_time=0) 
     
     # Check device existence (positive test case)
     
@@ -475,17 +503,21 @@ if __name__ == '__main__':
     else:
         print "Device " + device + " doesn't exist."
     
-    print "================== TEST CASE 002 =================="
+    # --------------- TC 2 ---------------
+    
+    tc_start(2)
     
     # Check device existence (negative test case)
     
     temp_device = "/dev/sdbX"    
     if sd_installer.device_exists(temp_device):
-        print "Device " + device + " exists."
+        print "Device " + temp_device + " exists."
     else:
-        print "Device " + device + " doesn't exist."
+        print "Device " + temp_device + " doesn't exist."
 
-    print "================== TEST CASE 003 =================="
+    # --------------- TC 3 ---------------
+    
+    tc_start(3)
 
     # Check if the device is mounted (positive test case)
     
@@ -494,7 +526,9 @@ if __name__ == '__main__':
     else:
         print "Device " + device + " isn't mounted."
     
-    print "================== TEST CASE 004 =================="
+    # --------------- TC 4 ---------------
+    
+    tc_start(4)
         
     # Check if the device is mounted (negative test case)
     
@@ -504,7 +538,9 @@ if __name__ == '__main__':
     else:
         print "Device " + temp_device + " isn't mounted."
     
-    print "================== TEST CASE 005 =================="
+    # --------------- TC 5 ---------------
+    
+    tc_start(5)
     
     # Test read_partitions
     sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
@@ -514,64 +550,73 @@ if __name__ == '__main__':
         exit(-1)
     
     sd_installer.read_partitions(sdcard_mmap_filename)
+    
+    print "Partitions at " + sdcard_mmap_filename + " read succesfully." 
 
-    print "================== TEST CASE 006 =================="
+    # --------------- TC 6 ---------------
+    
+    tc_start(6)
 
     # Test get_device_size_b
     
     size = sd_installer.get_device_size_b(device)
     print "Device " + device + " has " + str(size) + " bytes"
 
-    print "================== TEST CASE 007 =================="
+    # --------------- TC 7 ---------------
+    
+    tc_start(7)
 
     # Test get_device_size_gb
     
     size = sd_installer.get_device_size_gb(device)
     print "Device " + device + " has " + str(size) + " gigabytes"
 
-    print "================== TEST CASE 008 =================="
+    # --------------- TC 8 ---------------
+    
+    tc_start(8)
 
     # Test get_device_size_cyl
     
     size = sd_installer.get_device_size_cyl(device)
     print "Device " + device + " has " + str(size) + " cylinders"
 
-    print "================== TEST CASE 009 =================="
+    # --------------- TC 9 ---------------
+    
+    tc_start(9)
 
     # Test get_device_mounted_partitions
     
     print "Device " + device + " mounted partitions:"
     print sd_installer.get_device_mounted_partitions(device)
     
-    print "================== TEST CASE 010 =================="
+    # --------------- TC 10 ---------------
+    
+    tc_start(10)
 
     # Test create partitions
     
     sd_installer.create_partitions(device)
 
-    print "================== TEST CASE 011 =================="
+    # --------------- TC 11 ---------------
     
-    # Test format partitions
-    
-    sd_installer.format_partitions(device)
-    
-    temp_device = "/dev/mmcblk0"
-    sd_installer.format_partitions(temp_device)
-
-    print "================== TEST CASE 012 =================="
+    tc_start(11, sleep_time=3)
 
     # Test format sd
 
     sd_installer.format_sd(sdcard_mmap_filename, device)
     
-    print "================== TEST CASE 013 =================="
+    # --------------- TC 12 ---------------
+    
+    tc_start(12, sleep_time=3)
     
     # Test _confirm_device_size 
     
     if sd_installer._confirm_device_size(device) is False:
         print "User declined device as SD card"
 
-    print "================== TEST CASE 014 =================="
+    # --------------- TC 13 ---------------
+    
+    tc_start(13)
     
     # Test to string
     
