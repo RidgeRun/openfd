@@ -445,25 +445,33 @@ if __name__ == '__main__':
     
     sd_installer = SDCardInstaller()
     
-    # Check device existence (positive test case)
+    # The following test cases will be run over the following device,
+    # in the given dryrung mode, unless otherwise specified in the test case.
     
-    device = "/dev/sdb1"    
-    if sd_installer.device_exists(device):
+    # WARNING: Dryrun mode is set by default, but be careful
+    # you don't repartition a device you don't want to.
+    
+    device = "/dev/sdb"
+    sd_installer.set_dryrun(True)
+    sd_installer.set_interactive(True)
+    
+    # Check device existence (positive test case)
+            
+    if sd_installer.device_exists(device + "1"):
         print "Device " + device + " exists."
     else:
         print "Device " + device + " doesn't exist."
     
     # Check device existence (negative test case)
         
-    device = "/dev/sdbX"    
-    if sd_installer.device_exists(device):
+    temp_device = "/dev/sdbX"    
+    if sd_installer.device_exists(temp_device):
         print "Device " + device + " exists."
     else:
         print "Device " + device + " doesn't exist."
 
     # Check if the device is mounted (positive test case)
     
-    device = "/dev/sdb1"
     if sd_installer.device_is_mounted(device):
         print "Device " + device + " is mounted."
     else:
@@ -471,14 +479,15 @@ if __name__ == '__main__':
         
     # Check if the device is mounted (negative test case)
     
-    device = "/dev/sdbX"
-    if sd_installer.device_is_mounted(device):
-        print "Device " + device + " is mounted."
+    temp_device = "/dev/sdbX"
+    if sd_installer.device_is_mounted(temp_device):
+        print "Device " + temp_device + " is mounted."
     else:
-        print "Device " + device + " isn't mounted."
+        print "Device " + temp_device + " isn't mounted."
     
     # Test read_partitions
     sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
+    
     if not os.path.isfile(sdcard_mmap_filename):
         print 'Unable to find ' + sdcard_mmap_filename
         exit(-1)
@@ -487,47 +496,36 @@ if __name__ == '__main__':
 
     # Test get_device_size_b
     
-    device = "/dev/sdb"
     size = sd_installer.get_device_size_b(device)
     print "Device " + device + " has " + str(size) + " bytes"
 
     # Test get_device_size_gb
     
-    device = "/dev/sdb"
     size = sd_installer.get_device_size_gb(device)
     print "Device " + device + " has " + str(size) + " gigabytes"
 
     # Test get_device_size_cyl
     
-    device = "/dev/sdb"
     size = sd_installer.get_device_size_cyl(device)
     print "Device " + device + " has " + str(size) + " cylinders"
 
     # Test create partitions
     
-    device = "/dev/sdb"
-    sd_installer.set_dryrun(True)
     sd_installer.create_partitions(device)
-    sd_installer.set_dryrun(False)
     
     # Test format partitions
     
-    device = "/dev/sdb"
-    sd_installer.set_dryrun(True)
     sd_installer.format_partitions(device)
-    device = "/dev/mmcblk0"
-    sd_installer.format_partitions(device)
-    sd_installer.set_dryrun(False)
+    
+    temp_device = "/dev/mmcblk0"
+    sd_installer.format_partitions(temp_device)
 
     # Test format sd
 
-    device = "/dev/sdb"    
-    sd_installer.set_dryrun(True)
     sd_installer.format_sd(sdcard_mmap_filename, device)
-    sd_installer.set_dryrun(False)
     
     # Test _confirm_device_size 
-    device = "/dev/sdb"
+    
     if sd_installer._confirm_device_size(device) is False:
         print "User declined device as SD card"
     

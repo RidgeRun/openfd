@@ -188,7 +188,7 @@ if _options.installation_mode == MODE_SD:
     sd_installer = methods.sdcard.SDCardInstaller()
     
     sd_installer.set_interactive(_options.interactive)
-    sd_installer.set_dryrun(_options.dryun)
+    sd_installer.set_dryrun(_options.dryrun)
     
     ret = sd_installer.format_sd(_options.mmap_file, _options.device)
     
