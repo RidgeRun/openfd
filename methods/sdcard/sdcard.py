@@ -489,6 +489,7 @@ class SDCardInstaller:
         """
         
         _str  = ''
+        _str += 'Interactive: ' + ('On' if self._interactive else "Off") + '\n'
         _str += 'Dryrun mode: ' + ('On' if self._dryrun else "Off") + '\n'
         _str += 'Partitions: ' + '\n'
         for part in self._partitions:
@@ -681,8 +682,7 @@ if __name__ == '__main__':
     tc_start(14)
     
     # Test device_auto_unmount
-
-    sd_installer.set_dryrun(False)        
+ 
     if sd_installer.auto_unmount(device):
         print "Device " + device + " is unmounted"
     else:
