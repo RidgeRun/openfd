@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
@@ -22,7 +22,7 @@ firmware to the target board. Current methods are:
     - Deploy all the firmware to an SD card.
     - Create and SD card installer for flash memory.
 
-Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 All Rights Reserved.
 
 The contents of this software are proprietary and confidential to RidgeRun,
@@ -78,30 +78,28 @@ def _clean_exit(code=0):
 
     exit(code)
    
-def _is_valid_mode(mode):    
-    """
-    Checks for the input mode to be valid.
-    """
-    
-    if mode == MODE_SD: return True
-    
-    return False
-    
 # ==========================================================================
 # Command line arguments
 # ==========================================================================
 
-_parser.set_usage('Usage: %prog -m <mode> -f <mmap_config_file> [options]')
+# Required arguments
+
+installation_modes = MODE_SD
 
 _parser.add_option('-m', '--mode',
-                   help="Installation mode: sd",
+                   help="Installation mode: %s" % installation_modes,
                    metavar='<mode>',
-                   dest='installation_mode')
+                   dest='installation_mode',
+                   required=True,
+                   choices=[MODE_SD])
 
 _parser.add_option('-f', '--mmap-config-file',
                    help="Memory map config file",
                    metavar='<mmap>',
-                   dest='mmap_file')
+                   dest='mmap_file',
+                   required=True)
+
+# Optional arguments
 
 _parser.add_option('-d', '--device',
                    help="Device to install",
@@ -126,7 +124,7 @@ _parser.add_option('-q', '--quiet',
                    action='store_true',
                    default=False)
 
-_parser.add_option('', '--dryrun',
+_parser.add_option('--dryrun',
                    help="Sets the dryrun mode On (shell commands will be " \
                         "logged, but not executed)",
                    dest='dryrun',
@@ -145,23 +143,8 @@ if _options.verbose:
 if _options.quiet:
     _logger.setLevel(rrutils.logger.CRITICAL)
 
-# Check installation mode (required)
-
-if not _options.installation_mode:
-    _logger.error('Installation mode required (--mode)')
-    _parser.print_help()
-    _clean_exit(-1)
-elif not _is_valid_mode(_options.installation_mode):
-    print 'Invalid mode.'
-    print _parser.get_try_help_message()
-    _clean_exit(-1)
 
 # Check mmap file
-
-if not _options.mmap_file:
-    _logger.error('Memory map config file required (--mmap-config-file)')
-    _parser.print_help()
-    _clean_exit(-1)    
 
 if not os.path.isfile(_options.mmap_file):
     _logger.error('Unable to find ' + _options.mmap_file)
@@ -195,6 +178,8 @@ if _options.installation_mode == MODE_SD:
     if ret is False:
         _logger.error('Installation aborted')
         _clean_exit(-1)
+        
+    _logger.info('Installation complete')
 
 # the end
 _clean_exit(0)
