@@ -101,12 +101,7 @@ _parser.add_option('-f', '--mmap-config-file',
                    dest='mmap_file',
                    required=True)
 
-# Optional arguments
-
-_parser.add_option('-d', '--device',
-                   help="Device to install",
-                   metavar='<device>',
-                   dest='device')
+#Optional arguments
 
 _parser.add_option('-y', '--assume-yes',
                    help="Automatic 'yes' to prompts; run non-interactively",
@@ -132,6 +127,38 @@ _parser.add_option('--dryrun',
                    dest='dryrun',
                    action='store_true',
                    default=False)
+
+# MODE_SD - Required arguments
+
+_parser.add_option('-d', '--device',
+                   help="Device to install",
+                   metavar='<device>',
+                   dest='device')
+
+_parser.add_option('--uflash',
+                   help="Path to the uflash tool",
+                   metavar='<uflash>',
+                   dest='uflash_path')
+
+_parser.add_option('--ubl-file',
+                   help="Path to the UBL file",
+                   metavar='<ubl_file>',
+                   dest='ubl_file')
+
+_parser.add_option('--uboot-file',
+                   help="Path to the U-Boot file",
+                   metavar='<uboot_file>',
+                   dest='uboot_file')
+
+_parser.add_option('--uboot-entry-addr',
+                   help="U-Boot entry address",
+                   metavar='<uboot_entry_addr>',
+                   dest='uboot_entry_addr')
+
+_parser.add_option('--uboot-load-addr',
+                   help="U-Boot load address",
+                   metavar='<uboot_load_addr>',
+                   dest='uboot_load_addr')
 
 _options = _parser.get_options()
 

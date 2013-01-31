@@ -792,7 +792,7 @@ if __name__ == '__main__':
     
     # Test mount_partitions
     
-    if sd_installer.mount_partitions(device, '/media'):
+    if sd_installer.mount_partitions(device, devdir + '/images'):
         print "Partitions from " + device + " successfully mounted"
     else:
         print "Failed mounting partitions from " + device
