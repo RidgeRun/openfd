@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
+#
+# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -16,7 +18,7 @@
 """
 SD-card operations to support the installer.
 
-Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 All Rights Reserved.
 
 The contents of this software are proprietary and confidential to RidgeRun,
@@ -260,11 +262,72 @@ class SDCardInstaller:
         
         return partitions
     
-    def auto_unmount(self, device):
+    def mount_partitions(self, device, directory):
+        """
+        Mounts the partitions of the given device in the specified directory.
+        To register partitions use read_partitions().
+        
+        I.e., if the partitions are called "boot" and "rootfs", and the given
+        dir is "/media", this function will mount:
+        
+           /media/boot
+           /media/rootfs
+        
+        Returns true on success; false otherwise.
+        """
+        
+        directory = directory.rstrip('/')
+        
+        partition_index = 1
+        for part in self._partitions:
+        
+            # Get the complete filename for the partition (i.e. /dev/sdb1)
+            device_part = device + \
+                            self.get_partition_suffix(device, partition_index)
+                            
+            mount_point = directory + '/' + part.get_name()
+        
+            # Create the directory where to mount
+            
+            cmd = 'mkdir -p ' + mount_point
+            if self._executer.check_call(cmd) != 0:
+                self._logger.error('Failed to create directory ' + mount_point)
+                return False
+            
+            # Map the partition's filesystem to a type that the 'mount'
+            # command understands
+            
+            part_type = None
+            part_fs = part.get_filesystem()
+            
+            if part_fs == partition.Partition.FILESYSTEM_VFAT:
+                part_type = 'vfat'
+            elif part_fs == partition.Partition.FILESYSTEM_EXT3:
+                part_type = 'ext3'
+            
+            # Now mount
+            
+            if type:
+                cmd = 'sudo mount -t ' + part_type + ' ' + device_part + ' ' + \
+                      mount_point
+            else:
+                # Let mount try to guess the partition type
+                cmd = 'sudo mount ' + device_part + ' ' + mount_point
+            
+            if self._executer.check_call(cmd) != 0:
+                self._logger.error('Failed to mount ' + device_part + ' in ' + 
+                                   mount_point)        
+                return False
+            
+            partition_index += 1
+            
+        return True
+    
+    def auto_unmount_partitions(self, device):
         """
         Auto-unmounts the partitions of the given device.
         
-        Returns true on success;false otherwise.
+        Returns true on success; false otherwise.
         """
         
         partitions = self.get_device_mounted_partitions(device)
@@ -339,6 +402,27 @@ class SDCardInstaller:
         
         return True
 
+    def get_partition_suffix(self, device, partition_index):
+        """
+        This function returns a string with the standard partition numeric
+        suffix, depending on the type of device.
+        
+        For example, the first partition (index = 1) in device
+        /dev/sdb is going to have the suffix "1", so that one can compose
+        the complete partition's filename: /dev/sdb1. While a device like
+        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
+        filename for the first partition is "/dev/mmcblk0p1".  
+        """
+        
+        suffix = ''
+        
+        if device.find('mmcblk') != -1:
+            suffix = 'p' + str(partition_index)
+        else:
+            suffix = str(partition_index)
+        
+        return suffix
+
     def format_partitions(self, device):
         """
         Format the partitions in the given device, assuming these partitions
@@ -352,13 +436,9 @@ class SDCardInstaller:
         
         for part in self._partitions:
             
-            # Compose the device + partition suffix to reference the new
-            # partition. For example, first partition in device /dev/sdb
-            # is going to be /dev/sdb1, while a device like /dev/mmcblk0
-            # will have the first partition named /dev/mmcblk0p1
-            device_part = device + str(partition_index)
-            if device.find('mmcblk') != -1:
-                device_part = device + 'p' + str(partition_index)
+            # Get the complete filename for the partition (i.e. /dev/sdb1)
+            device_part = device + \
+                            self.get_partition_suffix(device, partition_index)
             
             # Format
             cmd = ''
@@ -416,7 +496,7 @@ class SDCardInstaller:
                     return False
                 
             # Auto-unmount
-            if not self.auto_unmount(device):
+            if not self.auto_unmount_partitions(device):
                 self._logger.error('Failed auto-unmounting ' + device +
                                    ', refusing to install.')
                 return False
@@ -523,6 +603,16 @@ if __name__ == '__main__':
 # ==========================================================================
 # Test cases  - Initialization
 # ==========================================================================
+
+    # Devdir info
+    devdir = ''
+    
+    try:
+        if os.environ['DEVDIR']:
+            devdir = os.environ['DEVDIR'] 
+    except KeyError:
+        print 'Unable to obtain $DEVDIR from the environment.'
+        exit(-1)
 
     # Initialize the logger
     rrutils.logger.basic_config(verbose=True)
@@ -683,7 +773,7 @@ if __name__ == '__main__':
     
     # Test device_auto_unmount
  
-    if sd_installer.auto_unmount(device):
+    if sd_installer.auto_unmount_partitions(device):
         print "Device " + device + " is unmounted"
     else:
         print "Failed auto-unmounting " + device
@@ -696,4 +786,15 @@ if __name__ == '__main__':
     
     print sd_installer.__str__()
 
+    # --------------- TC 16 ---------------
+    
+    tc_start(16)
+    
+    # Test mount_partitions
+    
+    if sd_installer.mount_partitions(device, '/media'):
+        print "Partitions from " + device + " successfully mounted"
+    else:
+        print "Failed mounting partitions from " + device
+    
     print "Test cases finished"

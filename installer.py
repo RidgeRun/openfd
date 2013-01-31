@@ -4,6 +4,8 @@
 # Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
+# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+#
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
 # into another programming language without prior written consent of 
@@ -60,7 +62,7 @@ _program_name = os.path.basename(sys.argv[0])
 
 rrutils.logger.basic_config(verbose=True)
 _logger = rrutils.logger.get_global_logger(_program_name,
-                                            level=rrutils.logger.INFO)
+                                           level=rrutils.logger.INFO)
 
 # ==========================================================================
 # Functions
