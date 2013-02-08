@@ -186,13 +186,13 @@ if __name__ == '__main__':
     
     ubl_file         = devdir + '/images/ubl_DM36x_sdmmc.bin'
     uboot_file       = devdir + '/images/bootloader'
-    uboot_entry_addr = '2181038080'
-    uboot_load_addr  = '2181038080'
+    uboot_entry_addr = '2181038080' # 0x82000000
+    uboot_load_addr  = '2181038080' # 0x82000000
     
     if bl_installer.flash(device, ubl_file, uboot_file, uboot_entry_addr,
                           uboot_load_addr):
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
-        
+
     print "Test cases finished"

@@ -169,6 +169,11 @@ _parser.add_option('--uboot-load-addr',
                    metavar='<uboot_load_addr>',
                    dest='uboot_load_addr')
 
+_parser.add_option('--uboot-bootargs',
+                   help="U-Boot bootargs environment variable (passed to the Linux kernel)",
+                   metavar='<uboot_bootargs>',
+                   dest='uboot_bootargs')
+
 _options = _parser.get_options()
 
 # Check verbose
@@ -223,6 +228,9 @@ if _options.installation_mode == MODE_SD:
     
     if not _options.uboot_load_addr:
         _missing_arg_exit('--uboot-load-addr')
+        
+    if not _options.uboot_bootargs:
+        _missing_arg_exit('--uboot-bootargs')
         
 # Clean the device string
 
