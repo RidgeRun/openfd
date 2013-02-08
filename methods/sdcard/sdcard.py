@@ -58,7 +58,6 @@ class SDCardInstaller:
         Constructor.
         """
         
-        self._config      = rrutils.config.get_global_config()
         self._logger      = rrutils.logger.get_global_logger()
         self._executer    = rrutils.executer.Executer()
         self._dryrun      = False
