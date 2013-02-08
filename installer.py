@@ -79,6 +79,15 @@ def _clean_exit(code=0):
         _logger.error('Exiting with code ' + str(code)) 
 
     exit(code)
+
+def _missing_arg_exit(arg):
+    """
+    Prints message indicating arg is required, prints help and exit.
+    """
+    
+    _parser.print_help()
+    _logger.error('argument ' + arg + ' is required')
+    _clean_exit(-1)
    
 # ==========================================================================
 # Command line arguments
@@ -101,7 +110,7 @@ _parser.add_option('-f', '--mmap-config-file',
                    dest='mmap_file',
                    required=True)
 
-#Optional arguments
+# Optional arguments
 
 _parser.add_option('-y', '--assume-yes',
                    help="Automatic 'yes' to prompts; run non-interactively",
@@ -151,12 +160,12 @@ _parser.add_option('--uboot-file',
                    dest='uboot_file')
 
 _parser.add_option('--uboot-entry-addr',
-                   help="U-Boot entry address",
+                   help="U-Boot entry address (decimal)",
                    metavar='<uboot_entry_addr>',
                    dest='uboot_entry_addr')
 
 _parser.add_option('--uboot-load-addr',
-                   help="U-Boot load address",
+                   help="U-Boot load address (decimal)",
                    metavar='<uboot_load_addr>',
                    dest='uboot_load_addr')
 
@@ -172,20 +181,41 @@ if _options.verbose:
 if _options.quiet:
     _logger.setLevel(rrutils.logger.CRITICAL)
 
-
 # Check mmap file
 
 if not os.path.isfile(_options.mmap_file):
     _logger.error('Unable to find ' + _options.mmap_file)
     _clean_exit(-1)
 
-# Check device
+# Check MODE_SD required arguments
 
 if _options.installation_mode == MODE_SD:
+    
     if not _options.device:
-        _logger.error('No device supplied (--device)')
-        _parser.print_help()
-        _clean_exit(-1)
+        _missing_arg_exit('-d/--device')
+        
+    if not _options.uflash_path:
+        _missing_arg_exit('--uflash')
+        
+    if not _options.ubl_file:
+        _missing_arg_exit('--ubl-file')
+    else:
+        if not os.path.isfile(_options.ubl_file):
+            _logger.error('Unable to find ' + _options.ubl_file)
+            _clean_exit(-1)
+        
+    if not _options.uboot_file:
+        _missing_arg_exit('--uboot-file')
+    else:
+        if not os.path.isfile(_options.uboot_file):
+            _logger.error('Unable to find ' + _options.uboot_file)
+            _clean_exit(-1)
+        
+    if not _options.uboot_entry_addr:
+        _missing_arg_exit('--uboot-entry-addr')
+    
+    if not _options.uboot_load_addr:
+        _missing_arg_exit('--uboot-load-addr')
         
 # Clean the device string
 
