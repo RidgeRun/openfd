@@ -147,7 +147,7 @@ _parser.add_option('-d', '--device',
 _parser.add_option('--uflash',
                    help="Path to the uflash tool",
                    metavar='<uflash>',
-                   dest='uflash_path')
+                   dest='uflash_bin')
 
 _parser.add_option('--ubl-file',
                    help="Path to the UBL file",
@@ -194,8 +194,15 @@ if _options.installation_mode == MODE_SD:
     if not _options.device:
         _missing_arg_exit('-d/--device')
         
-    if not _options.uflash_path:
+    if not _options.uflash_bin:
         _missing_arg_exit('--uflash')
+    else:
+        if not os.path.isfile(_options.uflash_bin):
+            _logger.error('Unable to find ' + _options.uflash_bin)
+            _clean_exit(-1)
+        elif not os.access(_options.uflash_bin, os.X_OK):
+            _logger.error('No execute permissions on ' + _options.uflash_bin)
+            _clean_exit(-1)
         
     if not _options.ubl_file:
         _missing_arg_exit('--ubl-file')
