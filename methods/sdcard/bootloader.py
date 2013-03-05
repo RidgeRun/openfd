@@ -160,6 +160,7 @@ class BootloaderInstaller:
         if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
             self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
             return False
+        self._check_fs('vfat', m_point)
         if not self._unmount_partition(m_point):
             self._logger.error('Failed to unmount ' + device)
             return False
@@ -176,6 +177,7 @@ class BootloaderInstaller:
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
             self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
             return False
+        self._check_fs('vfat', m_point)
         if not self._unmount_partition(m_point):
             self._logger.error('Failed to unmount ' + device)
             return False
@@ -202,11 +204,40 @@ class BootloaderInstaller:
         """
         Unmount the given mount point.
         """
-        time.sleep(0.1) # fails if it doesn't wait
+        time.sleep(0.5) # fails if it doesn't wait
         if self._executer.check_call("sudo umount "+ m_point) != 0:
             self._logger.error('Failed to unmount ' + m_point)
             return False
         return True
+    
+    def _check_fs(self,p_type,m_point):
+        """
+        Checks the integrity of the vfat or ext3 partition given,
+        if errors are found it tries to correct them.
+        """
+        if not (p_type == 'vfat' or p_type == 'ext3'):
+            self._logger.error('Unrecognized partition type')
+            return False
+        # run man fsck to check this outputs
+        fsck_outputs = {0    : 'No errors',
+                        1    : 'Filesystem errors corrected',
+                        2    : 'System should be rebooted',
+                        4    : 'Filesystem errors left uncorrected',
+                        8    : 'Operational error',
+                        16   : 'Usage or syntax error',
+                        32   : 'Fsck canceled by user request',
+                        128  : 'Shared-library error'}        
+        sdstate = ''
+        output = self._executer.check_call("sudo fsck."+ p_type +" "+ m_point)
+        if output != 0:
+            # A little trick to display the sum of outputs
+            for bit in range(8):
+                if output & 1:
+                    sdstate += '\n'+fsck_outputs[2**bit]
+                output = output >> 1
+        else:
+            sdstate = fsck_outputs[0]
+        self._logger.info('SD card condition:' +  sdstate)
 
 # ==========================================================================
 # Test cases
