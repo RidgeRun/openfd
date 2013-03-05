@@ -103,14 +103,12 @@ class BootloaderInstaller:
             self._logger.error('No path to uflash specified')
             return False
         
-        # @TODO: convert uboot_entry_addr and uboot_load_addr
-        
         cmd = 'sudo ' + self._uflash_bin + \
               ' -d ' + device + \
               ' -u ' + ubl_file + \
               ' -b ' + uboot_file + \
-              ' -e ' + uboot_entry_addr + \
-              ' -l ' + uboot_load_addr
+              ' -e ' + str(hex(int(uboot_entry_addr))) + \
+              ' -l ' + str(hex(int(uboot_load_addr)))
 
         self._logger.info('Flashing UBL and U-Boot to ' + device)
         if self._executer.check_call(cmd) != 0:
