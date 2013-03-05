@@ -448,9 +448,10 @@ class SDCardInstaller:
                 cmd  = 'sudo mkfs.ext3 ' + device_part
                 cmd += ' -L ' + part.get_name()
             else:
-                self._logger.warning("Can't format partition " +
+                self._logger.error("Can't format partition " +
                                      part.get_name() + ", unknown filesystem: " +
                                      part.get_filesystem())
+                return False
             
             if cmd:
                 if self._executer.check_call(cmd) == 0:

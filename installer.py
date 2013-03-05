@@ -253,7 +253,7 @@ if _options.installation_mode == MODE_SD:
         _logger.error('Installation aborted')
         _clean_exit(-1)
         
-    _logger.info('Installation complete')
+_logger.info('Installation complete')
 
 # the end
 _clean_exit(0)
