@@ -94,8 +94,7 @@ class BootloaderInstaller:
     def flash(self, device, ubl_file, uboot_file, uboot_entry_addr,
               uboot_load_addr):
         """
-        Flash UBL, U-Boot, and U-Boot Environment to the given device, using
-        the uflash tool.
+        Flashes UBL and U-Boot to the given device, using the uflash tool.
         
         Returns true on success; false otherwise.
         """
@@ -119,6 +118,12 @@ class BootloaderInstaller:
                                    device)
                 return False
 
+        return True
+
+    def install_uboot_env(self, uenv_file):
+        """
+        Install the U-Boot environment to the given file. 
+        """
         return True
 
 # ==========================================================================
