@@ -152,16 +152,42 @@ class BootloaderInstaller:
         uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
                    +str(hex(int(uboot_load_addr)))+"\n")
         uenv.close()
-        if self._executer.check_call("mkdir --parents "+ self._workdir + "/boot") != 0:
-            self._logger.error('Failed to create ' + self._workdir + "/boot")
+        m_point = self._workdir + "/boot"
+        if not self._mount_partition('vfat', device, 1, m_point):
+            self._logger.error('Failed to mount device')
             return False
-        if self._executer.check_call("sudo mount -t vfat "+ device + "1 " + \
-                                     self._workdir + "/boot") != 0:
-            self._logger.error('Failed to mount ' + device + "1"+\
-                               " on "+ self._workdir + "/boot")
+        if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
+            self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
             return False
-        if self._executer.check_call("sudo cp " + uenv_file +" "+ self._workdir + "/boot") != 0:
-            self._logger.error('Failed to copy ' + uenv_file + " to " +  self._workdir + "/boot")
+        if not self._unmount_partition(m_point):
+            self._logger.error('Failed to unmount ' + device)
+            return False
+        return True
+    
+    def _mount_partition(self,p_type,device,p_number,m_point):
+        """
+        Mounts vfat or ext3 partitions.
+        """
+        if not (p_type == 'vfat' or p_type == 'ext3'):
+            self._logger.error('Unrecognized partition type')
+            return False
+        if self._executer.check_call("mkdir --parents "+ m_point) != 0:
+            self._logger.error('Failed to create ' + m_point)
+            return False
+        if self._executer.check_call("sudo mount -t "+ p_type +" "+ device + \
+                                     str(p_number) + " " +  m_point ) != 0:
+            self._logger.error('Failed to mount ' + device + str(p_number) + \
+                               " on "+ m_point)
+            return False
+        return True
+    
+    def _unmount_partition(self,m_point):
+        """
+        Unmount the given mount point.
+        """
+        time.sleep(0.1) # fails if it doesn't wait
+        if self._executer.check_call("sudo umount "+ m_point) != 0:
+            self._logger.error('Failed to unmount ' + m_point)
             return False
         return True
 
