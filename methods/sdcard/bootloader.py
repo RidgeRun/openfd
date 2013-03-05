@@ -117,11 +117,52 @@ class BootloaderInstaller:
                 return False
 
         return True
+    
+    def set_workdir(self,workdir):
+        """
+        Sets the path to the directory where to create temporary files
+        and also mount devices.
+        """
+        self._workdir = workdir
+    
+    def get_workdir(self):
+        """
+        Gets the working directory.
+        """
+        return self._workdir
+    
+    def set_bootargs(self,bootargs):
+        """
+        Sets the boot args used when generating the uboot env file.
+        """
+        self._bootargs = bootargs
+    
+    def get_bootargs(self):
+        """
+        Gets the boot args.
+        """
+        return self._bootargs
 
     def install_uboot_env(self, uenv_file):
         """
         Install the U-Boot environment to the given file. 
         """
+        uenv = open(uenv_file, "w")
+        uenv.write("bootargs="+self._bootargs+"\n")
+        uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
+                   +str(hex(int(uboot_load_addr)))+"\n")
+        uenv.close()
+        if self._executer.check_call("mkdir --parents "+ self._workdir + "/boot") != 0:
+            self._logger.error('Failed to create ' + self._workdir + "/boot")
+            return False
+        if self._executer.check_call("sudo mount -t vfat "+ device + "1 " + \
+                                     self._workdir + "/boot") != 0:
+            self._logger.error('Failed to mount ' + device + "1"+\
+                               " on "+ self._workdir + "/boot")
+            return False
+        if self._executer.check_call("sudo cp " + uenv_file +" "+ self._workdir + "/boot") != 0:
+            self._logger.error('Failed to copy ' + uenv_file + " to " +  self._workdir + "/boot")
+            return False
         return True
 
 # ==========================================================================
@@ -199,5 +240,22 @@ if __name__ == '__main__':
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
-
+    
+    # Try to install uboot env on sd.
+    
+    bl_installer.set_workdir(devdir + '/images')
+    bl_installer.set_bootargs(" davinci_enc_mngr.ch0_output=COMPONENT \
+    davinci_enc_mngr.ch0_mode=1080I-30  davinci_display.cont2_bufsize=13631488 \
+    vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 \
+    video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off  \
+    console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1  \
+    mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
+        
+    uenv_file = devdir + '/images/uEnv.txt'
+    
+    if bl_installer.install_uboot_env(uenv_file):
+        print "uboot env successfully installed on " + device + "1"
+    else:
+        print "Error installing uboot env on " + device + "1"
+    
     print "Test cases finished"
