@@ -143,7 +143,7 @@ class BootloaderInstaller:
         """
         return self._bootargs
 
-    def install_uboot_env(self, uenv_file):
+    def install_uboot_env(self, uenv_file, device):
         """
         Install the U-Boot environment to the given file. 
         """
@@ -253,7 +253,7 @@ if __name__ == '__main__':
         
     uenv_file = devdir + '/images/uEnv.txt'
     
-    if bl_installer.install_uboot_env(uenv_file):
+    if bl_installer.install_uboot_env(uenv_file,device):
         print "uboot env successfully installed on " + device + "1"
     else:
         print "Error installing uboot env on " + device + "1"
