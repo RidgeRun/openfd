@@ -36,6 +36,7 @@ import os
 import sdcard
 import ConfigParser
 import rrutils
+import shutil
 
 # ==========================================================================
 # Public Classes
@@ -164,6 +165,22 @@ class BootloaderInstaller:
             return False
         return True
     
+    def install_kernel(self, kernel_image, device):
+        """
+        Install the Kernel on the given device.
+        """
+        m_point = self._workdir + "/boot"
+        if not self._mount_partition('vfat', device, 1, m_point):
+            self._logger.error('Failed to mount device')
+            return False
+        if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
+            self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
+            return False
+        if not self._unmount_partition(m_point):
+            self._logger.error('Failed to unmount ' + device)
+            return False
+        return True
+    
     def _mount_partition(self,p_type,device,p_number,m_point):
         """
         Mounts vfat or ext3 partitions.
@@ -242,7 +259,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(True)
+    bl_installer.set_dryrun(False)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
@@ -283,5 +300,12 @@ if __name__ == '__main__':
         print "uboot env successfully installed on " + device + "1"
     else:
         print "Error installing uboot env on " + device + "1"
+    
+    kernel_image = devdir + '/images/kernel.uImage'
+    
+    if bl_installer.install_kernel(kernel_image,device):
+        print "Kernel successfully installed on " + device + "1"
+    else:
+        print "Error installing kernel on " + device + "1"
     
     print "Test cases finished"
