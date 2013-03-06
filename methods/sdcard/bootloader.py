@@ -183,7 +183,7 @@ class BootloaderInstaller:
         m_point = self._workdir + "/boot"
         
         # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device, m_point):
+        if not self._check_sd_mounted(device, 1, m_point):
             return False
         
         if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
@@ -199,7 +199,7 @@ class BootloaderInstaller:
         m_point = self._workdir + "/boot"
         
         # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device, m_point):
+        if not self._check_sd_mounted(device, 1, m_point):
             return False
         
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
@@ -208,7 +208,20 @@ class BootloaderInstaller:
         
         return True
     
-    def _check_sd_mounted(self,device,m_point):
+    def install_filesystem(self, fs_path, device):
+        """
+        Installs the filesystem on the device given.
+        """
+        m_point = self._workdir + "/rootfs"
+        if not self._check_sd_mounted(device,2, m_point):
+            return False
+        if self._executer.check_call("cd "+fs_path+" ; find . | sudo cpio -pdum "+m_point) != 0:
+            self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
+            return False
+        return True
+        
+    
+    def _check_sd_mounted(self,device,part_num,m_point):
         """
         Checks that the given device is mounted, if not it will try to mount
         it on self._workdir. 
@@ -221,11 +234,13 @@ class BootloaderInstaller:
         # Now we check that the device is mounted where we want it to be.
         # This will only work if dryrun is setted to false.
         if not self._dryrun:
-            partition = device+self._sd_installer.get_partition_suffix(device, 1)
+            partition = device+self._sd_installer.get_partition_suffix(device, part_num)
             current_mpoint = self._get_mpoint(partition)
+            print m_point
+            print current_mpoint
             if m_point != current_mpoint:
                 self._logger.error('Device is not mounted on '+ m_point \
-                                   +' and not on '+m_point+'as expected.')
+                                   +' and not on '+m_point+' as expected.')
                 return False
         else:
             pass
@@ -381,6 +396,14 @@ if __name__ == '__main__':
         print "Kernel successfully installed on " + device + "1"
     else:
         print "Error installing kernel on " + device + "1"
+        sys.exit(-1)
+    
+    fs_path = devdir + "/fs/fs"
+    
+    if bl_installer.install_filesystem(fs_path,device):
+        print "Fs successfully installed on " + device + "2"
+    else:
+        print "Error installing fs on " + device + "2"
         sys.exit(-1)
     
     print "Test cases finished"
