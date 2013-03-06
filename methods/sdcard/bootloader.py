@@ -183,7 +183,7 @@ class BootloaderInstaller:
         m_point = self._workdir + "/boot"
         
         # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device):
+        if not self._check_sd_mounted(device, m_point):
             return False
         
         if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
@@ -199,7 +199,7 @@ class BootloaderInstaller:
         m_point = self._workdir + "/boot"
         
         # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device):
+        if not self._check_sd_mounted(device, m_point):
             return False
         
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
@@ -208,12 +208,42 @@ class BootloaderInstaller:
         
         return True
     
-    def _check_sd_mounted(self,device):
+    def _check_sd_mounted(self,device,m_point):
+        """
+        Checks that the given device is mounted, if not it will try to mount
+        it on self._workdir. 
+        """
         if not self._sd_installer.device_is_mounted(device):
             if not self._sd_installer.mount_partitions(device, self._workdir):
                 self._logger.error('Failed to mount '+device+" on "+self._workdir)
                 return False
+        
+        # Now we check that the device is mounted where we want it to be.
+        # This will only work if dryrun is setted to false.
+        if not self._dryrun:
+            partition = device+self._sd_installer.get_partition_suffix(device, 1)
+            current_mpoint = self._get_mpoint(partition)
+            if m_point != current_mpoint:
+                self._logger.error('Device is not mounted on '+ m_point \
+                                   +' and not on '+m_point+'as expected.')
+                return False
+        else:
+            pass
         return True
+    
+    def _get_mpoint(self,partition):
+        """
+        Returns the mount point of the given partition.
+        If the mount point was not found it returns None.
+        """
+        m_point = None
+        output = self._executer.check_output('grep '+partition+' /proc/mounts')
+        output = output[1].split('\n')
+        for line in output:
+            splitted = line.split(' ') 
+            if len(splitted) > 1:
+                m_point = splitted[1]
+        return m_point
     
     def _check_fs(self,p_type,m_point):
         """
@@ -295,7 +325,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(True)
+    bl_installer.set_dryrun(False)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
