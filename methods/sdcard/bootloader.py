@@ -181,60 +181,38 @@ class BootloaderInstaller:
                    +str(hex(int(uboot_load_addr)))+"\n")
         uenv.close()
         m_point = self._workdir + "/boot"
-        if not self._mount_partition('vfat', device, 1, m_point):
-            self._logger.error('Failed to mount device')
+        
+        # Here we check if the device is mounted, if not we mount it.
+        if not self._check_sd_mounted(device):
             return False
+        
         if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
-            self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
+            self._logger.error('Failed to copy ' + uenv_file + " to " + m_point)
             return False
-        self._check_fs('vfat', m_point)
-        if not self._unmount_partition(m_point):
-            self._logger.error('Failed to unmount ' + device)
-            return False
+        
         return True
-    
+        
     def install_kernel(self, kernel_image, device):
         """
         Install the Kernel on the given device.
         """
         m_point = self._workdir + "/boot"
-        if not self._mount_partition('vfat', device, 1, m_point):
-            self._logger.error('Failed to mount device')
+        
+        # Here we check if the device is mounted, if not we mount it.
+        if not self._check_sd_mounted(device):
             return False
+        
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
             self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
             return False
-        self._check_fs('vfat', m_point)
-        if not self._unmount_partition(m_point):
-            self._logger.error('Failed to unmount ' + device)
-            return False
+        
         return True
     
-    def _mount_partition(self,p_type,device,p_number,m_point):
-        """
-        Mounts vfat or ext3 partitions.
-        """
-        if not (p_type == 'vfat' or p_type == 'ext3'):
-            self._logger.error('Unrecognized partition type')
-            return False
-        if self._executer.check_call("mkdir --parents "+ m_point) != 0:
-            self._logger.error('Failed to create ' + m_point)
-            return False
-        if self._executer.check_call("sudo mount -t "+ p_type +" "+ device + \
-                                     str(p_number) + " " +  m_point ) != 0:
-            self._logger.error('Failed to mount ' + device + str(p_number) + \
-                               " on "+ m_point)
-            return False
-        return True
-    
-    def _unmount_partition(self,m_point):
-        """
-        Unmount the given mount point.
-        """
-        time.sleep(0.5) # fails if it doesn't wait
-        if self._executer.check_call("sudo umount "+ m_point) != 0:
-            self._logger.error('Failed to unmount ' + m_point)
-            return False
+    def _check_sd_mounted(self,device):
+        if not self._sd_installer.device_is_mounted(device):
+            if not self._sd_installer.mount_partitions(device, self._workdir):
+                self._logger.error('Failed to mount '+device+" on "+self._workdir)
+                return False
         return True
     
     def _check_fs(self,p_type,m_point):
@@ -365,6 +343,7 @@ if __name__ == '__main__':
         print "uboot env successfully installed on " + device + "1"
     else:
         print "Error installing uboot env on " + device + "1"
+        sys.exit(-1)
     
     kernel_image = devdir + '/images/kernel.uImage'
     
@@ -372,5 +351,6 @@ if __name__ == '__main__':
         print "Kernel successfully installed on " + device + "1"
     else:
         print "Error installing kernel on " + device + "1"
+        sys.exit(-1)
     
     print "Test cases finished"
