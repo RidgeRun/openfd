@@ -36,6 +36,7 @@ import os
 import sdcard
 import ConfigParser
 import rrutils
+import sys
 
 # ==========================================================================
 # Public Classes
@@ -60,6 +61,10 @@ class BootloaderInstaller:
         self._dryrun      = False
         self._uflash_bin  = ''
         self._executer.set_logger(self._logger)
+        self._sd_installer = sdcard.SDCardInstaller()
+        # This flag will tell the methods to continue only if
+        # partitions info is already set.
+        self._sd_info_setted = False 
         
     def set_dryrun(self, dryrun):
         """
@@ -117,6 +122,29 @@ class BootloaderInstaller:
                 return False
 
         return True
+    
+    def set_sd_info(self,sdcard_mmap_filename):
+        """
+        Sets the sd partitions info. 
+        """
+        if self._sd_info_setted:
+            self._logger.info("SD partitions info was already set,\
+                             try unsetting it next time.")
+        if not os.path.isfile(sdcard_mmap_filename):
+            self._logger.error('Unable to find ' + sdcard_mmap_filename)
+            return False
+        if not self._sd_installer.read_partitions(sdcard_mmap_filename):
+            self._logger.error('Failed to read partitions info')
+            return False
+        self._logger.info("Sd partitions info successfully setted.")
+        self._sd_info_setted = True
+        return True
+    
+    def unset_sd_info(self):
+        """
+        Unsets the _sd_info_setted flag for setting new info.
+        """
+        self._sd_info_setted = False
     
     def set_workdir(self,workdir):
         """
@@ -313,6 +341,13 @@ if __name__ == '__main__':
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
+    
+    # Try to set sd partitions info.
+    
+    sdcard_mmap_filename = devdir + '/images/sd-mmap.config'
+    if not bl_installer.set_sd_info(sdcard_mmap_filename):
+        print "SD partitions info could not be setted... Exiting"
+        sys.exit(-1)
     
     # Try to install uboot env on sd.
     
