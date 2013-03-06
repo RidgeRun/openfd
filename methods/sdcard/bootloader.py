@@ -340,7 +340,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(False)
+    bl_installer.set_dryrun(True)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
