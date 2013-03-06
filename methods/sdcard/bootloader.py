@@ -36,7 +36,6 @@ import os
 import sdcard
 import ConfigParser
 import rrutils
-import shutil
 
 # ==========================================================================
 # Public Classes
