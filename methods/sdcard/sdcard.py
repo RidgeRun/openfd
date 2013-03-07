@@ -37,6 +37,7 @@ import partition
 import geometry
 import ConfigParser
 import rrutils
+from collections import defaultdict
 
 # ==========================================================================
 # Public Classes
@@ -577,14 +578,43 @@ class SDCardInstaller:
                 m_point = splitted[1]
         return m_point
     
-    def check_fs(self,p_type,m_point):
+    def get_dev_info(self,device):
         """
-        Checks the integrity of the vfat or ext3 partition given,
-        if errors are found it tries to correct them.
+        Returns the device information as a 2 dimensions dictionary.
+        Where the first keyword is the partition and the second one
+        can be either "mount point" or "fs type".
+        Example:
+        dev_info["/dev/sdb1"]["mount point"]
         """
-        if not (p_type == 'vfat' or p_type == 'ext3'):
-            self._logger.error('Unrecognized partition type')
+        output = self._executer.check_output('grep '+device+' /proc/mounts')
+        if output[0] != 0:
+            return None
+        dev_info = defaultdict(dict)
+        output_lines = output[1].split('\n')
+        for line in output_lines:
+            info_line = line.split(' ')
+            if len(info_line) > 2:
+                dev_info[info_line[0]]["mount point"] = info_line[1]
+                dev_info[info_line[0]]["fs type"] = info_line[2]
+        return dev_info
+    
+    def check_fs(self,device):
+        """
+        Checks the integrity of device given, if errors are found it tries 
+        to correct them.
+        """
+        if not self.device_exists(device):
+            self._logger.error("Device "+device+" doesn't exist.")
             return False
+        
+        if not self.device_is_mounted(device):
+            self._logger.error("Device "+device+" is not mounted.")
+            return False
+        
+        dev_info = self.get_dev_info(device)
+        if dev_info == None:
+            return False
+        
         # run man fsck to check this outputs
         fsck_outputs = {0    : 'No errors',
                         1    : 'Filesystem errors corrected',
@@ -595,16 +625,22 @@ class SDCardInstaller:
                         32   : 'Fsck canceled by user request',
                         128  : 'Shared-library error'}        
         fs_state = ''
-        output = self._executer.check_call("sudo fsck."+ p_type +" "+ m_point)
-        if output != 0:
-            # A little trick to display the sum of outputs
-            for bit in range(8):
-                if output & 1:
-                    fs_state += '\n'+fsck_outputs[2**bit]
-                output = output >> 1
-        else:
-            fs_state = fsck_outputs[0]
-        self._logger.info('Fs condition:' +  fs_state)
+        
+        for partition in dev_info:
+            if dev_info[partition]["fs type"] == 'vfat' or dev_info[partition]["fs type"] == 'ext3':
+                output = self._executer.check_call("sudo fsck."+ dev_info[partition]["fs type"] +" "+dev_info[partition]["mount point"])
+                if output != 0:
+                    # A little trick to display the sum of outputs
+                    for bit in range(8):
+                        if output & 1:
+                            fs_state += '\n'+fsck_outputs[2**bit]
+                            output = output >> 1
+                else:
+                    fs_state = fsck_outputs[0]
+                self._logger.info(partition+' condition:' +  fs_state)
+            else:
+                self._logger.info(dev_info[partition]["fs type"]+' filesystem is not supported.')
+        return True
                 
     def __str__(self):
         """
