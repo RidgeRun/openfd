@@ -208,19 +208,6 @@ class BootloaderInstaller:
         
         return True
     
-    def install_filesystem(self, fs_path, device):
-        """
-        Installs the filesystem on the device given.
-        """
-        m_point = self._workdir + "/rootfs"
-        if not self._check_sd_mounted(device,2, m_point):
-            return False
-        if self._executer.check_call("cd "+fs_path+" ; find . | sudo cpio -pdum "+m_point) != 0:
-            self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
-            return False
-        return True
-        
-    
     def _check_sd_mounted(self,device,part_num,m_point):
         """
         Checks that the given device is mounted, if not it will try to mount
@@ -396,14 +383,6 @@ if __name__ == '__main__':
         print "Kernel successfully installed on " + device + "1"
     else:
         print "Error installing kernel on " + device + "1"
-        sys.exit(-1)
-    
-    fs_path = devdir + "/fs/fs"
-    
-    if bl_installer.install_filesystem(fs_path,device):
-        print "Fs successfully installed on " + device + "2"
-    else:
-        print "Error installing fs on " + device + "2"
         sys.exit(-1)
     
     print "Test cases finished"
