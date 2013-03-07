@@ -222,7 +222,7 @@ class BootloaderInstaller:
         # This will only work if dryrun is setted to false.
         if not self._dryrun:
             partition = device+self._sd_installer.get_partition_suffix(device, part_num)
-            current_mpoint = self._get_mpoint(partition)
+            current_mpoint = self._sd_installer.get_mpoint(partition)
             print m_point
             print current_mpoint
             if m_point != current_mpoint:
@@ -232,49 +232,6 @@ class BootloaderInstaller:
         else:
             pass
         return True
-    
-    def _get_mpoint(self,partition):
-        """
-        Returns the mount point of the given partition.
-        If the mount point was not found it returns None.
-        """
-        m_point = None
-        output = self._executer.check_output('grep '+partition+' /proc/mounts')
-        output = output[1].split('\n')
-        for line in output:
-            splitted = line.split(' ') 
-            if len(splitted) > 1:
-                m_point = splitted[1]
-        return m_point
-    
-    def _check_fs(self,p_type,m_point):
-        """
-        Checks the integrity of the vfat or ext3 partition given,
-        if errors are found it tries to correct them.
-        """
-        if not (p_type == 'vfat' or p_type == 'ext3'):
-            self._logger.error('Unrecognized partition type')
-            return False
-        # run man fsck to check this outputs
-        fsck_outputs = {0    : 'No errors',
-                        1    : 'Filesystem errors corrected',
-                        2    : 'System should be rebooted',
-                        4    : 'Filesystem errors left uncorrected',
-                        8    : 'Operational error',
-                        16   : 'Usage or syntax error',
-                        32   : 'Fsck canceled by user request',
-                        128  : 'Shared-library error'}        
-        sdstate = ''
-        output = self._executer.check_call("sudo fsck."+ p_type +" "+ m_point)
-        if output != 0:
-            # A little trick to display the sum of outputs
-            for bit in range(8):
-                if output & 1:
-                    sdstate += '\n'+fsck_outputs[2**bit]
-                output = output >> 1
-        else:
-            sdstate = fsck_outputs[0]
-        self._logger.info('SD card condition:' +  sdstate)
 
 # ==========================================================================
 # Test cases
@@ -327,7 +284,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(True)
+    bl_installer.set_dryrun(False)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     

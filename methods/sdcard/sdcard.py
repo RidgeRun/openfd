@@ -562,6 +562,49 @@ class SDCardInstaller:
                 self._partitions.append(part)
                 
         return True
+    
+    def get_mpoint(self,partition):
+        """
+        Returns the mount point of the given partition.
+        If the mount point was not found it returns None.
+        """
+        m_point = None
+        output = self._executer.check_output('grep '+partition+' /proc/mounts')
+        output = output[1].split('\n')
+        for line in output:
+            splitted = line.split(' ') 
+            if len(splitted) > 1:
+                m_point = splitted[1]
+        return m_point
+    
+    def check_fs(self,p_type,m_point):
+        """
+        Checks the integrity of the vfat or ext3 partition given,
+        if errors are found it tries to correct them.
+        """
+        if not (p_type == 'vfat' or p_type == 'ext3'):
+            self._logger.error('Unrecognized partition type')
+            return False
+        # run man fsck to check this outputs
+        fsck_outputs = {0    : 'No errors',
+                        1    : 'Filesystem errors corrected',
+                        2    : 'System should be rebooted',
+                        4    : 'Filesystem errors left uncorrected',
+                        8    : 'Operational error',
+                        16   : 'Usage or syntax error',
+                        32   : 'Fsck canceled by user request',
+                        128  : 'Shared-library error'}        
+        fs_state = ''
+        output = self._executer.check_call("sudo fsck."+ p_type +" "+ m_point)
+        if output != 0:
+            # A little trick to display the sum of outputs
+            for bit in range(8):
+                if output & 1:
+                    fs_state += '\n'+fsck_outputs[2**bit]
+                output = output >> 1
+        else:
+            fs_state = fsck_outputs[0]
+        self._logger.info('Fs condition:' +  fs_state)
                 
     def __str__(self):
         """
