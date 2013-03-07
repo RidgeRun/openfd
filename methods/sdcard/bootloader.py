@@ -35,7 +35,6 @@ RidgeRun, LLC.
 
 import os
 import sdcard
-import ConfigParser
 import rrutils
 import sys
 
