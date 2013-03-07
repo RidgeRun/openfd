@@ -108,12 +108,21 @@ class BootloaderInstaller:
             self._logger.error('No path to uflash specified')
             return False
         
+        uboot_entry_addr = self._get_str_hex(uboot_entry_addr)
+        if uboot_entry_addr == None:
+            self._logger.error("Invalid value given to uboot entry address")
+            return False
+        uboot_load_addr = self._get_str_hex(uboot_load_addr)
+        if uboot_load_addr == None:
+            self._logger.error("Invalid value given to uboot load address")
+            return False
+        
         cmd = 'sudo ' + self._uflash_bin + \
               ' -d ' + device + \
               ' -u ' + ubl_file + \
               ' -b ' + uboot_file + \
-              ' -e ' + str(hex(int(uboot_entry_addr))) + \
-              ' -l ' + str(hex(int(uboot_load_addr)))
+              ' -e ' + uboot_entry_addr + \
+              ' -l ' + uboot_load_addr
 
         self._logger.info('Flashing UBL and U-Boot to ' + device)
         if self._executer.check_call(cmd) != 0:
@@ -122,6 +131,24 @@ class BootloaderInstaller:
                 return False
 
         return True
+    
+    def _get_str_hex(self,value_str):
+        """
+        Returns a string with the hex number of the string number passed.
+        Otherwise returns None.
+        """
+        if (value_str.find('0x') or value_str.find('0X')):
+            try:
+                value = int(value_str,0)
+            except:
+                return None
+        else:
+            try:
+                value = int(value_str)
+            except:
+                return None
+        ret_value = hex(value)
+        return str(ret_value)
     
     def set_sd_info(self,sdcard_mmap_filename):
         """
@@ -284,7 +311,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(False)
+    bl_installer.set_dryrun(True)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
@@ -300,7 +327,7 @@ if __name__ == '__main__':
     
     ubl_file         = devdir + '/images/ubl_DM36x_sdmmc.bin'
     uboot_file       = devdir + '/images/bootloader'
-    uboot_entry_addr = '2181038080' # 0x82000000 
+    uboot_entry_addr = '0x82000000' # 2181038080
     uboot_load_addr  = '2181038080' # 0x82000000
     
     if bl_installer.flash(device, ubl_file, uboot_file, uboot_entry_addr,
