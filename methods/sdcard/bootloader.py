@@ -5,6 +5,7 @@
 # All Rights Reserved.
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+# Author: Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
