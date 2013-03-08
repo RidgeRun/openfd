@@ -174,6 +174,11 @@ _parser.add_option('--uboot-bootargs',
                    metavar='<uboot_bootargs>',
                    dest='uboot_bootargs')
 
+_parser.add_option('--workdir',
+                   help="On "+MODE_SD+" mode, sets the work directory",
+                   metavar='<workdir>',
+                   dest='workdir')
+
 _options = _parser.get_options()
 
 # Check verbose
@@ -231,6 +236,9 @@ if _options.installation_mode == MODE_SD:
         
     if not _options.uboot_bootargs:
         _missing_arg_exit('--uboot-bootargs')
+    
+    if not _options.workdir:
+        _missing_arg_exit('--workdir')
         
 # Clean the device string
 
