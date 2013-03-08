@@ -114,19 +114,29 @@ class FilesystemInstaller:
         """
         return self._workdir
     
-    def install_filesystem(self, fs_path, device):
+    def install_filesystem(self, fs_path, device, part_num):
         """
         Installs the filesystem on the device given.
         """
-        m_point = self._workdir + "/rootfs"
-        if not self._check_sd_mounted(device,2, m_point):
+        # We should get sure that the device exists.
+        if not self._sd_installer.device_exists(device):
+            return False
+        # Now that we know that the device exist let's get the device info.
+        dev_info = self._sd_installer.get_dev_info(device)
+        # Now it is convinient to get the real partition suffix.
+        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        # Now that we have this info, let's create a mount point for the partition.
+        # For this we will use self._workdir and the real label of the partition.
+        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
+        
+        if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
         if self._executer.check_call("cd "+fs_path+" ; find . | sudo cpio -pdum "+m_point) != 0:
             self._logger.error('Failed to fs to ' +  m_point)
             return False
         return True
     
-    def _check_sd_mounted(self,device,part_num,m_point):
+    def _check_sd_mounted(self,device,part_suffix,m_point):
         """
         Checks that the given device is mounted, if not it will try to mount
         it on self._workdir. 
@@ -139,10 +149,8 @@ class FilesystemInstaller:
         # Now we check that the device is mounted where we want it to be.
         # This will only work if dryrun is setted to false.
         if not self._dryrun:
-            partition = device+self._sd_installer.get_partition_suffix(device, part_num)
+            partition = device + part_suffix
             current_mpoint = self._sd_installer.get_mpoint(partition)
-            print m_point
-            print current_mpoint
             if m_point != current_mpoint:
                 self._logger.error('Device is not mounted on '+ m_point \
                                    +' and not on '+m_point+' as expected.')
@@ -229,14 +237,16 @@ if __name__ == '__main__':
     fs_installer.set_workdir(devdir + '/images')
     
     fs_path = devdir + "/fs/fs"
+    part_num = 2
     
-    if fs_installer.install_filesystem(fs_path,device):
-        print "Fs successfully installed on " + device + "2"
+    if fs_installer.install_filesystem(fs_path,device,part_num):
+        print "Fs successfully installed on " + device + str(part_num)
     else:
-        print "Error installing fs on " + device + "2"
+        print "Error installing fs on " + device + str(part_num)
         sys.exit(-1)
     
     # Let's check that the filesystem is ok.
+    print "Checking fs..."
     fs_installer.check_fs(device)
     
     print "Test cases finished"
