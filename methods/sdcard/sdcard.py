@@ -693,7 +693,6 @@ def get_words(line):
     ret = []
     line = line.split(' ')
     for word in line:
-        print word,len(word)
         if len(word) > 1:
             ret.append(word)
     return ret
