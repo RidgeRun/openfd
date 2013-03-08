@@ -586,21 +586,33 @@ class SDCardInstaller:
         Example:
         dev_info["/dev/sdb1"]["mount point"]
         """
-        output = self._executer.check_output('grep '+device+' /proc/mounts')
-        if output[0] != 0:
-            return None
         dev_info = defaultdict(dict)
-        output_lines = output[1].split('\n')
+        first_failed = False
+        cmd = self._executer.check_output('grep '+device+' /proc/mounts')
+        if cmd[0] != 0:
+            first_failed = True
+            cmd = self._executer.check_output('blkid -o list | grep '+device)
+            if cmd[0] != 0:
+                return None
+        output_lines = str_readlines(cmd[1])            
+        
         for line in output_lines:
-            info_line = line.split(' ')
+            info_line = get_words(line)
             if len(info_line) > 2:
-                dev_info[info_line[0]]["mount point"] = info_line[1]
-                dev_info[info_line[0]]["fs type"] = info_line[2]
+                if first_failed:
+                    # We are using blkid cmd
+                    dev_info[info_line[0]]["mount point"] = None
+                    dev_info[info_line[0]]["fs type"] = info_line[1]
+                else:
+                    # We are using /proc/mounts
+                    dev_info[info_line[0]]["mount point"] = info_line[1]
+                    dev_info[info_line[0]]["fs type"] = info_line[2]
                 # Now that we have the partition we can gather some extra info.
                 output = self._executer.check_output('sudo blkid '+info_line[0])
                 output_line = output[1].split(' ')
                 dev_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
                 dev_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
+            
         return dev_info
     
     def check_fs(self,device):
@@ -659,6 +671,32 @@ class SDCardInstaller:
         for part in self._partitions:
             _str +=  part.__str__()
         return _str
+
+# ==========================================================================
+# Functions
+# ==========================================================================
+def str_readlines(text):
+    """
+    takes a text and returns a list with the lines.
+    """
+    ret = []
+    text = text.split('\n')
+    for line in text:
+        if len(text) > 1:
+            ret.append(line)
+    return ret
+
+def get_words(line):
+    """
+    Takes a string line and returns a list with the words.
+    """
+    ret = []
+    line = line.split(' ')
+    for word in line:
+        print word,len(word)
+        if len(word) > 1:
+            ret.append(word)
+    return ret
 
 # ==========================================================================
 # Test cases
