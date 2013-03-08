@@ -150,6 +150,9 @@ class FilesystemInstaller:
         else:
             pass
         return True
+    
+    def check_fs(self,device):
+        self._sd_installer.check_fs(device)
 
 # ==========================================================================
 # Test cases
@@ -232,5 +235,8 @@ if __name__ == '__main__':
     else:
         print "Error installing fs on " + device + "2"
         sys.exit(-1)
+    
+    # Let's check that the filesystem is ok.
+    fs_installer.check_fs(device)
     
     print "Test cases finished"

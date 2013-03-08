@@ -259,6 +259,9 @@ class BootloaderInstaller:
         else:
             pass
         return True
+    
+    def check_fs(self,device):
+        self._sd_installer.check_fs(device)
 
 # ==========================================================================
 # Test cases
@@ -368,5 +371,8 @@ if __name__ == '__main__':
     else:
         print "Error installing kernel on " + device + "1"
         sys.exit(-1)
+    
+    # Let's check that the filesystem is ok.
+    bl_installer.check_fs(device)
     
     print "Test cases finished"
