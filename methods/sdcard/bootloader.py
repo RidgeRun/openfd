@@ -202,13 +202,6 @@ class BootloaderInstaller:
         """
         Install the U-Boot environment to the given file. 
         """
-        # Here we prepare the uboot env file.
-        uenv = open(uenv_file, "w")
-        uenv.write("bootargs="+self._bootargs+"\n")
-        uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
-                   +str(hex(int(uboot_load_addr)))+"\n")
-        uenv.close()
-        
         # We should get sure that the device exists.
         if not self._sd_installer.device_exists(device):
             return False
@@ -222,6 +215,18 @@ class BootloaderInstaller:
         # Here we check if the device is mounted, if not we mount it.
         if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
+        
+        # Here we prepare the uboot env file.
+        # but write it only if we are not in dryrun.
+        if not self.get_dryrun():
+            uenv = open(uenv_file, "w")
+            uenv.write("bootargs="+self._bootargs+"\n")
+            uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
+                       +str(hex(int(uboot_load_addr)))+"\n")
+            uenv.close()
+        else:
+            self._logger.info("You are running in dryrun, that's why uboot env file is not generated.")
+        
         
         if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
             self._logger.error('Failed to copy ' + uenv_file + " to " + m_point)
@@ -331,7 +336,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(False)
+    bl_installer.set_dryrun(True)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
