@@ -596,6 +596,11 @@ class SDCardInstaller:
             if len(info_line) > 2:
                 dev_info[info_line[0]]["mount point"] = info_line[1]
                 dev_info[info_line[0]]["fs type"] = info_line[2]
+                # Now that we have the partition we can gather some extra info.
+                output = self._executer.check_output('sudo blkid '+info_line[0])
+                output_line = output[1].split(' ')
+                dev_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
+                dev_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
         return dev_info
     
     def check_fs(self,device):
