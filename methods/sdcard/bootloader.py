@@ -198,19 +198,29 @@ class BootloaderInstaller:
         """
         return self._bootargs
 
-    def install_uboot_env(self, uenv_file, device):
+    def install_uboot_env(self, uenv_file, device, part_num):
         """
         Install the U-Boot environment to the given file. 
         """
+        # Here we prepare the uboot env file.
         uenv = open(uenv_file, "w")
         uenv.write("bootargs="+self._bootargs+"\n")
         uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
                    +str(hex(int(uboot_load_addr)))+"\n")
         uenv.close()
-        m_point = self._workdir + "/boot"
         
+        # We should get sure that the device exists.
+        if not self._sd_installer.device_exists(device):
+            return False
+        # Now that we know that the device exist let's get the device info.
+        dev_info = self._sd_installer.get_dev_info(device)
+        # Now it is convenient to get the real partition suffix.
+        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        # Now that we have this info, let's create a mount point for the partition.
+        # For this we will use self._workdir and the real label of the partition.
+        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
         # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device, 1, m_point):
+        if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
         
         if self._executer.check_call("sudo cp " + uenv_file +" "+ m_point) != 0:
@@ -219,14 +229,23 @@ class BootloaderInstaller:
         
         return True
         
-    def install_kernel(self, kernel_image, device):
+    def install_kernel(self, kernel_image, device, part_num):
         """
         Install the Kernel on the given device.
         """
-        m_point = self._workdir + "/boot"
         
+        # We should get sure that the device exists.
+        if not self._sd_installer.device_exists(device):
+            return False
+        # Now that we know that the device exist let's get the device info.
+        dev_info = self._sd_installer.get_dev_info(device)
+        # Now it is convenient to get the real partition suffix.
+        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        # Now that we have this info, let's create a mount point for the partition.
+        # For this we will use self._workdir and the real label of the partition.
+        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
         # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device, 1, m_point):
+        if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
         
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
@@ -314,7 +333,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    bl_installer.set_dryrun(True)
+    bl_installer.set_dryrun(False)
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
@@ -357,22 +376,24 @@ if __name__ == '__main__':
     mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
         
     uenv_file = devdir + '/images/uEnv.txt'
+    part_num = 1
     
-    if bl_installer.install_uboot_env(uenv_file,device):
-        print "uboot env successfully installed on " + device + "1"
+    if bl_installer.install_uboot_env(uenv_file,device,part_num):
+        print "uboot env successfully installed on " + device + str(part_num)
     else:
-        print "Error installing uboot env on " + device + "1"
+        print "Error installing uboot env on " + device + str(part_num)
         sys.exit(-1)
     
     kernel_image = devdir + '/images/kernel.uImage'
     
-    if bl_installer.install_kernel(kernel_image,device):
-        print "Kernel successfully installed on " + device + "1"
+    if bl_installer.install_kernel(kernel_image,device,part_num):
+        print "Kernel successfully installed on " + device + str(part_num)
     else:
-        print "Error installing kernel on " + device + "1"
+        print "Error installing kernel on " + device + str(part_num)
         sys.exit(-1)
     
     # Let's check that the filesystem is ok.
+    print "Checking fs..."
     bl_installer.check_fs(device)
     
     print "Test cases finished"
