@@ -198,7 +198,12 @@ class BootloaderInstaller:
         Sets the path to the directory where to create temporary files
         and also mount devices.
         """
-        self._workdir = workdir
+        if os.path.isdir(workdir):
+            self._workdir = workdir
+            return True
+        else:
+            self._logger.error("Error! "+workdir+" is not a directory.")
+            return False
     
     def get_workdir(self):
         """
@@ -379,6 +384,11 @@ if __name__ == '__main__':
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
+    workdir = devdir + '/images'
+    if not bl_installer.set_workdir(devdir + '/images'):
+        print "Failed to set working directory"
+        sys.exit(-1)
+    
 # ==========================================================================
 # Test cases - Unit tests
 # ==========================================================================
@@ -409,7 +419,6 @@ if __name__ == '__main__':
     
     # Try to install uboot env on sd.
     
-    bl_installer.set_workdir(devdir + '/images')
     bl_installer.set_bootargs(" davinci_enc_mngr.ch0_output=COMPONENT \
     davinci_enc_mngr.ch0_mode=1080I-30  davinci_display.cont2_bufsize=13631488 \
     vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 \

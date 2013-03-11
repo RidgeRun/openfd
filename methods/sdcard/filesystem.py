@@ -106,7 +106,12 @@ class FilesystemInstaller:
         Sets the path to the directory where to create temporary files
         and also mount devices.
         """
-        self._workdir = workdir
+        if os.path.isdir(workdir):
+            self._workdir = workdir
+            return True
+        else:
+            self._logger.error("Error! "+workdir+" is not a directory.")
+            return False
     
     def get_workdir(self):
         """
@@ -241,7 +246,10 @@ if __name__ == '__main__':
     
     # Try to install filesystem on the sd.
     
-    fs_installer.set_workdir(devdir + '/images')
+    workdir = devdir + '/images'
+    if not fs_installer.set_workdir(workdir):
+        print "Failed to set working directory"
+        sys.exit(-1)
     
     fs_path = devdir + "/fs/fs"
     part_num = 2
