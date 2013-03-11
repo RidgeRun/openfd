@@ -258,7 +258,19 @@ if _options.installation_mode == MODE_SD:
     ret = sd_installer.format_sd(_options.mmap_file, _options.device)
     
     if ret is False:
-        _logger.error('Installation aborted')
+        _logger.error('Installation aborted while formatting')
+        _clean_exit(-1)
+    
+    # Now that the SD card is prepared for the installing the bootloader.
+    # let's do first the basic setup.
+    bl_installer = methods.sdcard.BootloaderInstaller()
+    bl_installer.set_dryrun(_options.dryrun)
+    bl_installer.set_sd_info(_options.mmap_file)
+    if not bl_installer.set_workdir(_options.workdir):
+        _logger.error('Installation aborted while setting working directory.')
+        _clean_exit(-1)
+    if not bl_installer.set_uflash_bin(_options.uflash_bin):
+        _logger.error('Installation aborted while setting uflash bin.')
         _clean_exit(-1)
         
 _logger.info('Installation complete')
