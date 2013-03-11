@@ -100,7 +100,7 @@ class BootloaderInstaller:
         return self._uflash_bin
         
     def flash(self, device, ubl_file, uboot_file, uboot_entry_addr,
-              uboot_load_addr,part_num):
+              uboot_load_addr,partition_index):
         """
         Flashes UBL and U-Boot to the given device, using the uflash tool.
         
@@ -119,7 +119,7 @@ class BootloaderInstaller:
         # Now that we know that the device exist let's get the device info.
         dev_info = self._sd_installer.get_dev_info(device)
         # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
         m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
@@ -226,7 +226,7 @@ class BootloaderInstaller:
         """
         return self._bootargs
 
-    def install_uboot_env(self, uenv_file, device, part_num):
+    def install_uboot_env(self, uenv_file, device, partition_index):
         """
         Install the U-Boot environment to the given file. 
         """
@@ -243,7 +243,7 @@ class BootloaderInstaller:
         # Now that we know that the device exist let's get the device info.
         dev_info = self._sd_installer.get_dev_info(device)
         # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
         m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
@@ -269,7 +269,7 @@ class BootloaderInstaller:
         
         return True
         
-    def install_kernel(self, kernel_image, device, part_num):
+    def install_kernel(self, kernel_image, device, partition_index):
         """
         Install the Kernel on the given device.
         """
@@ -286,7 +286,7 @@ class BootloaderInstaller:
         # Now that we know that the device exist let's get the device info.
         dev_info = self._sd_installer.get_dev_info(device)
         # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
         m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
@@ -300,7 +300,7 @@ class BootloaderInstaller:
         
         return True
     
-    def _check_sd_mounted(self,device,part_num,m_point):
+    def _check_sd_mounted(self,device,partition_index,m_point):
         """
         Checks that the given device is mounted, if not it will try to mount
         it on self._workdir. 
@@ -313,7 +313,7 @@ class BootloaderInstaller:
         # Now we check that the device is mounted where we want it to be.
         # This will only work if dryrun is setted to false.
         if not self._dryrun:
-            partition = device+self._sd_installer.get_partition_suffix(device, part_num)
+            partition = device+self._sd_installer.get_partition_suffix(device, partition_index)
             current_mpoint = self._sd_installer.get_mpoint(partition)
             if m_point != current_mpoint:
                 self._logger.error('Device is mounted on '+ current_mpoint \
@@ -377,7 +377,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    part_num = 1
+    partition_index = 1
     bl_installer.set_dryrun(True)
     
     # Now it's important to set a workdir so that the logic know where to mount devices.
@@ -391,7 +391,14 @@ if __name__ == '__main__':
     if not bl_installer.set_workdir(devdir + '/images'):
         print "Failed to set working directory"
         sys.exit(-1)
+
+    # Try to set sd partitions info.
     
+    sdcard_mmap_filename = devdir + '/images/sd-mmap.config'
+    if not bl_installer.set_sd_info(sdcard_mmap_filename):
+        print "SD partitions info could not be setted... Exiting"
+        sys.exit(-1)
+      
 # ==========================================================================
 # Test cases - Unit tests
 # ==========================================================================
@@ -408,17 +415,10 @@ if __name__ == '__main__':
     uboot_load_addr  = '2181038080' # 0x82000000
     
     if bl_installer.flash(device, ubl_file, uboot_file, uboot_entry_addr,
-                          uboot_load_addr,part_num):
+                          uboot_load_addr,partition_index):
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
-    
-    # Try to set sd partitions info.
-    
-    sdcard_mmap_filename = devdir + '/images/sd-mmap.config'
-    if not bl_installer.set_sd_info(sdcard_mmap_filename):
-        print "SD partitions info could not be setted... Exiting"
-        sys.exit(-1)
     
     # Try to install uboot env on sd.
     
@@ -431,18 +431,18 @@ if __name__ == '__main__':
         
     uenv_file = devdir + '/images/uEnv.txt'
     
-    if bl_installer.install_uboot_env(uenv_file,device,part_num):
-        print "uboot env successfully installed on " + device + str(part_num)
+    if bl_installer.install_uboot_env(uenv_file,device,partition_index):
+        print "uboot env successfully installed on " + device + str(partition_index)
     else:
-        print "Error installing uboot env on " + device + str(part_num)
+        print "Error installing uboot env on " + device + str(partition_index)
         sys.exit(-1)
     
     kernel_image = devdir + '/images/kernel.uImage'
     
-    if bl_installer.install_kernel(kernel_image,device,part_num):
-        print "Kernel successfully installed on " + device + str(part_num)
+    if bl_installer.install_kernel(kernel_image,device,partition_index):
+        print "Kernel successfully installed on " + device + str(partition_index)
     else:
-        print "Error installing kernel on " + device + str(part_num)
+        print "Error installing kernel on " + device + str(partition_index)
         sys.exit(-1)
     
     # Let's check that the filesystem is ok.
