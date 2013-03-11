@@ -284,13 +284,13 @@ if _options.installation_mode == MODE_SD:
     if not bl_installer.set_uflash_bin(_options.uflash_bin):
         _logger.error('Installation aborted while setting uflash bin.')
         _clean_exit(-1)
-    # Let's start the installation process
+    # Let's start the installation process.
     partition_index = 1
-    # first we flash the partition
+    # first we flash the partition.
     if not bl_installer.flash(_options.device, _options.ubl_file, _options.uboot_file, _options.uboot_entry_addr, _options.uboot_load_addr, partition_index):
         _logger.error('Installation aborted while flashing.')
         _clean_exit(-1)
-    # next we install uboot env
+    # next we install uboot env.
     bl_installer.set_bootargs(_options.uboot_bootargs)
     if not bl_installer.install_uboot_env(_options.device, partition_index, _options.uboot_load_addr):
         _logger.error('Installation aborted while installing uboot env.')
@@ -308,6 +308,7 @@ if _options.installation_mode == MODE_SD:
     if not fs_installer.set_workdir(_options.workdir):
         _logger.error('Installation aborted while setting working directory.')
         _clean_exit(-1)
+    # Let's start with the fs installation process.
     partition_index = 2
     if not fs_installer.generate_rootfs_partition(_options.device, partition_index,_options.fs_root):
         _logger.error('Installation aborted while installing fs.')
