@@ -122,7 +122,7 @@ class BootloaderInstaller:
         part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
-        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
+        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
         # Here we check if the device is mounted, if not we mount it.
         if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
@@ -246,7 +246,7 @@ class BootloaderInstaller:
         part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
-        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
+        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
         # Here we check if the device is mounted, if not we mount it.
         if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
@@ -289,7 +289,7 @@ class BootloaderInstaller:
         part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
-        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
+        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
         # Here we check if the device is mounted, if not we mount it.
         if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
