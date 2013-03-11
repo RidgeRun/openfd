@@ -587,29 +587,41 @@ class SDCardInstaller:
         dev_info["/dev/sdb1"]["mount point"]
         """
         dev_info = defaultdict(dict)
-        first_failed = False
-        cmd = self._executer.check_output('grep '+device+' /proc/mounts')
-        if cmd[0] != 0:
-            self._logger.info('Device '+device+'is not mounted, trying to get unmounted device info.')
-            first_failed = True
+        # We have 2 ways one if the device is mounted and the other one if it
+        # is not mounted. Please notice that this method does not mount the
+        # device, only returns info.
+        if self.device_is_mounted(device):
+            # This is what is done if the device is mounted.
+            # We can use the info in /proc/mounts
+            cmd = self._executer.check_output('grep '+device+' /proc/mounts')
+            if cmd[0] != 0:
+                self._logger.error("Failed getting unmounted device info.")
+                return None
+            output_lines = str_readlines(cmd[1])
+            for line in output_lines:
+                info_line = get_words(line)
+                if len(info_line) > 2:
+                    dev_info[info_line[0]]["mount point"] = info_line[1]
+                    dev_info[info_line[0]]["fs type"] = info_line[2]
+        else:
+            # And this if it is not mounted.
+            # In this case we use the info given by blkid
             cmd = self._executer.check_output('blkid -o list | grep '+device)
             if cmd[0] != 0:
-                self._logger.error("Failed getting device info.")
+                self._logger.error("Failed getting unmounted device info.")
                 return None
-        output_lines = str_readlines(cmd[1])            
+            output_lines = str_readlines(cmd[1])
+            for line in output_lines:
+                info_line = get_words(line)
+                if len(info_line) > 2:
+                    # Notice that here "mount point" is filled with None.
+                    dev_info[info_line[0]]["mount point"] = None
+                    dev_info[info_line[0]]["fs type"] = info_line[1]
         
+        # Now that we have the partition we can gather some extra info.
         for line in output_lines:
             info_line = get_words(line)
             if len(info_line) > 2:
-                if first_failed:
-                    # We are using blkid cmd
-                    dev_info[info_line[0]]["mount point"] = None
-                    dev_info[info_line[0]]["fs type"] = info_line[1]
-                else:
-                    # We are using /proc/mounts
-                    dev_info[info_line[0]]["mount point"] = info_line[1]
-                    dev_info[info_line[0]]["fs type"] = info_line[2]
-                # Now that we have the partition we can gather some extra info.
                 output = self._executer.check_output('sudo blkid '+info_line[0])
                 output_line = output[1].split(' ')
                 dev_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
