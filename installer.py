@@ -110,6 +110,18 @@ _parser.add_option('-f', '--mmap-config-file',
                    dest='mmap_file',
                    required=True)
 
+_parser.add_option('--kernel-file',
+                   help="Path to the Kernel Image file to be installed.",
+                   metavar='<kernel_file>',
+                   dest='kernel_file',
+                   required=True)
+
+_parser.add_option('--fs-root',
+                   help="Path to the fs that will be installed.",
+                   metavar='<fs_root>',
+                   dest='fs_root',
+                   required=True)
+
 # Optional arguments
 
 _parser.add_option('-y', '--assume-yes',
@@ -283,10 +295,24 @@ if _options.installation_mode == MODE_SD:
     if not bl_installer.install_uboot_env(_options.device, partition_index, _options.uboot_load_addr):
         _logger.error('Installation aborted while installing uboot env.')
         _clean_exit(-1)
-    if not bl_installer.install_kernel(_options.device, partition_index):
+    if not bl_installer.install_kernel(_options.device, partition_index, _options.kernel_file):
         _logger.error('Installation aborted while installing kernel.')
         _clean_exit(-1)
     bl_installer.check_fs(_options.device)
+    
+    # Now that the bootloader stage is finished let's continue with the filesystem.
+    # let's do the basic setup.
+    fs_installer = methods.sdcard.FilesystemInstaller()
+    fs_installer.set_dryrun(_options.dryrun)
+    fs_installer.set_sd_info(_options.mmap_file)
+    if not fs_installer.set_workdir(_options.workdir):
+        _logger.error('Installation aborted while setting working directory.')
+        _clean_exit(-1)
+    partition_index = 2
+    if not fs_installer.generate_rootfs_partition(_options.device, partition_index,_options.fs_root):
+        _logger.error('Installation aborted while installing fs.')
+        _clean_exit(-1)
+    fs_installer.check_fs(_options.device)
         
 _logger.info('Installation complete')
 
