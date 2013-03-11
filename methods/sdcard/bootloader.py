@@ -97,12 +97,26 @@ class BootloaderInstaller:
         return self._uflash_bin
         
     def flash(self, device, ubl_file, uboot_file, uboot_entry_addr,
-              uboot_load_addr):
+              uboot_load_addr,part_num):
         """
         Flashes UBL and U-Boot to the given device, using the uflash tool.
         
         Returns true on success; false otherwise.
         """
+        
+        # We should get sure that the device exists.
+        if not self._sd_installer.device_exists(device):
+            return False
+        # Now that we know that the device exist let's get the device info.
+        dev_info = self._sd_installer.get_dev_info(device)
+        # Now it is convenient to get the real partition suffix.
+        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        # Now that we have this info, let's create a mount point for the partition.
+        # For this we will use self._workdir and the real label of the partition.
+        m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
+        # Here we check if the device is mounted, if not we mount it.
+        if not self._check_sd_mounted(device,part_suffix, m_point):
+            return False
         
         if not self._uflash_bin:
             self._logger.error('No path to uflash specified')
@@ -275,7 +289,7 @@ class BootloaderInstaller:
             partition = device+self._sd_installer.get_partition_suffix(device, part_num)
             current_mpoint = self._sd_installer.get_mpoint(partition)
             if m_point != current_mpoint:
-                self._logger.error('Device is not mounted on '+ m_point \
+                self._logger.error('Device is mounted on '+ current_mpoint \
                                    +' and not on '+m_point+' as expected.')
                 return False
         else:
@@ -336,7 +350,13 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
+    part_num = 1
     bl_installer.set_dryrun(True)
+    
+    # Now it's important to set a workdir so that the logic know where to mount devices.
+    workdir = devdir + '/images'
+    bl_installer.set_workdir(workdir)
+    
     bl_installer.set_uflash_bin(devdir +
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
     
@@ -346,7 +366,7 @@ if __name__ == '__main__':
 
     # --------------- TC 1 ---------------
     
-    tc_start(1, sleep_time=0) 
+    tc_start(1, sleep_time=0)
     
     # Check device existence (positive test case)
     
@@ -356,7 +376,7 @@ if __name__ == '__main__':
     uboot_load_addr  = '2181038080' # 0x82000000
     
     if bl_installer.flash(device, ubl_file, uboot_file, uboot_entry_addr,
-                          uboot_load_addr):
+                          uboot_load_addr,part_num):
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
@@ -379,7 +399,6 @@ if __name__ == '__main__':
     mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
         
     uenv_file = devdir + '/images/uEnv.txt'
-    part_num = 1
     
     if bl_installer.install_uboot_env(uenv_file,device,part_num):
         print "uboot env successfully installed on " + device + str(part_num)

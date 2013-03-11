@@ -590,9 +590,11 @@ class SDCardInstaller:
         first_failed = False
         cmd = self._executer.check_output('grep '+device+' /proc/mounts')
         if cmd[0] != 0:
+            self._logger.info('Device '+device+'is not mounted, trying to get unmounted device info.')
             first_failed = True
             cmd = self._executer.check_output('blkid -o list | grep '+device)
             if cmd[0] != 0:
+                self._logger.error("Failed getting device info.")
                 return None
         output_lines = str_readlines(cmd[1])            
         
@@ -748,7 +750,7 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.set_dryrun(True)
+    sd_installer.set_dryrun(False)
     sd_installer.set_interactive(True)
     
 # ==========================================================================
