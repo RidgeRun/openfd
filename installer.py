@@ -283,6 +283,10 @@ if _options.installation_mode == MODE_SD:
     if not bl_installer.install_uboot_env(_options.device, partition_index, _options.uboot_load_addr):
         _logger.error('Installation aborted while installing uboot env.')
         _clean_exit(-1)
+    if not bl_installer.install_kernel(_options.device, partition_index):
+        _logger.error('Installation aborted while installing kernel.')
+        _clean_exit(-1)
+    bl_installer.check_fs(_options.device)
         
 _logger.info('Installation complete')
 
