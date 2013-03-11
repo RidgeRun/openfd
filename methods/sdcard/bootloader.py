@@ -86,8 +86,11 @@ class BootloaderInstaller:
         """
         Sets the path to the uflash tool.
         """
-        
-        self._uflash_bin = uflash_bin
+        if os.path.isfile(uflash_bin):
+            self._uflash_bin = uflash_bin
+            return True
+        else:
+            self._logger.error(uflash_bin+' Does not exist.')
         
     def get_uflash_bin(self):
         """
