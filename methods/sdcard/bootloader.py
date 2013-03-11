@@ -226,7 +226,7 @@ class BootloaderInstaller:
         """
         return self._bootargs
 
-    def install_uboot_env(self, device, partition_index):
+    def install_uboot_env(self, device, partition_index,uboot_load_addr):
         """
         Install the U-Boot environment to the given file. 
         """
@@ -254,11 +254,12 @@ class BootloaderInstaller:
         # Here we prepare the uboot env file.
         # but write it only if we are not in dryrun.
         uenv_file = os.path.join(self._workdir,"uEnv.txt")
+        uboot_load_addr = self._get_str_hex(uboot_load_addr)
         if not self.get_dryrun():
             uenv = open(uenv_file, "w")
             uenv.write("bootargs="+self._bootargs+"\n")
             uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
-                       +str(hex(int(uboot_load_addr)))+"\n")
+                       +uboot_load_addr+"\n")
             uenv.close()
         else:
             self._logger.info("You are running in dryrun, that's why uboot env file is not generated.")
@@ -296,7 +297,7 @@ class BootloaderInstaller:
             return False
         
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
-            self._logger.error('Failed to copy ' + uenv_file + " to " +  m_point)
+            self._logger.error('Failed to copy ' + kernel_image + " to " +  m_point)
             return False
         
         return True
@@ -430,7 +431,7 @@ if __name__ == '__main__':
     console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1  \
     mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
     
-    if bl_installer.install_uboot_env(device,partition_index):
+    if bl_installer.install_uboot_env(device,partition_index,uboot_load_addr):
         print "uboot env successfully installed on " + device + str(partition_index)
     else:
         print "Error installing uboot env on " + device + str(partition_index)
