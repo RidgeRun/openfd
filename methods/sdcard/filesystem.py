@@ -119,7 +119,7 @@ class FilesystemInstaller:
         """
         return self._workdir
     
-    def install_filesystem(self, device, partition_index, rootfs):
+    def  generate_rootfs_partition(self, device, partition_index, rootfs):
         """
         Installs the filesystem on the device given.
         """
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     rootfs = devdir + "/fs/fs"
     partition_index = 2
     
-    if fs_installer.install_filesystem(device,partition_index,rootfs):
+    if fs_installer. generate_rootfs_partition(device,partition_index,rootfs):
         print "Fs successfully installed on " + device + str(partition_index)
     else:
         print "Error installing fs on " + device + str(partition_index)
