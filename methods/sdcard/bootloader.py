@@ -226,7 +226,7 @@ class BootloaderInstaller:
         """
         return self._bootargs
 
-    def install_uboot_env(self, uenv_file, device, partition_index):
+    def install_uboot_env(self, device, partition_index):
         """
         Install the U-Boot environment to the given file. 
         """
@@ -253,6 +253,7 @@ class BootloaderInstaller:
         
         # Here we prepare the uboot env file.
         # but write it only if we are not in dryrun.
+        uenv_file = os.path.join(self._workdir,"uEnv.txt")
         if not self.get_dryrun():
             uenv = open(uenv_file, "w")
             uenv.write("bootargs="+self._bootargs+"\n")
@@ -428,10 +429,8 @@ if __name__ == '__main__':
     video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off  \
     console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1  \
     mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
-        
-    uenv_file = devdir + '/images/uEnv.txt'
     
-    if bl_installer.install_uboot_env(uenv_file,device,partition_index):
+    if bl_installer.install_uboot_env(device,partition_index):
         print "uboot env successfully installed on " + device + str(partition_index)
     else:
         print "Error installing uboot env on " + device + str(partition_index)
