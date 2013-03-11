@@ -272,6 +272,12 @@ if _options.installation_mode == MODE_SD:
     if not bl_installer.set_uflash_bin(_options.uflash_bin):
         _logger.error('Installation aborted while setting uflash bin.')
         _clean_exit(-1)
+    # Let's start the installation process
+    partition_index = 1
+    # first we flash the partition
+    if not bl_installer.flash(_options.device, _options.ubl_file, _options.uboot_file, _options.uboot_entry_addr, _options.uboot_load_addr, partition_index):
+        _logger.error('Installation aborted while flashing.')
+        _clean_exit(-1)
         
 _logger.info('Installation complete')
 
