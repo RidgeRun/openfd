@@ -119,7 +119,7 @@ class FilesystemInstaller:
         """
         return self._workdir
     
-    def install_filesystem(self, fs_path, device, part_num):
+    def install_filesystem(self, fs_path, device, partition_index):
         """
         Installs the filesystem on the device given.
         """
@@ -136,7 +136,7 @@ class FilesystemInstaller:
         # Now that we know that the device exist let's get the device info.
         dev_info = self._sd_installer.get_dev_info(device)
         # Now it is convinient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, part_num)
+        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
         m_point = self._workdir + "/" + dev_info[device+part_suffix]["label"]
@@ -252,12 +252,12 @@ if __name__ == '__main__':
         sys.exit(-1)
     
     fs_path = devdir + "/fs/fs"
-    part_num = 2
+    partition_index = 2
     
-    if fs_installer.install_filesystem(fs_path,device,part_num):
-        print "Fs successfully installed on " + device + str(part_num)
+    if fs_installer.install_filesystem(fs_path,device,partition_index):
+        print "Fs successfully installed on " + device + str(partition_index)
     else:
-        print "Error installing fs on " + device + str(part_num)
+        print "Error installing fs on " + device + str(partition_index)
         sys.exit(-1)
     
     # Let's check that the filesystem is ok.
