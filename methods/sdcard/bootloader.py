@@ -62,9 +62,9 @@ class BootloaderInstaller:
         self._uflash_bin  = ''
         self._executer.set_logger(self._logger)
         self._sd_installer = sdcard.SDCardInstaller()
-        # This flag will tell the methods to continue only if
+        # This flags will tell the methods to continue only if
         # partitions info is already set.
-        self._sd_info_setted = False 
+        self._sd_info_set = False
         
     def set_dryrun(self, dryrun):
         """
@@ -168,7 +168,7 @@ class BootloaderInstaller:
         """
         Sets the sd partitions info. 
         """
-        if self._sd_info_setted:
+        if self._sd_info_set:
             self._logger.info("SD partitions info was already set,\
                              try unsetting it next time.")
         if not os.path.isfile(sdcard_mmap_filename):
@@ -178,14 +178,14 @@ class BootloaderInstaller:
             self._logger.error('Failed to read partitions info')
             return False
         self._logger.info("Sd partitions info successfully setted.")
-        self._sd_info_setted = True
+        self._sd_info_set = True
         return True
     
     def unset_sd_info(self):
         """
-        Unsets the _sd_info_setted flag for setting new info.
+        Unsets the _sd_info_set flag for setting new info.
         """
-        self._sd_info_setted = False
+        self._sd_info_set = False
     
     def set_workdir(self,workdir):
         """
