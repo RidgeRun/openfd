@@ -271,7 +271,7 @@ class BootloaderInstaller:
         
         return True
         
-    def install_kernel(self, kernel_image, device, partition_index):
+    def install_kernel(self, device, partition_index):
         """
         Install the Kernel on the given device.
         """
@@ -296,6 +296,7 @@ class BootloaderInstaller:
         if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
         
+        kernel_image = os.path.join(self._workdir, 'kernel.uImage')
         if self._executer.check_call("sudo cp " + kernel_image +" "+ m_point+"/uImage") != 0:
             self._logger.error('Failed to copy ' + kernel_image + " to " +  m_point)
             return False
@@ -436,10 +437,8 @@ if __name__ == '__main__':
     else:
         print "Error installing uboot env on " + device + str(partition_index)
         sys.exit(-1)
-    
-    kernel_image = devdir + '/images/kernel.uImage'
-    
-    if bl_installer.install_kernel(kernel_image,device,partition_index):
+        
+    if bl_installer.install_kernel(device,partition_index):
         print "Kernel successfully installed on " + device + str(partition_index)
     else:
         print "Error installing kernel on " + device + str(partition_index)
