@@ -278,6 +278,11 @@ if _options.installation_mode == MODE_SD:
     if not bl_installer.flash(_options.device, _options.ubl_file, _options.uboot_file, _options.uboot_entry_addr, _options.uboot_load_addr, partition_index):
         _logger.error('Installation aborted while flashing.')
         _clean_exit(-1)
+    # next we install uboot env
+    bl_installer.set_bootargs(_options.uboot_bootargs)
+    if not bl_installer.install_uboot_env(_options.device, partition_index, _options.uboot_load_addr):
+        _logger.error('Installation aborted while installing uboot env.')
+        _clean_exit(-1)
         
 _logger.info('Installation complete')
 
