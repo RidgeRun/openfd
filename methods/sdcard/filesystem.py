@@ -119,7 +119,7 @@ class FilesystemInstaller:
         """
         return self._workdir
     
-    def install_filesystem(self, fs_path, device, partition_index):
+    def install_filesystem(self, device, partition_index, rootfs):
         """
         Installs the filesystem on the device given.
         """
@@ -143,7 +143,7 @@ class FilesystemInstaller:
         
         if not self._check_sd_mounted(device,part_suffix, m_point):
             return False
-        if self._executer.check_call("cd "+fs_path+" ; find . | sudo cpio -pdum "+m_point) != 0:
+        if self._executer.check_call("cd "+rootfs+" ; find . | sudo cpio -pdum "+m_point) != 0:
             self._logger.error('Failed to fs to ' +  m_point)
             return False
         return True
@@ -251,10 +251,10 @@ if __name__ == '__main__':
         print "Failed to set working directory"
         sys.exit(-1)
     
-    fs_path = devdir + "/fs/fs"
+    rootfs = devdir + "/fs/fs"
     partition_index = 2
     
-    if fs_installer.install_filesystem(fs_path,device,partition_index):
+    if fs_installer.install_filesystem(device,partition_index,rootfs):
         print "Fs successfully installed on " + device + str(partition_index)
     else:
         print "Error installing fs on " + device + str(partition_index)
