@@ -750,7 +750,7 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.set_dryrun(False)
+    sd_installer.set_dryrun(True)
     sd_installer.set_interactive(True)
     
 # ==========================================================================
