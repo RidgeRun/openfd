@@ -118,6 +118,13 @@ class FilesystemInstaller:
         """
         Installs the filesystem on the device given.
         """
+        # Let's check that sd info was set.
+        if not self._sd_info_set:
+            self._logger.error("Set SD Info!")
+            return False
+        # Now let's check that there is a workdir.
+        if self.get_workdir() == None:
+            self._logger.error("Set a Workdir!")
         # We should get sure that the device exists.
         if not self._sd_installer.device_exists(device):
             return False
