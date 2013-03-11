@@ -106,25 +106,9 @@ class BootloaderInstaller:
         
         Returns true on success; false otherwise.
         """
-        # Let's check that sd info was set.
-        if not self._sd_info_set:
-            self._logger.error("Set SD Info!")
-            return False
-        # Now let's check that there is a workdir.
-        if self.get_workdir() == None:
-            self._logger.error("Set a Workdir!")
-        # We should get sure that the device exists.
-        if not self._sd_installer.device_exists(device):
-            return False
-        # Now that we know that the device exist let's get the device info.
-        dev_info = self._sd_installer.get_dev_info(device)
-        # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
-        # Now that we have this info, let's create a mount point for the partition.
-        # For this we will use self._workdir and the real label of the partition.
-        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
-        # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device,part_suffix, m_point):
+        m_point = self._check_partition_setup(device, partition_index)
+        if m_point == None:
+            self._logger.error('Something is wrong with device/partition setup')
             return False
         
         if not self._uflash_bin:
@@ -230,25 +214,10 @@ class BootloaderInstaller:
         """
         Install the U-Boot environment to the given file. 
         """
-        # Let's check that sd info was set.
-        if not self._sd_info_set:
-            self._logger.error("Set SD Info!")
-            return False
-        # Now let's check that there is a workdir.
-        if self.get_workdir() == None:
-            self._logger.error("Set a Workdir!")
-        # We should get sure that the device exists.
-        if not self._sd_installer.device_exists(device):
-            return False
-        # Now that we know that the device exist let's get the device info.
-        dev_info = self._sd_installer.get_dev_info(device)
-        # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
-        # Now that we have this info, let's create a mount point for the partition.
-        # For this we will use self._workdir and the real label of the partition.
-        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
-        # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device,part_suffix, m_point):
+        
+        m_point = self._check_partition_setup(device, partition_index)
+        if m_point == None:
+            self._logger.error('Something is wrong with device/partition setup')
             return False
         
         # Here we prepare the uboot env file.
@@ -275,25 +244,9 @@ class BootloaderInstaller:
         """
         Install the Kernel on the given device.
         """
-        # Let's check that sd info was set.
-        if not self._sd_info_set:
-            self._logger.error("Set SD Info!")
-            return False
-        # Now let's check that there is a workdir.
-        if self.get_workdir() == None:
-            self._logger.error("Set a Workdir!")
-        # We should get sure that the device exists.
-        if not self._sd_installer.device_exists(device):
-            return False
-        # Now that we know that the device exist let's get the device info.
-        dev_info = self._sd_installer.get_dev_info(device)
-        # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
-        # Now that we have this info, let's create a mount point for the partition.
-        # For this we will use self._workdir and the real label of the partition.
-        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
-        # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device,part_suffix, m_point):
+        m_point = self._check_partition_setup(device, partition_index)
+        if m_point == None:
+            self._logger.error('Something is wrong with device/partition setup')
             return False
         
         if not os.path.isfile(kernel_image):
@@ -305,6 +258,33 @@ class BootloaderInstaller:
             return False
         
         return True
+    
+    def _check_partition_setup(self,device,partition_index):
+        """
+        This will check the sd setup so that the calling method can continue.
+        On success will return the partition mount point, otherwise it will return None.
+        """
+        # Let's check that sd info was set.
+        if not self._sd_info_set:
+            self._logger.error("Set SD Info!")
+            return None
+        # Now let's check that there is a workdir.
+        if self.get_workdir() == None:
+            self._logger.error("Set a Workdir!")
+        # We should get sure that the device exists.
+        if not self._sd_installer.device_exists(device):
+            return None
+        # Now that we know that the device exist let's get the device info.
+        dev_info = self._sd_installer.get_dev_info(device)
+        # Now it is convenient to get the real partition suffix.
+        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
+        # Now that we have this info, let's create a mount point for the partition.
+        # For this we will use self._workdir and the real label of the partition.
+        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
+        # Here we check if the device is mounted, if not we mount it.
+        if not self._check_sd_mounted(device,part_suffix, m_point):
+            return None
+        return m_point
     
     def _check_sd_mounted(self,device,partition_index,m_point):
         """

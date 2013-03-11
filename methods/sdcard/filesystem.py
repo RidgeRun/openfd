@@ -123,30 +123,42 @@ class FilesystemInstaller:
         """
         Installs the filesystem on the device given.
         """
+        m_point = self._check_partition_setup(device, partition_index)
+        if m_point == None:
+            self._logger.error('Something is wrong with device/partition setup')
+            return False
+
+        if self._executer.check_call("cd "+rootfs+" ; find . | sudo cpio -pdum "+m_point) != 0:
+            self._logger.error('Failed to fs to ' +  m_point)
+            return False
+        return True
+    
+    def _check_partition_setup(self,device,partition_index):
+        """
+        This will check the sd setup so that the calling method can continue.
+        On success will return the partition mount point, otherwise it will return None.
+        """
         # Let's check that sd info was set.
         if not self._sd_info_set:
             self._logger.error("Set SD Info!")
-            return False
+            return None
         # Now let's check that there is a workdir.
         if self.get_workdir() == None:
             self._logger.error("Set a Workdir!")
         # We should get sure that the device exists.
         if not self._sd_installer.device_exists(device):
-            return False
+            return None
         # Now that we know that the device exist let's get the device info.
         dev_info = self._sd_installer.get_dev_info(device)
-        # Now it is convinient to get the real partition suffix.
+        # Now it is convenient to get the real partition suffix.
         part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
         # Now that we have this info, let's create a mount point for the partition.
         # For this we will use self._workdir and the real label of the partition.
         m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
-        
+        # Here we check if the device is mounted, if not we mount it.
         if not self._check_sd_mounted(device,part_suffix, m_point):
-            return False
-        if self._executer.check_call("cd "+rootfs+" ; find . | sudo cpio -pdum "+m_point) != 0:
-            self._logger.error('Failed to fs to ' +  m_point)
-            return False
-        return True
+            return None
+        return m_point
     
     def _check_sd_mounted(self,device,part_suffix,m_point):
         """
