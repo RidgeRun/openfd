@@ -37,6 +37,8 @@ import partition
 import geometry
 import ConfigParser
 import rrutils
+import bootloader
+import filesystem
 from collections import defaultdict
 
 # ==========================================================================
@@ -65,6 +67,8 @@ class SDCardInstaller:
         self._interactive = True
         self._partitions  = []
         self._executer.set_logger(self._logger)
+        self._bl_installer = bootloader.BootloaderInstaller()
+        self._fs_installer = filesystem.FilesystemInstaller()
     
     def _confirm_device_size(self, device):
         """
@@ -560,11 +564,14 @@ class SDCardInstaller:
                 if config.has_option(section, 'filesystem'):
                     part.set_filesystem(config.get(section, 'filesystem'))
                 
+                if config.has_option(section, 'components'):
+                    part.set_components(config.get(section, 'components'))
+                
                 self._partitions.append(part)
                 
         return True
     
-    def get_mpoint(self,partition):
+    def get_mount_point(self,partition):
         """
         Returns the mount point of the given partition.
         If the mount point was not found it returns None.
@@ -578,15 +585,15 @@ class SDCardInstaller:
                 m_point = splitted[1]
         return m_point
     
-    def get_dev_info(self,device):
+    def get_device_info(self,device):
         """
         Returns the device information as a 2 dimensions dictionary.
         Where the first keyword is the partition and the second one
         can be either "mount point" or "fs type".
         Example:
-        dev_info["/dev/sdb1"]["mount point"]
+        device_info["/dev/sdb1"]["mount point"]
         """
-        dev_info = defaultdict(dict)
+        device_info = defaultdict(dict)
         # We have 2 ways one if the device is mounted and the other one if it
         # is not mounted. Please notice that this method does not mount the
         # device, only returns info.
@@ -601,8 +608,8 @@ class SDCardInstaller:
             for line in output_lines:
                 info_line = get_words(line)
                 if len(info_line) > 2:
-                    dev_info[info_line[0]]["mount point"] = info_line[1]
-                    dev_info[info_line[0]]["fs type"] = info_line[2]
+                    device_info[info_line[0]]["mount point"] = info_line[1]
+                    device_info[info_line[0]]["fs type"] = info_line[2]
         else:
             # And this if it is not mounted.
             # In this case we use the info given by blkid
@@ -615,8 +622,8 @@ class SDCardInstaller:
                 info_line = get_words(line)
                 if len(info_line) > 2:
                     # Notice that here "mount point" is filled with None.
-                    dev_info[info_line[0]]["mount point"] = None
-                    dev_info[info_line[0]]["fs type"] = info_line[1]
+                    device_info[info_line[0]]["mount point"] = None
+                    device_info[info_line[0]]["fs type"] = info_line[1]
         
         # Now that we have the partition we can gather some extra info.
         for line in output_lines:
@@ -624,10 +631,10 @@ class SDCardInstaller:
             if len(info_line) > 2:
                 output = self._executer.check_output('sudo blkid '+info_line[0])
                 output_line = output[1].split(' ')
-                dev_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
-                dev_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
+                device_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
+                device_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
             
-        return dev_info
+        return device_info
     
     def check_fs(self,device):
         """
@@ -642,8 +649,8 @@ class SDCardInstaller:
             self._logger.error("Device "+device+" is not mounted.")
             return False
         
-        dev_info = self.get_dev_info(device)
-        if dev_info == None:
+        device_info = self.get_device_info(device)
+        if device_info == None:
             return False
         
         # run man fsck to check this outputs
@@ -657,9 +664,9 @@ class SDCardInstaller:
                         128  : 'Shared-library error'}        
         fs_state = ''
         
-        for partition in dev_info:
-            if dev_info[partition]["fs type"] == 'vfat' or dev_info[partition]["fs type"] == 'ext3':
-                output = self._executer.check_call("sudo fsck."+ dev_info[partition]["fs type"] +" "+dev_info[partition]["mount point"])
+        for partition in device_info:
+            if device_info[partition]["fs type"] == 'vfat' or device_info[partition]["fs type"] == 'ext3':
+                output = self._executer.check_call("sudo fsck."+ device_info[partition]["fs type"] +" "+device_info[partition]["mount point"])
                 if output != 0:
                     # A little trick to display the sum of outputs
                     for bit in range(8):
@@ -670,7 +677,7 @@ class SDCardInstaller:
                     fs_state = fsck_outputs[0]
                 self._logger.info(partition+' condition:' +  fs_state)
             else:
-                self._logger.info(dev_info[partition]["fs type"]+' filesystem is not supported.')
+                self._logger.info(device_info[partition]["fs type"]+' filesystem is not supported.')
         return True
                 
     def __str__(self):
