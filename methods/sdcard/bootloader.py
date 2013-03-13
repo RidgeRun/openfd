@@ -58,7 +58,12 @@ class BootloaderInstaller:
         self._logger      = rrutils.logger.get_global_logger()
         self._executer    = rrutils.executer.Executer()
         self._dryrun      = False
-        self._uflash_bin  = ''
+        self._uflash_bin  = None
+        self._ubl_file    = None
+        self._uboot_file  = None
+        self._uboot_entry_addr = None
+        self._uboot_load_addr  = None
+        self._kernel_image = None
         self._executer.set_logger(self._logger)
         
     def set_dryrun(self, dryrun):
@@ -93,12 +98,89 @@ class BootloaderInstaller:
         """
         
         return self._uflash_bin
+    
+    def set_ubl_file(self, ubl_file):
+        """
+        Sets the path to the ubl file.
+        """
+        if os.path.isfile(ubl_file):
+            self._ubl_file = ubl_file
+            return True
+        else:
+            self._logger.error(ubl_file+' Does not exist.')
         
-    def flash(self, device, ubl_file, uboot_file, uboot_entry_addr,
-              uboot_load_addr):
+    def get_ubl_file(self):
+        """
+        Gets the path to the ubl file.
+        """
+        
+        return self._ubl_file
+    
+    def set_uboot_file(self, uboot_file):
+        """
+        Sets the path to the uboot_file.
+        """
+        if os.path.isfile(uboot_file):
+            self._uboot_file = uboot_file
+            return True
+        else:
+            self._logger.error(uboot_file+' Does not exist.')
+        
+    def get_uboot_file(self):
+        """
+        Gets the path to the uboot_file.
+        """
+        
+        return self._uboot_file
+    
+    def set_uboot_entry_addr(self, uboot_entry_addr):
+        """
+        Sets the path to the uboot_entry_addr.
+        """
+        self._uboot_entry_addr = uboot_entry_addr
+        
+    def get_uboot_entry_addr(self):
+        """
+        Gets the path to the uboot_entry_addr.
+        """
+        
+        return self._uboot_entry_addr
+    
+    def set_uboot_load_addr(self, uboot_load_addr):
+        """
+        Sets the path to the uboot_load_addr.
+        """
+        self._uboot_load_addr = uboot_load_addr
+        
+    def get_uboot_load_addr(self):
+        """
+        Gets the path to the uboot_load_addr.
+        """
+        
+        return self._uboot_load_addr
+    
+    def set_kernel_image(self, kernel_image):
+        """
+        Sets the path to the kernel_image.
+        """
+        if os.path.isfile(kernel_image):
+            self._kernel_image = kernel_image
+            return True
+        else:
+            self._logger.error(kernel_image+' Does not exist.')
+        
+    def get_kernel_image(self):
+        """
+        Gets the path to the kernel_image.
+        """
+        
+        return self._kernel_image
+    
+    def flash(self, device):
         """
         Flashes UBL and U-Boot to the given device, using the uflash tool.
-        
+        This method needs that uflash_bin, ubl_file, uboot_file, 
+        uboot_entry_addr and uboot_load_addr to be already set.
         Returns true on success; false otherwise.
         """
         
@@ -106,12 +188,26 @@ class BootloaderInstaller:
             self._logger.error('No path to uflash specified')
             return False
         
-        uboot_entry_addr = self._get_str_hex(uboot_entry_addr)
+        if not self._ubl_file:
+            self._logger.error('No path to ubl file specified')
+            return False
+        
+        if not self._uboot_file:
+            self._logger.error('No path to uboot file specified')
+            return False
+        
+        if not self._uboot_entry_addr:
+            self._logger.error('No entry address specified')
+
+        if not self._uboot_load_addr:
+            self._logger.error('No load address specified')
+        
+        uboot_entry_addr = self._get_str_hex(self._uboot_entry_addr)
         if uboot_entry_addr == None:
             self._logger.error("Invalid value given to uboot entry address")
             return False
         
-        uboot_load_addr = self._get_str_hex(uboot_load_addr)
+        uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
         if uboot_load_addr == None:
             self._logger.error("Invalid value given to uboot load address")
             return False
@@ -161,20 +257,24 @@ class BootloaderInstaller:
         """
         return self._bootargs
 
-    def install_uboot_env(self, mount_point, uboot_load_addr):
+    def install_uboot_env(self, mount_point):
         """
-        Install the U-Boot environment to the given mount point. 
+        Install the U-Boot environment to the given mount point.
+        This method needs that uboot_load_addr be already set.
         """
         
         if not os.path.isdir(mount_point):
             self._logger.error('Error: The mount point given does not exist.')
             return False
         
+        if not self._uboot_load_addr:
+            self._logger.error('No load address specified')
+        
         # Here we prepare the uboot env file.
         # but write it only if we are not in dryrun.
         if not self.get_dryrun():
             uenv_file = os.path.join(mount_point,"uEnv.txt")
-            uboot_load_addr = self._get_str_hex(uboot_load_addr)
+            uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
             try:
                 uenv = open(uenv_file, "w")
             except:
@@ -190,11 +290,15 @@ class BootloaderInstaller:
         
         return True
         
-    def install_kernel(self, mount_point, kernel_image):
+    def install_kernel(self, mount_point):
         """
         Install the Kernel on the given device.
+        This method needs that kernel_image be already set.
         """
-
+        
+        if not self._kernel_image:
+            self._logger.error('No kernel image specified')
+        
         if not os.path.isdir(mount_point):
             self._logger.error('Error: The mount point given does not exist.')
             return False
@@ -262,8 +366,10 @@ if __name__ == '__main__':
     device = "/dev/sdb"
     bl_installer.set_dryrun(True)
     
-    bl_installer.set_uflash_bin(devdir +
-       '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash')
+    uflash_bin = devdir + \
+       '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash'
+    
+    bl_installer.set_uflash_bin(uflash_bin)
       
 # ==========================================================================
 # Test cases - Unit tests
@@ -276,12 +382,22 @@ if __name__ == '__main__':
     # Check device existence (positive test case)
     
     ubl_file         = devdir + '/images/ubl_DM36x_sdmmc.bin'
+    
+    bl_installer.set_ubl_file(ubl_file)
+    
     uboot_file       = devdir + '/images/bootloader'
+    
+    bl_installer.set_uboot_file(uboot_file)
+    
     uboot_entry_addr = '0x82000000' # 2181038080
+    
+    bl_installer.set_uboot_entry_addr(uboot_entry_addr)
+    
     uboot_load_addr  = '2181038080' # 0x82000000
     
-    if bl_installer.flash(device, ubl_file, uboot_file, uboot_entry_addr,
-                          uboot_load_addr):
+    bl_installer.set_uboot_load_addr(uboot_load_addr)
+    
+    if bl_installer.flash(device):
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
@@ -297,14 +413,17 @@ if __name__ == '__main__':
     console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1  \
     mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
     
-    if bl_installer.install_uboot_env(mount_point, uboot_load_addr):
+    if bl_installer.install_uboot_env(mount_point):
         print "uboot env successfully installed on " + mount_point
     else:
         print "Error installing uboot env on " + mount_point
         sys.exit(-1)
     
     kernel_image = devdir + '/images/kernel.uImage'
-    if bl_installer.install_kernel(mount_point,kernel_image):
+    
+    bl_installer.set_kernel_image(kernel_image)
+    
+    if bl_installer.install_kernel(mount_point):
         print "Kernel successfully installed on " + mount_point
     else:
         print "Error installing kernel "+ kernel_image + " on " + mount_point
