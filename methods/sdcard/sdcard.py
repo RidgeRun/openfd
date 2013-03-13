@@ -679,6 +679,24 @@ class SDCardInstaller:
             else:
                 self._logger.info(device_info[partition]["fs type"]+' filesystem is not supported.')
         return True
+    
+    def set_workdir(self,workdir):
+        """
+        Sets the path to the directory where to create temporary files
+        and also mount devices.
+        """
+        if os.path.isdir(workdir):
+            self._workdir = workdir
+            return True
+        else:
+            self._logger.error("Error! "+workdir+" is not a directory.")
+            return False
+    
+    def get_workdir(self):
+        """
+        Gets the working directory.
+        """
+        return self._workdir
                 
     def __str__(self):
         """
