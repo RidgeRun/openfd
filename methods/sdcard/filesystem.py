@@ -34,7 +34,6 @@ RidgeRun, LLC.
 # ==========================================================================
 
 import os
-import sdcard
 import rrutils
 import sys
 
@@ -55,12 +54,7 @@ class FilesystemInstaller:
         self._logger      = rrutils.logger.get_global_logger()
         self._executer    = rrutils.executer.Executer()
         self._dryrun      = False
-        self._uflash_bin  = ''
         self._executer.set_logger(self._logger)
-        self._sd_installer = sdcard.SDCardInstaller()
-        # This flag will tell the methods to continue only if
-        # partitions info is already set.
-        self._sd_info_set = False 
         
     def set_dryrun(self, dryrun):
         """
@@ -78,113 +72,17 @@ class FilesystemInstaller:
         
         return self._dryrun
     
-    def set_sd_info(self,sdcard_mmap_filename):
+    def  generate_rootfs_partition(self, mount_point, rootfs):
         """
-        Sets the sd partitions info. 
+        Installs the filesystem on the mount point given.
+        Returns True on success, False otherwise.
         """
-        if self._sd_info_set:
-            self._logger.info("SD partitions info was already set,\
-                             try unsetting it next time.")
-        if not os.path.isfile(sdcard_mmap_filename):
-            self._logger.error('Unable to find ' + sdcard_mmap_filename)
-            return False
-        if not self._sd_installer.read_partitions(sdcard_mmap_filename):
-            self._logger.error('Failed to read partitions info')
-            return False
-        self._logger.info("Sd partitions info successfully setted.")
-        self._sd_info_set = True
-        return True
-    
-    def unset_sd_info(self):
-        """
-        Unsets the _sd_info_set flag for setting new info.
-        """
-        self._sd_info_set = False
-    
-    def set_workdir(self,workdir):
-        """
-        Sets the path to the directory where to create temporary files
-        and also mount devices.
-        """
-        if os.path.isdir(workdir):
-            self._workdir = workdir
-            return True
-        else:
-            self._logger.error("Error! "+workdir+" is not a directory.")
-            return False
-    
-    def get_workdir(self):
-        """
-        Gets the working directory.
-        """
-        return self._workdir
-    
-    def  generate_rootfs_partition(self, device, partition_index, rootfs):
-        """
-        Installs the filesystem on the device given.
-        """
-        m_point = self._check_partition_setup(device, partition_index)
-        if m_point == None:
-            self._logger.error('Something is wrong with device/partition setup')
-            return False
-
-        if self._executer.check_call("cd "+rootfs+" ; find . | sudo cpio -pdum "+m_point) != 0:
-            self._logger.error('Failed to fs to ' +  m_point)
-            return False
-        return True
-    
-    def _check_partition_setup(self,device,partition_index):
-        """
-        This will check the sd setup so that the calling method can continue.
-        On success will return the partition mount point, otherwise it will return None.
-        """
-        # Let's check that sd info was set.
-        if not self._sd_info_set:
-            self._logger.error("Set SD Info!")
-            return None
-        # Now let's check that there is a workdir.
-        if self.get_workdir() == None:
-            self._logger.error("Set a Workdir!")
-        # We should get sure that the device exists.
-        if not self._sd_installer.device_exists(device):
-            return None
-        # Now that we know that the device exist let's get the device info.
-        dev_info = self._sd_installer.get_dev_info(device)
-        # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
-        # Now that we have this info, let's create a mount point for the partition.
-        # For this we will use self._workdir and the real label of the partition.
-        m_point = os.path.join( self._workdir, dev_info[device+part_suffix]["label"])
-        # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device,part_suffix, m_point):
-            return None
-        return m_point
-    
-    def _check_sd_mounted(self,device,part_suffix,m_point):
-        """
-        Checks that the given device is mounted, if not it will try to mount
-        it on self._workdir. 
-        """
-        if not self._sd_installer.device_is_mounted(device):
-            if not self._sd_installer.mount_partitions(device, self._workdir):
-                self._logger.error('Failed to mount '+device+" on "+self._workdir)
-                return False
         
-        # Now we check that the device is mounted where we want it to be.
-        # This will only work if dryrun is setted to false.
-        if not self._dryrun:
-            partition = device + part_suffix
-            current_mpoint = self._sd_installer.get_mpoint(partition)
-            if m_point != current_mpoint:
-                self._logger.error('Device is not mounted on '+ m_point \
-                                   +' and not on '+m_point+' as expected.')
-                return False
-        else:
-            pass
+        if self._executer.check_call("cd "+rootfs+" ; find . | sudo cpio -pdum "+mount_point) != 0:
+            self._logger.error('Failed to fs to ' +  mount_point)
+            return False
+        
         return True
-    
-    def check_fs(self,device):
-        self._sd_installer.check_fs(device)
 
 # ==========================================================================
 # Test cases
@@ -236,8 +134,7 @@ if __name__ == '__main__':
     # WARNING: Dryrun mode is set by default, but be careful
     # you don't repartition or flash a device you don't want to.
     
-    device = "/dev/sdb"
-    fs_installer.set_dryrun(True)
+    fs_installer.set_dryrun(False)
     
 # ==========================================================================
 # Test cases - Unit tests
@@ -247,33 +144,16 @@ if __name__ == '__main__':
     
     tc_start(1, sleep_time=0) 
     
-    # Check device existence (positive test case)
-    
-    # Try to set sd partitions info.
-    
-    sdcard_mmap_filename = devdir + '/images/sd-mmap.config'
-    if not fs_installer.set_sd_info(sdcard_mmap_filename):
-        print "SD partitions info could not be setted... Exiting"
-        sys.exit(-1)
-    
     # Try to install filesystem on the sd.
     
-    workdir = devdir + '/images'
-    if not fs_installer.set_workdir(workdir):
-        print "Failed to set working directory"
-        sys.exit(-1)
-    
     rootfs = devdir + "/fs/fs"
-    partition_index = 2
     
-    if fs_installer. generate_rootfs_partition(device,partition_index,rootfs):
-        print "Fs successfully installed on " + device + str(partition_index)
+    mount_point = "/media/rootfs"
+    
+    if fs_installer. generate_rootfs_partition(mount_point,rootfs):
+        print "Fs successfully installed on " + mount_point
     else:
-        print "Error installing fs on " + device + str(partition_index)
+        print "Error installing fs on " + mount_point
         sys.exit(-1)
-    
-    # Let's check that the filesystem is ok.
-    print "Checking fs..."
-    fs_installer.check_fs(device)
     
     print "Test cases finished"
