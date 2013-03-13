@@ -37,8 +37,6 @@ import partition
 import geometry
 import ConfigParser
 import rrutils
-#~ import bootloader
-import filesystem
 from collections import defaultdict
 
 # ==========================================================================
@@ -67,8 +65,6 @@ class SDCardInstaller:
         self._interactive = True
         self._partitions  = []
         self._executer.set_logger(self._logger)
-        #~ self._bl_installer = bootloader.BootloaderInstaller()
-        self._fs_installer = filesystem.FilesystemInstaller()
     
     def _confirm_device_size(self, device):
         """
@@ -564,14 +560,11 @@ class SDCardInstaller:
                 if config.has_option(section, 'filesystem'):
                     part.set_filesystem(config.get(section, 'filesystem'))
                 
-                if config.has_option(section, 'components'):
-                    part.set_components(config.get(section, 'components'))
-                
                 self._partitions.append(part)
                 
         return True
     
-    def get_mount_point(self,partition):
+    def get_mpoint(self,partition):
         """
         Returns the mount point of the given partition.
         If the mount point was not found it returns None.
@@ -585,15 +578,15 @@ class SDCardInstaller:
                 m_point = splitted[1]
         return m_point
     
-    def get_device_info(self,device):
+    def get_dev_info(self,device):
         """
         Returns the device information as a 2 dimensions dictionary.
         Where the first keyword is the partition and the second one
         can be either "mount point" or "fs type".
         Example:
-        device_info["/dev/sdb1"]["mount point"]
+        dev_info["/dev/sdb1"]["mount point"]
         """
-        device_info = defaultdict(dict)
+        dev_info = defaultdict(dict)
         # We have 2 ways one if the device is mounted and the other one if it
         # is not mounted. Please notice that this method does not mount the
         # device, only returns info.
@@ -608,8 +601,8 @@ class SDCardInstaller:
             for line in output_lines:
                 info_line = get_words(line)
                 if len(info_line) > 2:
-                    device_info[info_line[0]]["mount point"] = info_line[1]
-                    device_info[info_line[0]]["fs type"] = info_line[2]
+                    dev_info[info_line[0]]["mount point"] = info_line[1]
+                    dev_info[info_line[0]]["fs type"] = info_line[2]
         else:
             # And this if it is not mounted.
             # In this case we use the info given by blkid
@@ -622,8 +615,8 @@ class SDCardInstaller:
                 info_line = get_words(line)
                 if len(info_line) > 2:
                     # Notice that here "mount point" is filled with None.
-                    device_info[info_line[0]]["mount point"] = None
-                    device_info[info_line[0]]["fs type"] = info_line[1]
+                    dev_info[info_line[0]]["mount point"] = None
+                    dev_info[info_line[0]]["fs type"] = info_line[1]
         
         # Now that we have the partition we can gather some extra info.
         for line in output_lines:
@@ -631,10 +624,10 @@ class SDCardInstaller:
             if len(info_line) > 2:
                 output = self._executer.check_output('sudo blkid '+info_line[0])
                 output_line = output[1].split(' ')
-                device_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
-                device_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
+                dev_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
+                dev_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
             
-        return device_info
+        return dev_info
     
     def check_fs(self,device):
         """
@@ -649,8 +642,8 @@ class SDCardInstaller:
             self._logger.error("Device "+device+" is not mounted.")
             return False
         
-        device_info = self.get_device_info(device)
-        if device_info == None:
+        dev_info = self.get_dev_info(device)
+        if dev_info == None:
             return False
         
         # run man fsck to check this outputs
@@ -664,9 +657,9 @@ class SDCardInstaller:
                         128  : 'Shared-library error'}        
         fs_state = ''
         
-        for partition in device_info:
-            if device_info[partition]["fs type"] == 'vfat' or device_info[partition]["fs type"] == 'ext3':
-                output = self._executer.check_call("sudo fsck."+ device_info[partition]["fs type"] +" "+device_info[partition]["mount point"])
+        for partition in dev_info:
+            if dev_info[partition]["fs type"] == 'vfat' or dev_info[partition]["fs type"] == 'ext3':
+                output = self._executer.check_call("sudo fsck."+ dev_info[partition]["fs type"] +" "+dev_info[partition]["mount point"])
                 if output != 0:
                     # A little trick to display the sum of outputs
                     for bit in range(8):
@@ -677,129 +670,9 @@ class SDCardInstaller:
                     fs_state = fsck_outputs[0]
                 self._logger.info(partition+' condition:' +  fs_state)
             else:
-                self._logger.info(device_info[partition]["fs type"]+' filesystem is not supported.')
+                self._logger.info(dev_info[partition]["fs type"]+' filesystem is not supported.')
         return True
-    
-    def install_components(self,mmapfile,device):
-        
-        if not self.read_partitions(mmapfile):
-            self._logger.error("Error reading mmapfile.")
-        
-        # Let's check that there is a workdir.
-        if self.get_workdir() == None:
-            self._logger.error("Set a Workdir!")
-            return None
-        
-        # Check device existence
-        if not self.device_exists(device) and not self._dryrun:
-            self._logger.info('Try inserting the SD card again and ' +
-                               'unmounting the partitions.')
-            self._logger.error('No valid disk is available on ' + device + '.')
-            return False
-        
-        # Check device is not mounted
-        if self.device_is_mounted(device) and not self._dryrun:
-            
-            if self._interactive:
-                if self._confirm_device_auto_unmount(device) is False:
-                    return False
                 
-            # Auto-unmount
-            if not self.auto_unmount_partitions(device):
-                self._logger.error('Failed auto-unmounting ' + device +
-                                   ', refusing to install.')
-                return False
-        
-        # Now let's mount the device on our workdir.
-        if not self.mount_partitions(device, self._workdir):
-            self._logger.error('Failed to mount '+device+" on "+self._workdir)
-            return False
-        
-        # Now that the device is ready let's get some extra info about the device.
-        device_info = self.get_device_info(device)
-        
-        # Let's start installing components on the device.
-        for partition in self._partitions:
-            for device_partitions in device_info:
-                if device_info[device_partitions]["label"] == partition.get_name():
-                    for component in partition.get_components():
-                        if component == 'fs':
-                            mount_point = device_info[device_partitions]["mount point"]
-                            self._fs_installer.generate_rootfs_partition(mount_point, '/home/dbenavides/work/turrialba/dm368-20130304/fs/fs')
-        
-        return True
-    
-    def bootloader_installer(self):
-        pass
-    
-    def filesystem_installer(self):
-        pass
-    
-    def set_workdir(self,workdir):
-        """
-        Sets the path to the directory where to create temporary files
-        and also mount devices.
-        """
-        if os.path.isdir(workdir):
-            self._workdir = workdir
-            return True
-        else:
-            self._logger.error("Error! "+workdir+" is not a directory.")
-            return False
-    
-    def get_workdir(self):
-        """
-        Gets the working directory.
-        """
-        return self._workdir
-    
-    def _check_partition_setup(self,device,partition_index):
-        """
-        This will check the sd setup so that the calling method can continue.
-        On success will return the partition mount point, otherwise it will return None.
-        """
-        # Now let's check that there is a workdir.
-        if self.get_workdir() == None:
-            self._logger.error("Set a Workdir!")
-            return None
-        # We should get sure that the device exists.
-        if not self.device_exists(device):
-            self._logger.error("It seems device "+device+" doesn't exist.")
-            return None
-        # Now that we know that the device exist let's get the device info.
-        device_info = self.get_device_info(device)
-        # Now it is convenient to get the real partition suffix.
-        part_suffix = self._sd_installer.get_partition_suffix(device, partition_index)
-        # Now that we have this info, let's create a mount point for the partition.
-        # For this we will use self._workdir and the real label of the partition.
-        m_point = os.path.join( self._workdir, device_info[device+part_suffix]["label"])
-        # Here we check if the device is mounted, if not we mount it.
-        if not self._check_sd_mounted(device,part_suffix, m_point):
-            return None
-        return m_point
-    
-    def _check_sd_mounted(self,partition,mount_point):
-        """
-        Checks that the given device is mounted, if not it will try to mount
-        it on self._workdir. 
-        """
-        if not self.device_is_mounted(device):
-            if not self.mount_partitions(device, self._workdir):
-                self._logger.error('Failed to mount '+device+" on "+self._workdir)
-                return False
-        
-        # Now we check that the device is mounted where we want it to be.
-        # This will only work if dryrun is set to false.
-        if not self._dryrun:
-            current_mount_point = self.get_mount_point(partition)
-            if mount_point != current_mount_point:
-                self._logger.error('Device is mounted on '+ mount_point \
-                                   +' and not on '+mount_point+' as expected.')
-                return False
-        else:
-            pass
-        return True
-    
     def __str__(self):
         """
         To string.

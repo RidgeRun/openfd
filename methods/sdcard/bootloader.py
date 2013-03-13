@@ -300,7 +300,7 @@ class BootloaderInstaller:
         # This will only work if dryrun is set to false.
         if not self._dryrun:
             partition = device+self._sd_installer.get_partition_suffix(device, partition_index)
-            current_mpoint = self._sd_installer.get_mount_point(partition)
+            current_mpoint = self._sd_installer.get_mpoint(partition)
             if m_point != current_mpoint:
                 self._logger.error('Device is mounted on '+ current_mpoint \
                                    +' and not on '+m_point+' as expected.')
