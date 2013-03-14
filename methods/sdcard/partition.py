@@ -58,6 +58,7 @@ class Partition:
         self._bootable   = False
         self._type       = ''
         self._filesystem = ''
+        self._mount_point = None
         self._components = []
         
     @classmethod
@@ -226,7 +227,19 @@ class Partition:
         Gets the components that will be installed on this partition.
         """
         return self._components
-        
+    
+    def set_mount_point(self, mount_point):
+        """
+        Sets the partition mount point.
+        """
+        self._mount_point = mount_point
+    
+    def get_mount_point(self):
+        """
+        Gets the partition mount point.
+        """
+        return self._mount_point
+    
     def is_bootable(self):
         """
         Returns true if the partition is bootable, false otherwise.
