@@ -52,6 +52,8 @@ class Partition:
         Constructor.
         """
         
+        self._device = None
+        self._device_partition = None        
         self._name       = name
         self._start      = 0
         self._size       = 0
@@ -240,6 +242,34 @@ class Partition:
         """
         return self._mount_point
     
+    def set_device(self, device):
+        """
+        Sets the device where the partition is placed.
+        Example:
+        /dev/sdb
+        """
+        self._device = device
+    
+    def get_device(self):
+        """
+        Gets the device where the partition is placed.
+        """
+        return self._device
+    
+    def set_device_partition(self, device_partition):
+        """
+        Sets the device partition.
+        Example:
+        /dev/sdb1
+        """
+        self._device_partition = device_partition
+    
+    def get_device_partition(self):
+        """
+        Gets the device partition.
+        """
+        return self._device_partition
+    
     def is_bootable(self):
         """
         Returns true if the partition is bootable, false otherwise.
@@ -253,12 +283,15 @@ class Partition:
         """
         
         _str  = ''
+        _str += 'Device:     ' + str(self._device) + '\n'
+        _str += 'Partition:  ' + str(self._device_partition) + '\n'
         _str += 'Name:       ' + self._name + '\n'
         _str += 'Start:      ' + str(self._start) + '\n'
         _str += 'Size:       ' + str(self._size) + '\n'
         _str += 'Bootable:   ' + ('Yes' if self._bootable else 'No') + '\n'
         _str += 'Type:       ' + self._type + '\n'
         _str += 'Filesystem: ' + self._filesystem + '\n'
+        _str += 'Mount point:' + str(self._mount_point) + '\n'
         return _str
 
 # ==========================================================================
