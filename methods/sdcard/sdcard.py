@@ -5,6 +5,7 @@
 # All Rights Reserved.
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+# Author: Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -322,6 +323,14 @@ class SDCardInstaller:
                 self._logger.error('Failed to mount ' + device_part + ' in ' + 
                                    mount_point)        
                 return False
+            
+            # Now that the partition is mounted, let's update the partition's
+            # mount point attribute.
+            part.set_mount_point(mount_point)
+            # And also the device attribute.
+            part.set_device(device)
+            # And the device partition attribute.
+            part.set_device_partition(device_part)
             
             partition_index += 1
             
@@ -697,6 +706,33 @@ class SDCardInstaller:
         Gets the working directory.
         """
         return self._workdir
+    
+    
+    def set_bl_attributes(self,uflash_bin=None,ubl_file=None,uboot_file=None,uboot_entry_addr=None,uboot_load_addr=None,bootargs=None,kernel_image=None):
+        """
+        Sets the attributes that can be needed by the bootloader installer.
+        """
+        if uflash_bin:
+            self._bl_installer.set_uflash_bin(uflash_bin)
+        if ubl_file:
+            self._bl_installer.set_ubl_file(ubl_file)
+        if uboot_file:
+            self._bl_installer.set_uboot_file(uboot_file)
+        if uboot_entry_addr:
+            self._bl_installer.set_uboot_entry_addr(uboot_entry_addr)
+        if uboot_load_addr:
+            self._bl_installer.set_uboot_load_addr(uboot_load_addr)
+        if bootargs:
+            self._bl_installer.set_bootargs(bootargs)
+        if kernel_image:
+            self._bl_installer.set_kernel_image(kernel_image)
+        
+    def set_fs_attributes(self,rootfs=None):
+        """
+        Sets the attributes that can be needed by the filesystem installer.
+        """
+        if rootfs:
+            self._fs_installer.set_rootfs(rootfs)
                 
     def __str__(self):
         """
