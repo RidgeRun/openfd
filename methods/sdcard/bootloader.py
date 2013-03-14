@@ -91,6 +91,7 @@ class BootloaderInstaller:
             return True
         else:
             self._logger.error(uflash_bin+' Does not exist.')
+            return False
         
     def get_uflash_bin(self):
         """
@@ -108,6 +109,7 @@ class BootloaderInstaller:
             return True
         else:
             self._logger.error(ubl_file+' Does not exist.')
+            return False
         
     def get_ubl_file(self):
         """
@@ -125,6 +127,7 @@ class BootloaderInstaller:
             return True
         else:
             self._logger.error(uboot_file+' Does not exist.')
+            return False
         
     def get_uboot_file(self):
         """
@@ -159,6 +162,18 @@ class BootloaderInstaller:
         
         return self._uboot_load_addr
     
+    def set_bootargs(self,bootargs):
+        """
+        Sets the boot args used when generating the uboot env file.
+        """
+        self._bootargs = bootargs
+    
+    def get_bootargs(self):
+        """
+        Gets the boot args.
+        """
+        return self._bootargs
+    
     def set_kernel_image(self, kernel_image):
         """
         Sets the path to the kernel_image.
@@ -168,6 +183,7 @@ class BootloaderInstaller:
             return True
         else:
             self._logger.error(kernel_image+' Does not exist.')
+            return False
         
     def get_kernel_image(self):
         """
@@ -245,18 +261,6 @@ class BootloaderInstaller:
         ret_value = hex(value)
         return str(ret_value)
         
-    def set_bootargs(self,bootargs):
-        """
-        Sets the boot args used when generating the uboot env file.
-        """
-        self._bootargs = bootargs
-    
-    def get_bootargs(self):
-        """
-        Gets the boot args.
-        """
-        return self._bootargs
-
     def install_uboot_env(self, mount_point):
         """
         Install the U-Boot environment to the given mount point.
@@ -285,8 +289,8 @@ class BootloaderInstaller:
                        +uboot_load_addr+"\n")
             uenv.close()
         else:
-            self._logger.info("You are running in dryrun, that's why uboot env \
-                                file is not generated.")
+            self._logger.info("You are running in dryrun, that's why uboot " \
+                              + "env file is not generated.")
         
         return True
         
@@ -307,8 +311,11 @@ class BootloaderInstaller:
             self._logger.error('Error: '+kernel_image+' is not a file!.')
             return False
         
-        if self._executer.check_call("sudo cp " + kernel_image +" "+ mount_point+"/uImage") != 0:
-            self._logger.error('Failed to copy ' + kernel_image + " to " +  mount_point)
+        cmd = "sudo cp " + kernel_image +" "+ mount_point+"/uImage"
+        
+        if self._executer.check_call(cmd) != 0:
+            self._logger.error('Failed to copy ' + kernel_image + " to " \
+                               +  mount_point)
             return False
         
         return True
@@ -406,12 +413,13 @@ if __name__ == '__main__':
     
     mount_point = '/media/boot'
     
-    bl_installer.set_bootargs(" davinci_enc_mngr.ch0_output=COMPONENT \
-    davinci_enc_mngr.ch0_mode=1080I-30  davinci_display.cont2_bufsize=13631488 \
-    vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 \
-    video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off  \
-    console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1  \
-    mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
+    bl_installer.set_bootargs(" davinci_enc_mngr.ch0_output=COMPONENT "
+    + "davinci_enc_mngr.ch0_mode=1080I-30  " +
+    "davinci_display.cont2_bufsize=13631488 " +
+    "vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 "
+    + "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
+    + "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1"
+    + " mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
     
     if bl_installer.install_uboot_env(mount_point):
         print "uboot env successfully installed on " + mount_point

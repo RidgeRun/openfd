@@ -54,6 +54,7 @@ class FilesystemInstaller:
         self._logger      = rrutils.logger.get_global_logger()
         self._executer    = rrutils.executer.Executer()
         self._dryrun      = False
+        self._rootfs      = None
         self._executer.set_logger(self._logger)
         
     def set_dryrun(self, dryrun):
@@ -72,13 +73,30 @@ class FilesystemInstaller:
         
         return self._dryrun
     
-    def  generate_rootfs_partition(self, mount_point, rootfs):
+    def set_rootfs(self,rootfs):
+        """
+        Sets the path to the directory that contains the fs that will be
+        installed.
+        """
+        if os.path.exists(rootfs):
+            self._rootfs = rootfs
+            return True
+        else:
+            self._logger.error(rootfs+' Does not exist.')
+            return False
+    
+    def  generate_rootfs_partition(self, mount_point):
         """
         Installs the filesystem on the mount point given.
         Returns True on success, False otherwise.
         """
+        if not self._rootfs:
+            self._logger.error('Error: rootfs is not set yet!')
+            return False
         
-        if self._executer.check_call("cd "+rootfs+" ; find . | sudo cpio -pdum "+mount_point) != 0:
+        cmd = "cd "+self._rootfs+" ; find . | sudo cpio -pdum "+mount_point
+        
+        if self._executer.check_call(cmd) != 0:
             self._logger.error('Failed to fs to ' +  mount_point)
             return False
         
@@ -134,7 +152,7 @@ if __name__ == '__main__':
     # WARNING: Dryrun mode is set by default, but be careful
     # you don't repartition or flash a device you don't want to.
     
-    fs_installer.set_dryrun(False)
+    fs_installer.set_dryrun(True)
     
 # ==========================================================================
 # Test cases - Unit tests
@@ -147,10 +165,13 @@ if __name__ == '__main__':
     # Try to install filesystem on the sd.
     
     rootfs = devdir + "/fs/fs"
+    if not fs_installer.set_rootfs(rootfs):
+        print "Error setting rootfs."
+        sys.exit(-1)
     
     mount_point = "/media/rootfs"
     
-    if fs_installer. generate_rootfs_partition(mount_point,rootfs):
+    if fs_installer. generate_rootfs_partition(mount_point):
         print "Fs successfully installed on " + mount_point
     else:
         print "Error installing fs on " + mount_point
