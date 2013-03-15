@@ -70,6 +70,7 @@ class SDCardInstaller:
         self._executer.set_logger(self._logger)
         self._bl_installer = bootloader.BootloaderInstaller()
         self._fs_installer = filesystem.FilesystemInstaller()
+        self._workdir     = None
     
     def _confirm_device_size(self, device):
         """
@@ -282,6 +283,10 @@ class SDCardInstaller:
         """
         
         directory = directory.rstrip('/')
+        if not os.path.isdir(directory):
+            self._logger.error('Error: The directory '+ directory +
+                               ' does not exist.')
+            return False
         
         partition_index = 1
         for part in self._partitions:
@@ -708,16 +713,21 @@ class SDCardInstaller:
         return self._workdir
     
     
-    def set_bl_attributes(self,uflash_bin=None,ubl_file=None,uboot_file=None,uboot_entry_addr=None,uboot_load_addr=None,bootargs=None,kernel_image=None):
+    def set_bl_attributes(self,uflash_bin=None,ubl_file=None,uboot_file=None, \
+                          uboot_entry_addr=None,uboot_load_addr=None, \
+                          bootargs=None,kernel_image=None):
         """
         Sets the attributes that can be needed by the bootloader installer.
         """
         if uflash_bin:
-            self._bl_installer.set_uflash_bin(uflash_bin)
+            if not self._bl_installer.set_uflash_bin(uflash_bin):
+                return False
         if ubl_file:
-            self._bl_installer.set_ubl_file(ubl_file)
+            if not self._bl_installer.set_ubl_file(ubl_file):
+                return False
         if uboot_file:
-            self._bl_installer.set_uboot_file(uboot_file)
+            if not self._bl_installer.set_uboot_file(uboot_file):
+                return False
         if uboot_entry_addr:
             self._bl_installer.set_uboot_entry_addr(uboot_entry_addr)
         if uboot_load_addr:
@@ -725,14 +735,61 @@ class SDCardInstaller:
         if bootargs:
             self._bl_installer.set_bootargs(bootargs)
         if kernel_image:
-            self._bl_installer.set_kernel_image(kernel_image)
+            if not self._bl_installer.set_kernel_image(kernel_image):
+                return False
+        return True
         
     def set_fs_attributes(self,rootfs=None):
         """
         Sets the attributes that can be needed by the filesystem installer.
         """
         if rootfs:
-            self._fs_installer.set_rootfs(rootfs)
+            if not self._fs_installer.set_rootfs(rootfs):
+                return False
+        return True
+    
+    def install_components(self, dryrun):
+        """
+        This method is the one that installs the components on the partitions.
+        It expects only the dryrun mode, because it is assumed that the needed
+        arguments are already set on the corresponding bl_installer or 
+        fs_installer class.
+        Return True on success, False otherwise.
+        """
+        # Let's set the dry run mode for bl_installer and fs_installer.
+        self._bl_installer.set_dryrun(dryrun)
+        self._fs_installer.set_dryrun(dryrun)
+        # And also let's set the workdir
+        self._bl_installer.set_workdir(self._workdir)
+        self._fs_installer.set_workdir(self._workdir)
+        
+        for partition in self._partitions:
+            for component in partition.get_components():
+                device = partition.get_device()
+                mount_point = partition.get_mount_point()                
+                if component == 'prebootloader':
+                    # Let's install prebootloader
+                    if not self._bl_installer.flash(device):
+                        return False
+                elif component == 'bootloader':
+                    # Let's install the bootloader
+                    if not self._bl_installer.install_uboot_env(mount_point):
+                        return False
+                elif component == 'kernel':
+                    # Let's install the kernel
+                    if not self._bl_installer.install_kernel(mount_point):
+                        return False
+                elif component == 'fs':
+                    # Let's install the fs
+                    ret=self._fs_installer.generate_rootfs_partition(mount_point)
+                    if not ret:
+                        return False
+                else:
+                    self._logger.error('Error: component ' + component + 
+                                       'is not valid.')
+                    return False
+        self._logger.info("Components successfully installed.")
+        return True
                 
     def __str__(self):
         """
