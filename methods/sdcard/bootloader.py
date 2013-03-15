@@ -58,6 +58,7 @@ class BootloaderInstaller:
         self._logger      = rrutils.logger.get_global_logger()
         self._executer    = rrutils.executer.Executer()
         self._dryrun      = False
+        self._workdir     = None
         self._uflash_bin  = None
         self._ubl_file    = None
         self._uboot_file  = None
@@ -192,6 +193,24 @@ class BootloaderInstaller:
         
         return self._kernel_image
     
+    def set_workdir(self, workdir):
+        """
+        Sets the path to the workdir.
+        """
+        if os.path.isdir(workdir):
+            self._workdir = workdir
+            return True
+        else:
+            self._logger.error(workdir+' Is not a directory.')
+            return False
+        
+    def get_workdir(self):
+        """
+        Gets the path to the kernel_image.
+        """
+        
+        return self._workdir
+    
     def flash(self, device):
         """
         Flashes UBL and U-Boot to the given device, using the uflash tool.
@@ -230,8 +249,8 @@ class BootloaderInstaller:
         
         cmd = 'sudo ' + self._uflash_bin + \
               ' -d ' + device + \
-              ' -u ' + ubl_file + \
-              ' -b ' + uboot_file + \
+              ' -u ' + self._ubl_file + \
+              ' -b ' + self._uboot_file + \
               ' -e ' + uboot_entry_addr + \
               ' -l ' + uboot_load_addr
 
@@ -275,22 +294,20 @@ class BootloaderInstaller:
             self._logger.error('No load address specified')
         
         # Here we prepare the uboot env file.
-        # but write it only if we are not in dryrun.
-        if not self.get_dryrun():
-            uenv_file = os.path.join(mount_point,"uEnv.txt")
-            uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
-            try:
-                uenv = open(uenv_file, "w")
-            except:
-                self._logger.error('Error: Can not creat uboot env file.')
-                return False
-            uenv.write("bootargs="+self._bootargs+"\n")
-            uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
-                       +uboot_load_addr+"\n")
-            uenv.close()
-        else:
-            self._logger.info("You are running in dryrun, that's why uboot " \
-                              + "env file is not generated.")
+        uenv_file = os.path.join(self._workdir,"uEnv.txt")
+        uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
+        if uboot_load_addr == None:
+            self._logger.error("Invalid value given to uboot load address")
+        uenv = open(uenv_file, "w")
+        uenv.write("bootargs="+self._bootargs+"\n")
+        uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
+                    +uboot_load_addr+"\n")
+        uenv.close()
+        
+        # Now we copy it to mount point
+        if self._executer.check_call("sudo cp "+ uenv_file + " " + mount_point) != 0:
+            self._logger.error("Error installing uboot env file.")
+            return False
         
         return True
         
@@ -307,14 +324,14 @@ class BootloaderInstaller:
             self._logger.error('Error: The mount point given does not exist.')
             return False
         
-        if not os.path.isfile(kernel_image):
-            self._logger.error('Error: '+kernel_image+' is not a file!.')
+        if not os.path.isfile(self._kernel_image):
+            self._logger.error('Error: '+self._kernel_image+' is not a file!.')
             return False
         
-        cmd = "sudo cp " + kernel_image +" "+ mount_point+"/uImage"
+        cmd = "sudo cp " + self._kernel_image +" "+ mount_point+"/uImage"
         
         if self._executer.check_call(cmd) != 0:
-            self._logger.error('Failed to copy ' + kernel_image + " to " \
+            self._logger.error('Failed to copy ' + self._kernel_image + " to " \
                                +  mount_point)
             return False
         
