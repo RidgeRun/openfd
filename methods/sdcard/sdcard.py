@@ -585,71 +585,6 @@ class SDCardInstaller:
                 
         return True
     
-    def get_mount_point(self,partition):
-        """
-        Returns the mount point of the given partition.
-        If the mount point was not found it returns None.
-        """
-        m_point = None
-        output = self._executer.check_output('grep '+partition+' /proc/mounts')
-        output = output[1].split('\n')
-        for line in output:
-            splitted = line.split(' ') 
-            if len(splitted) > 1:
-                m_point = splitted[1]
-        return m_point
-    
-    def get_device_info(self,device):
-        """
-        Returns the device information as a 2 dimensions dictionary.
-        Where the first keyword is the partition and the second one
-        can be either "mount point" or "fs type".
-        Example:
-        device_info["/dev/sdb1"]["mount point"]
-        """
-        device_info = defaultdict(dict)
-        # We have 2 ways one if the device is mounted and the other one if it
-        # is not mounted. Please notice that this method does not mount the
-        # device, only returns info.
-        if self.device_is_mounted(device):
-            # This is what is done if the device is mounted.
-            # We can use the info in /proc/mounts
-            cmd = self._executer.check_output('grep '+device+' /proc/mounts')
-            if cmd[0] != 0:
-                self._logger.error("Failed getting unmounted device info.")
-                return None
-            output_lines = str_readlines(cmd[1])
-            for line in output_lines:
-                info_line = get_words(line)
-                if len(info_line) > 2:
-                    device_info[info_line[0]]["mount point"] = info_line[1]
-                    device_info[info_line[0]]["fs type"] = info_line[2]
-        else:
-            # And this if it is not mounted.
-            # In this case we use the info given by blkid
-            cmd = self._executer.check_output('blkid -o list | grep '+device)
-            if cmd[0] != 0:
-                self._logger.error("Failed getting unmounted device info.")
-                return None
-            output_lines = str_readlines(cmd[1])
-            for line in output_lines:
-                info_line = get_words(line)
-                if len(info_line) > 2:
-                    # Notice that here "mount point" is filled with None.
-                    device_info[info_line[0]]["mount point"] = None
-                    device_info[info_line[0]]["fs type"] = info_line[1]
-        
-        # Now that we have the partition we can gather some extra info.
-        for line in output_lines:
-            info_line = get_words(line)
-            if len(info_line) > 2:
-                output = self._executer.check_output('sudo blkid '+info_line[0])
-                output_line = output[1].split(' ')
-                device_info[info_line[0]]["label"] = output_line[1].strip('LABEL=').strip('"')
-                device_info[info_line[0]]["uuid"] = output_line[2].strip('UUID=').strip('"')
-            
-        return device_info
-    
     def check_fs(self,device):
         """
         Checks the integrity of device given, if errors are found it tries 
@@ -659,15 +594,13 @@ class SDCardInstaller:
             self._logger.error("Device "+device+" doesn't exist.")
             return False
         
-        if not self.device_is_mounted(device):
-            self._logger.error("Device "+device+" is not mounted.")
-            return False
+        if self.device_is_mounted(device):
+            if not self.auto_unmount_partitions(device):
+                self._logger.error('Can not unmount device ' + device)
+                return False
         
-        device_info = self.get_device_info(device)
-        if device_info == None:
-            return False
-        
-        # run man fsck to check this outputs
+        # according to man fsck
+        # The exit code returned by fsck is the sum of the following conditions
         fsck_outputs = {0    : 'No errors',
                         1    : 'Filesystem errors corrected',
                         2    : 'System should be rebooted',
@@ -675,24 +608,29 @@ class SDCardInstaller:
                         8    : 'Operational error',
                         16   : 'Usage or syntax error',
                         32   : 'Fsck canceled by user request',
-                        128  : 'Shared-library error'}        
-        fs_state = ''
+                        128  : 'Shared-library error'}
         
-        for partition in device_info:
-            if device_info[partition]["fs type"] == 'vfat' or device_info[partition]["fs type"] == 'ext3':
-                output = self._executer.check_call("sudo fsck."+ device_info[partition]["fs type"] +" "+device_info[partition]["mount point"])
-                if output != 0:
-                    # A little trick to display the sum of outputs
-                    for bit in range(8):
-                        if output & 1:
-                            fs_state += '\n'+fsck_outputs[2**bit]
-                            output = output >> 1
+        fs_ok = True
+        
+        for partition in self._partitions:
+            fs_state = ''
+            part_type = partition.get_filesystem()
+            if part_type == 'vfat' or part_type == 'ext3':
+                cmd = "sudo fsck -y " + partition.get_device_partition()
+                output = self._executer.check_call(cmd)
+                if output == 0 or output == 1:
+                    fs_state += fsck_outputs[output] + "\n"
                 else:
-                    fs_state = fsck_outputs[0]
-                self._logger.info(partition+' condition:' +  fs_state)
+                    for i in range(8):
+                        key = 2 ** i
+                        if output & key:
+                            fs_state += fsck_outputs[key] + "\n"
+                            fs_ok = False                
+                self._logger.info(partition.get_device_partition() + \
+                                  ' condition:' +  fs_state)
             else:
-                self._logger.info(device_info[partition]["fs type"]+' filesystem is not supported.')
-        return True
+                self._logger.info(part_type + ' filesystem is not supported.')
+        return fs_ok
     
     def set_workdir(self,workdir):
         """
@@ -703,7 +641,7 @@ class SDCardInstaller:
             self._workdir = workdir
             return True
         else:
-            self._logger.error("Error! "+workdir+" is not a directory.")
+            self._logger.error("Error! " + workdir + " is not a directory.")
             return False
     
     def get_workdir(self):
