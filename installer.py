@@ -304,6 +304,12 @@ if _options.installation_mode == MODE_SD:
     if not ret:
         _logger.error('Installation aborted while installing components.')
         _clean_exit(-1)
+    
+    ret = sd_installer.check_fs(_options.device)
+    
+    if not ret:
+        _logger.error('Failed the filesystem check')
+        _clean_exit(-1)
         
 _logger.info('Installation complete')
 
