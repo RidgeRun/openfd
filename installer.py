@@ -5,6 +5,7 @@
 # All Rights Reserved.
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+# Author: Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -251,6 +252,11 @@ if _options.installation_mode == MODE_SD:
     
     if not _options.workdir:
         _missing_arg_exit('--workdir')
+    else:
+        if not os.path.isdir(_options.workdir):
+            _logger.error('The workdir given ' + _options.workdir + 
+                          ' does not exist.')
+            _clean_exit(-1)
         
 # Clean the device string
 
@@ -273,47 +279,31 @@ if _options.installation_mode == MODE_SD:
         _logger.error('Installation aborted while formatting')
         _clean_exit(-1)
     
-    # Now that the SD card is prepared for the installing the bootloader.
-    # let's do first the basic setup.
-    bl_installer = methods.sdcard.BootloaderInstaller()
-    bl_installer.set_dryrun(_options.dryrun)
-    bl_installer.set_sd_info(_options.mmap_file)
-    if not bl_installer.set_workdir(_options.workdir):
-        _logger.error('Installation aborted while setting working directory.')
-        _clean_exit(-1)
-    if not bl_installer.set_uflash_bin(_options.uflash_bin):
-        _logger.error('Installation aborted while setting uflash bin.')
-        _clean_exit(-1)
-    # Let's start the installation process.
-    partition_index = 1
-    # first we flash the partition.
-    if not bl_installer.flash(_options.device, _options.ubl_file, _options.uboot_file, _options.uboot_entry_addr, _options.uboot_load_addr, partition_index):
-        _logger.error('Installation aborted while flashing.')
-        _clean_exit(-1)
-    # next we install uboot env.
-    bl_installer.set_bootargs(_options.uboot_bootargs)
-    if not bl_installer.install_uboot_env(_options.device, partition_index, _options.uboot_load_addr):
-        _logger.error('Installation aborted while installing uboot env.')
-        _clean_exit(-1)
-    if not bl_installer.install_kernel(_options.device, partition_index, _options.kernel_file):
-        _logger.error('Installation aborted while installing kernel.')
-        _clean_exit(-1)
-    bl_installer.check_fs(_options.device)
+    # Now that the SD card partitions are prepared.
+    # Let's mount them on the workdir to start working on them.
+    sd_installer.set_workdir(_options.workdir)
+    if not sd_installer.mount_partitions(_options.device,_options.workdir):
+        _logger.error('Could not mount ' + _options.device + 'on ' + 
+                      _options.workdir + "aborting.")
+        _clean_exit(-1)        
     
-    # Now that the bootloader stage is finished let's continue with the filesystem.
-    # let's do the basic setup.
-    fs_installer = methods.sdcard.FilesystemInstaller()
-    fs_installer.set_dryrun(_options.dryrun)
-    fs_installer.set_sd_info(_options.mmap_file)
-    if not fs_installer.set_workdir(_options.workdir):
-        _logger.error('Installation aborted while setting working directory.')
+    # Let's set all bl_attributes.
+    sd_installer.set_bl_attributes(uflash_bin=_options.uflash_bin)
+    sd_installer.set_bl_attributes(ubl_file=_options.ubl_file)
+    sd_installer.set_bl_attributes(uboot_file=_options.uboot_file)
+    sd_installer.set_bl_attributes(uboot_entry_addr=_options.uboot_entry_addr)
+    sd_installer.set_bl_attributes(uboot_load_addr=_options.uboot_load_addr)
+    sd_installer.set_bl_attributes(bootargs=_options.uboot_bootargs)
+    sd_installer.set_bl_attributes(kernel_image=_options.kernel_file)
+    
+    # Let's set all fs_atributes
+    sd_installer.set_fs_attributes(rootfs=_options.fs_root)
+    
+    # Ok now it's time to work!
+    ret = sd_installer.install_components(_options.dryrun)
+    if not ret:
+        _logger.error('Installation aborted while installing components.')
         _clean_exit(-1)
-    # Let's start with the fs installation process.
-    partition_index = 2
-    if not fs_installer.generate_rootfs_partition(_options.device, partition_index,_options.fs_root):
-        _logger.error('Installation aborted while installing fs.')
-        _clean_exit(-1)
-    fs_installer.check_fs(_options.device)
         
 _logger.info('Installation complete')
 
