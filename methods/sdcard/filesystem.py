@@ -54,6 +54,7 @@ class FilesystemInstaller:
         self._logger      = rrutils.logger.get_global_logger()
         self._executer    = rrutils.executer.Executer()
         self._dryrun      = False
+        self._workdir     = None
         self._rootfs      = None
         self._executer.set_logger(self._logger)
         
@@ -72,6 +73,24 @@ class FilesystemInstaller:
         """
         
         return self._dryrun
+    
+    def set_workdir(self, workdir):
+        """
+        Sets the path to the workdir.
+        """
+        if os.path.isdir(workdir):
+            self._workdir = workdir
+            return True
+        else:
+            self._logger.error(workdir+' Is not a directory.')
+            return False
+        
+    def get_workdir(self):
+        """
+        Gets the path to the kernel_image.
+        """
+        
+        return self._workdir
     
     def set_rootfs(self,rootfs):
         """
