@@ -40,7 +40,6 @@ import ConfigParser
 import rrutils
 import bootloader
 import filesystem
-from collections import defaultdict
 
 # ==========================================================================
 # Public Classes
