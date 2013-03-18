@@ -117,12 +117,6 @@ _parser.add_option('--kernel-file',
                    dest='kernel_file',
                    required=True)
 
-_parser.add_option('--fs-root',
-                   help="Path to the fs that will be installed.",
-                   metavar='<fs_root>',
-                   dest='fs_root',
-                   required=True)
-
 # Optional arguments
 
 _parser.add_option('-y', '--assume-yes',
@@ -187,6 +181,12 @@ _parser.add_option('--uboot-bootargs',
                    metavar='<uboot_bootargs>',
                    dest='uboot_bootargs')
 
+
+_parser.add_option('--rootfs',
+                   help="Path to the fs that will be installed.",
+                   metavar='<rootfs>',
+                   dest='rootfs')
+
 _parser.add_option('--workdir',
                    help="On "+MODE_SD+" mode, sets the work directory",
                    metavar='<workdir>',
@@ -250,6 +250,14 @@ if _options.installation_mode == MODE_SD:
     if not _options.uboot_bootargs:
         _missing_arg_exit('--uboot-bootargs')
     
+    if not _options.rootfs:
+        _missing_arg_exit('--rootfs')
+    else:
+        if not os.path.isdir(_options.rootfs):
+            _logger.error('The rootfs directory given ' + _options.rootfs +
+                          ' does not exist.')
+            _clean_exit(-1)
+    
     if not _options.workdir:
         _missing_arg_exit('--workdir')
     else:
@@ -297,7 +305,7 @@ if _options.installation_mode == MODE_SD:
     sd_installer.set_bl_attributes(kernel_image=_options.kernel_file)
     
     # Let's set all fs_atributes
-    sd_installer.set_fs_attributes(rootfs=_options.fs_root)
+    sd_installer.set_fs_attributes(rootfs=_options.rootfs)
     
     # Ok now it's time to work!
     ret = sd_installer.install_components(_options.dryrun)
