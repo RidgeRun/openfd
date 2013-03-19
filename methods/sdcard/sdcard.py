@@ -578,7 +578,8 @@ class SDCardInstaller:
                     part.set_filesystem(config.get(section, 'filesystem'))
                 
                 if config.has_option(section, 'components'):
-                    part.set_components(config.get(section, 'components'))
+                    components = config.get(section, 'components')
+                    part.set_components(components.replace(' ','').split(','))
                 
                 self._partitions.append(part)
                 
