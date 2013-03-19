@@ -705,27 +705,21 @@ class SDCardInstaller:
             for component in partition.get_components():
                 device = partition.get_device()
                 mount_point = partition.get_mount_point()                
-                if component == 'prebootloader':
-                    # Let's install prebootloader
+                if component == partition.COMPONENT_BOOTLOADER:
                     if not self._bl_installer.flash(device):
                         return False
-                elif component == 'bootloader':
-                    # Let's install the bootloader
                     if not self._bl_installer.install_uboot_env(mount_point):
                         return False
-                elif component == 'kernel':
-                    # Let's install the kernel
+                elif component == partition.COMPONENT_KERNEL:
                     if not self._bl_installer.install_kernel(mount_point):
                         return False
-                elif component == 'fs':
-                    # Let's install the fs
+                elif component == partition.COMPONENT_ROOTFS:
                     ret=self._fs_installer.generate_rootfs_partition(mount_point)
                     if not ret:
                         return False
                 else:
                     self._logger.error('Error: component ' + component + 
-                                       'is not valid.')
-                    return False
+                                       ' is not valid.')
         self._logger.info("Components successfully installed.")
         return True
                 
