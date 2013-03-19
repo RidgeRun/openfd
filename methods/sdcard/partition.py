@@ -58,8 +58,6 @@ class Partition:
         Constructor.
         """
         
-        self._device = None
-        self._device_partition = None        
         self._name       = name
         self._start      = 0
         self._size       = 0
