@@ -188,7 +188,7 @@ _parser.add_option('--rootfs',
                    dest='rootfs')
 
 _parser.add_option('--workdir',
-                   help="On "+MODE_SD+" mode, sets the work directory",
+                   help="On " + MODE_SD + " mode, sets the work directory",
                    metavar='<workdir>',
                    dest='workdir')
 
@@ -275,8 +275,27 @@ _options.device = _options.device.rstrip('/')
 # ==========================================================================
 
 if _options.installation_mode == MODE_SD:
+    
+    bl_installer = methods.sdcard.BootloaderInstaller()
+    
+    if not bl_installer.set_uflash_bin(_options.uflash_bin):
+        _clean_exit(-1)
+    if not bl_installer.set_ubl_file(_options.ubl_file):
+        _clean_exit(-1)
+    if not bl_installer.set_uboot_file(_options.uboot_file):
+        _clean_exit(-1)
+    bl_installer.set_uboot_entry_addr(_options.uboot_entry_addr)
+    bl_installer.set_uboot_load_addr(_options.uboot_load_addr)
+    bl_installer.set_bootargs(_options.uboot_bootargs)
+    if not bl_installer.set_kernel_image(_options.kernel_file):
+        _clean_exit(-1)
+    
+    fs_installer = methods.sdcard.FilesystemInstaller()
+    
+    if not fs_installer.set_rootfs(_options.rootfs):
+        _clean_exit(-1)
 
-    sd_installer = methods.sdcard.SDCardInstaller()
+    sd_installer = methods.sdcard.SDCardInstaller(bl_installer, fs_installer)
     
     sd_installer.set_interactive(_options.interactive)
     sd_installer.set_dryrun(_options.dryrun)
@@ -287,28 +306,13 @@ if _options.installation_mode == MODE_SD:
         _logger.error('Installation aborted while formatting')
         _clean_exit(-1)
     
-    # Now that the SD card partitions are prepared.
-    # Let's mount them on the workdir to start working on them.
     sd_installer.set_workdir(_options.workdir)
     if not sd_installer.mount_partitions(_options.device,_options.workdir):
         _logger.error('Could not mount ' + _options.device + 'on ' + 
                       _options.workdir + "aborting.")
-        _clean_exit(-1)        
+        _clean_exit(-1)
     
-    # Let's set all bl_attributes.
-    sd_installer.set_bl_attributes(uflash_bin=_options.uflash_bin)
-    sd_installer.set_bl_attributes(ubl_file=_options.ubl_file)
-    sd_installer.set_bl_attributes(uboot_file=_options.uboot_file)
-    sd_installer.set_bl_attributes(uboot_entry_addr=_options.uboot_entry_addr)
-    sd_installer.set_bl_attributes(uboot_load_addr=_options.uboot_load_addr)
-    sd_installer.set_bl_attributes(bootargs=_options.uboot_bootargs)
-    sd_installer.set_bl_attributes(kernel_image=_options.kernel_file)
-    
-    # Let's set all fs_atributes
-    sd_installer.set_fs_attributes(rootfs=_options.rootfs)
-    
-    # Ok now it's time to work!
-    ret = sd_installer.install_components(_options.dryrun)
+    ret = sd_installer.install_components(_options.dryrun, _options.device)
     if not ret:
         _logger.error('Installation aborted while installing components.')
         _clean_exit(-1)
@@ -321,5 +325,4 @@ if _options.installation_mode == MODE_SD:
         
 _logger.info('Installation complete')
 
-# the end
 _clean_exit(0)
