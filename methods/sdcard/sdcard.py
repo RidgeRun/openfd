@@ -328,10 +328,6 @@ class SDCardInstaller:
                                    mount_point)        
                 return False
             
-            # Now that the partition is mounted, let's update the partition's
-            # mount point attribute.
-            part.set_mount_point(mount_point)
-            
             partition_index += 1
             
         return True
@@ -700,9 +696,15 @@ class SDCardInstaller:
         self._bl_installer.set_workdir(self._workdir)
         self._fs_installer.set_workdir(self._workdir)
         
+        partition_index = 1
+        
         for partition in self._partitions:
+            device_part = device + \
+                            self.get_partition_suffix(device, partition_index)
+            cmd = 'mount | grep ' + device_part + '  | cut -f 3 -d " "'
+            output = self._executer.check_output(cmd)
+            mount_point = output[1].replace('\n','')
             for component in partition.get_components():
-                mount_point = partition.get_mount_point()                
                 if component == partition.COMPONENT_BOOTLOADER:
                     if not self._bl_installer.flash(device):
                         return False
@@ -718,6 +720,7 @@ class SDCardInstaller:
                 else:
                     self._logger.error('Error: component ' + component + 
                                        ' is not valid.')
+            partition_index += 1
         self._logger.info("Components successfully installed.")
         return True
                 
