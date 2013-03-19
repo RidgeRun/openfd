@@ -64,7 +64,6 @@ class Partition:
         self._bootable   = False
         self._type       = ''
         self._filesystem = ''
-        self._mount_point = None
         self._components = None
         
     @classmethod
@@ -217,53 +216,15 @@ class Partition:
         """
         Sets the components that will be installed on this partition.
         """
+        
         self._components = components
     
     def get_components(self):
         """
         Gets the components that will be installed on this partition.
         """
+        
         return self._components
-    
-    def set_mount_point(self, mount_point):
-        """
-        Sets the partition mount point.
-        """
-        self._mount_point = mount_point
-    
-    def get_mount_point(self):
-        """
-        Gets the partition mount point.
-        """
-        return self._mount_point
-    
-    def set_device(self, device):
-        """
-        Sets the device where the partition is placed.
-        Example:
-        /dev/sdb
-        """
-        self._device = device
-    
-    def get_device(self):
-        """
-        Gets the device where the partition is placed.
-        """
-        return self._device
-    
-    def set_device_partition(self, device_partition):
-        """
-        Sets the device partition.
-        Example:
-        /dev/sdb1
-        """
-        self._device_partition = device_partition
-    
-    def get_device_partition(self):
-        """
-        Gets the device partition.
-        """
-        return self._device_partition
     
     def is_bootable(self):
         """
