@@ -48,6 +48,11 @@ class Partition:
     FILESYSTEM_VFAT = 'vfat'
     FILESYSTEM_EXT3 = 'ext3'
     
+    # Common partition components
+    COMPONENT_BOOTLOADER = 'bootloader'
+    COMPONENT_KERNEL = 'kernel'
+    COMPONENT_ROOTFS = 'rootfs'
+    
     def __init__(self, name):
         """
         Constructor.
