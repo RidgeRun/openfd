@@ -41,7 +41,7 @@ import sys
 # Public Classes
 # ==========================================================================
 
-class BootloaderInstaller:
+class BootloaderInstaller(object):
     """
     Class to handle bootloader-related operations.
     

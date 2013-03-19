@@ -41,7 +41,7 @@ import sys
 # Public Classes
 # ==========================================================================
 
-class FilesystemInstaller:
+class FilesystemInstaller(object):
     """
     Class to handle Filesystem-related operations.
     """

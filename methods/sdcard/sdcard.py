@@ -45,7 +45,7 @@ import filesystem
 # Public Classes
 # ==========================================================================
 
-class SDCardInstaller:
+class SDCardInstaller(object):
     """
     Class to handle SD-card operations.
     """

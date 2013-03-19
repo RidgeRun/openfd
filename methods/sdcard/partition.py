@@ -32,7 +32,7 @@ RidgeRun, LLC.
 # Classes
 # ==========================================================================
 
-class Partition:
+class Partition(object):
     """ Class that represents a file system partition. """
     
     # Common partition types definitions that can be used in combination
