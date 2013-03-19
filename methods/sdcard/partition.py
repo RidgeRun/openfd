@@ -62,7 +62,7 @@ class Partition:
         self._type       = ''
         self._filesystem = ''
         self._mount_point = None
-        self._components = []
+        self._components = None
         
     @classmethod
     def hex_format(self, decimal_value, width=8, upper=True):
@@ -212,18 +212,9 @@ class Partition:
     
     def set_components(self,components):
         """
-        Sets the list of components that will be installed on this partition.
+        Sets the components that will be installed on this partition.
         """
-        # Let's parse the input
-        # First let's remove any leading and ending spaces.
-        stripped = components.strip()
-        # Now let's remove any commas.
-        no_commas = stripped.replace(',',"")
-        # Now let's remove any space replacing it with a known sequence
-        known_sequence = '%;*'
-        no_spaces = known_sequence.join(no_commas.split())
-        # Now let's create a list of components splitting the known sequence
-        self._components = no_spaces.split(known_sequence)
+        self._components = components
     
     def get_components(self):
         """
