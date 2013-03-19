@@ -38,8 +38,6 @@ import partition
 import geometry
 import ConfigParser
 import rrutils
-import bootloader
-import filesystem
 
 # ==========================================================================
 # Public Classes
@@ -56,7 +54,7 @@ class SDCardInstaller(object):
     # Used for dangerous warning messages
     WARN_COLOR = 'yellow'
 
-    def __init__(self):
+    def __init__(self, bl_installer, fs_installer):
         """
         Constructor.
         """
@@ -67,8 +65,8 @@ class SDCardInstaller(object):
         self._interactive = True
         self._partitions  = []
         self._executer.set_logger(self._logger)
-        self._bl_installer = bootloader.BootloaderInstaller()
-        self._fs_installer = filesystem.FilesystemInstaller()
+        self._bl_installer = bl_installer
+        self._fs_installer = fs_installer
         self._workdir     = None
     
     def _confirm_device_size(self, device):
@@ -645,42 +643,6 @@ class SDCardInstaller(object):
         """
         return self._workdir
     
-    
-    def set_bl_attributes(self,uflash_bin=None,ubl_file=None,uboot_file=None, \
-                          uboot_entry_addr=None,uboot_load_addr=None, \
-                          bootargs=None,kernel_image=None):
-        """
-        Sets the attributes that can be needed by the bootloader installer.
-        """
-        if uflash_bin:
-            if not self._bl_installer.set_uflash_bin(uflash_bin):
-                return False
-        if ubl_file:
-            if not self._bl_installer.set_ubl_file(ubl_file):
-                return False
-        if uboot_file:
-            if not self._bl_installer.set_uboot_file(uboot_file):
-                return False
-        if uboot_entry_addr:
-            self._bl_installer.set_uboot_entry_addr(uboot_entry_addr)
-        if uboot_load_addr:
-            self._bl_installer.set_uboot_load_addr(uboot_load_addr)
-        if bootargs:
-            self._bl_installer.set_bootargs(bootargs)
-        if kernel_image:
-            if not self._bl_installer.set_kernel_image(kernel_image):
-                return False
-        return True
-        
-    def set_fs_attributes(self,rootfs=None):
-        """
-        Sets the attributes that can be needed by the filesystem installer.
-        """
-        if rootfs:
-            if not self._fs_installer.set_rootfs(rootfs):
-                return False
-        return True
-    
     def install_components(self, dryrun, device):
         """
         This method is the one that installs the components on the partitions.
@@ -689,10 +651,9 @@ class SDCardInstaller(object):
         fs_installer class.
         Return True on success, False otherwise.
         """
-        # Let's set the dry run mode for bl_installer and fs_installer.
+        
         self._bl_installer.set_dryrun(dryrun)
         self._fs_installer.set_dryrun(dryrun)
-        # And also let's set the workdir
         self._bl_installer.set_workdir(self._workdir)
         self._fs_installer.set_workdir(self._workdir)
         
