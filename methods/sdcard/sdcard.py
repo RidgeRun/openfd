@@ -331,10 +331,6 @@ class SDCardInstaller:
             # Now that the partition is mounted, let's update the partition's
             # mount point attribute.
             part.set_mount_point(mount_point)
-            # And also the device attribute.
-            part.set_device(device)
-            # And the device partition attribute.
-            part.set_device_partition(device_part)
             
             partition_index += 1
             
@@ -612,24 +608,27 @@ class SDCardInstaller:
         
         fs_ok = True
         
+        partition_index = 1
+        
         for partition in self._partitions:
             fs_state = ''
-            part_type = partition.get_filesystem()
-            if part_type == 'vfat' or part_type == 'ext3':
-                cmd = "sudo fsck -y " + partition.get_device_partition()
-                output = self._executer.check_call(cmd)
-                if output == 0 or output == 1:
-                    fs_state += fsck_outputs[output] + "\n"
-                else:
-                    for i in range(8):
-                        key = 2 ** i
-                        if output & key:
-                            fs_state += fsck_outputs[key] + "\n"
-                            fs_ok = False                
-                self._logger.info(partition.get_device_partition() + \
-                                  ' condition:' +  fs_state)
+            device_part = device + \
+                            self.get_partition_suffix(device, partition_index)
+            cmd = "sudo fsck -y " + device_part
+            output = self._executer.check_call(cmd)
+            if output == 0 or output == 1:
+                fs_state += fsck_outputs[output]
             else:
-                self._logger.info(part_type + ' filesystem is not supported.')
+                for i in range(8):
+                    key = 2 ** i
+                    if output & key:
+                        fs_state += fsck_outputs[key]
+                        fs_ok = False                
+            self._logger.info(device_part + ' filesystem condition: ' +
+                              fs_state)
+            
+            partition_index += 1
+            
         return fs_ok
     
     def set_workdir(self,workdir):
@@ -686,7 +685,7 @@ class SDCardInstaller:
                 return False
         return True
     
-    def install_components(self, dryrun):
+    def install_components(self, dryrun, device):
         """
         This method is the one that installs the components on the partitions.
         It expects only the dryrun mode, because it is assumed that the needed
@@ -703,7 +702,6 @@ class SDCardInstaller:
         
         for partition in self._partitions:
             for component in partition.get_components():
-                device = partition.get_device()
                 mount_point = partition.get_mount_point()                
                 if component == partition.COMPONENT_BOOTLOADER:
                     if not self._bl_installer.flash(device):
