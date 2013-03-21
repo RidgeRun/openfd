@@ -169,7 +169,7 @@ class Partition(object):
         
         self._bootable = bootable
         
-    def set_type(self, type):
+    def set_type(self, partition_type):
         """
         Sets the partition type, according to the specification given
         in the 'sfdisk' command. Last retrieved:
@@ -183,7 +183,7 @@ class Partition(object):
             - Partition.TYPE_LINUX_NATIVE: 'L'
         """
         
-        self._type = type
+        self._type = partition_type
         
     def get_type(self):
         """
