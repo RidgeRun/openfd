@@ -314,7 +314,7 @@ class SDCardInstaller(object):
             
             # Now mount
             
-            if type:
+            if part_type:
                 cmd = 'sudo mount -t ' + part_type + ' ' + device_part + ' ' + \
                       mount_point
             else:
