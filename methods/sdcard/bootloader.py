@@ -287,7 +287,7 @@ class BootloaderInstaller(object):
         """
         
         if not os.path.isdir(mount_point):
-            self._logger.error('Error: The mount point given does not exist.')
+            self._logger.error('Mount point %s does not exist.' % mount_point)
             return False
         
         if not self._uboot_load_addr:

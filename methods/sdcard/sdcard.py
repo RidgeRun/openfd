@@ -659,28 +659,42 @@ class SDCardInstaller(object):
         
         partition_index = 1
         
-        for partition in self._partitions:
+        for part in self._partitions:
+            
             device_part = device + \
                             self.get_partition_suffix(device, partition_index)
             cmd = 'mount | grep ' + device_part + '  | cut -f 3 -d " "'
             output = self._executer.check_output(cmd)
             mount_point = output[1].replace('\n','')
-            for component in partition.get_components():
-                if component == partition.COMPONENT_BOOTLOADER:
-                    if not self._bl_installer.flash(device):
+            
+            for component in part.get_components():
+                
+                if component == partition.Partition.COMPONENT_BOOTLOADER:
+                    ret = self._bl_installer.flash(device)
+                    if not ret: return False
+                    
+                    ret =  self._bl_installer.install_uboot_env(mount_point)
+                    if not ret: return False
+                    
+                elif component == partition.Partition.COMPONENT_KERNEL:
+                    ret = self._bl_installer.install_kernel(mount_point)
+                    if not ret: return False
+                    
+                elif component == partition.Partition.COMPONENT_ROOTFS:
+                    if self._fs_installer.get_rootfs() == None:
+                        err_msg = ('No directory for component %s in "%s" '
+                                   'partition' %
+                                   (partition.Partition.COMPONENT_ROOTFS,
+                                    part.get_name()))
+                        self._logger.error(err_msg)
                         return False
-                    if not self._bl_installer.install_uboot_env(mount_point):
-                        return False
-                elif component == partition.COMPONENT_KERNEL:
-                    if not self._bl_installer.install_kernel(mount_point):
-                        return False
-                elif component == partition.COMPONENT_ROOTFS:
-                    ret=self._fs_installer.generate_rootfs_partition(mount_point)
-                    if not ret:
-                        return False
+                    ret = self._fs_installer.generate_rootfs_partition(mount_point)
+                    if not ret: return False
+                    
                 else:
-                    self._logger.error('Error: component ' + component + 
-                                       ' is not valid.')
+                    self._logger.error('Component %s is not valid.', component)
+                    return False
+                
             partition_index += 1
         self._logger.info("Components successfully installed.")
         return True

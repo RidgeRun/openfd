@@ -78,12 +78,7 @@ class FilesystemInstaller(object):
         """
         Sets the path to the workdir.
         """
-        if os.path.isdir(workdir):
-            self._workdir = workdir
-            return True
-        else:
-            self._logger.error(workdir+' Is not a directory.')
-            return False
+        self._workdir = workdir
         
     def get_workdir(self):
         """
@@ -92,32 +87,35 @@ class FilesystemInstaller(object):
         
         return self._workdir
     
-    def set_rootfs(self,rootfs):
+    def set_rootfs(self, rootfs):
         """
-        Sets the path to the directory that contains the fs that will be
-        installed.
+        Sets the path to the directory that contains the rootfs that will be
+        installed. Set to None if this installation does not require a rootfs.
         """
-        if os.path.exists(rootfs):
-            self._rootfs = rootfs
-            return True
-        else:
-            self._logger.error(rootfs+' Does not exist.')
-            return False
+        self._rootfs = rootfs
+
+    def get_rootfs(self):
+        """
+        Gets the path to the directory that contains the rootfs that will be
+        installed. If None, a rootfs was not specified, more likely because
+        this installation does not require rootfs, i.e. NFS will be used. 
+        """
+        return self._rootfs
     
-    def  generate_rootfs_partition(self, mount_point):
+    def generate_rootfs_partition(self, mount_point):
         """
-        Installs the filesystem on the mount point given.
+        If any, installs the filesystem on the mount point given.
         Returns True on success, False otherwise.
         """
-        if not self._rootfs:
-            self._logger.error('Error: rootfs is not set yet!')
-            return False
         
-        cmd = "cd "+self._rootfs+" ; find . | sudo cpio -pdum "+mount_point
+        if self._rootfs:
         
-        if self._executer.check_call(cmd) != 0:
-            self._logger.error('Failed to fs to ' +  mount_point)
-            return False
+            cmd = "cd " + self._rootfs + " ; find . | sudo cpio -pdum " + mount_point
+            
+            if self._executer.check_call(cmd) != 0:
+                err_msg = 'Failed installing rootfs into ' +  mount_point
+                self._logger.error(err_msg)
+                return False
         
         return True
 
@@ -181,15 +179,10 @@ if __name__ == '__main__':
     
     tc_start(1, sleep_time=0) 
     
-    # Try to install filesystem on the sd.
-    
     rootfs = devdir + "/fs/fs"
-    if not fs_installer.set_rootfs(rootfs):
-        print "Error setting rootfs."
-        sys.exit(-1)
-    
+    fs_installer.set_rootfs(rootfs)
     mount_point = "/media/rootfs"
-    
+        
     if fs_installer. generate_rootfs_partition(mount_point):
         print "Fs successfully installed on " + mount_point
     else:

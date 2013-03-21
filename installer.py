@@ -181,18 +181,20 @@ _parser.add_option('--uboot-bootargs',
                    metavar='<uboot_bootargs>',
                    dest='uboot_bootargs')
 
-
-_parser.add_option('--rootfs',
-                   help="Path to the fs that will be installed.",
-                   metavar='<rootfs>',
-                   dest='rootfs')
-
 _parser.add_option('--workdir',
                    help="On " + MODE_SD + " mode, sets the work directory",
                    metavar='<workdir>',
                    dest='workdir')
 
+# MODE_SD - Optional arguments
+
 _options = _parser.get_options()
+
+_parser.add_option('--rootfs',
+                   help="Path to the rootfs that will be installed.",
+                   metavar='<rootfs>',
+                   dest='rootfs',
+                   default=None)
 
 # Check verbose
 
@@ -250,19 +252,19 @@ if _options.installation_mode == MODE_SD:
     if not _options.uboot_bootargs:
         _missing_arg_exit('--uboot-bootargs')
     
-    if not _options.rootfs:
-        _missing_arg_exit('--rootfs')
-    else:
-        if not os.path.isdir(_options.rootfs):
-            _logger.error('The rootfs directory given ' + _options.rootfs +
-                          ' does not exist.')
-            _clean_exit(-1)
-    
     if not _options.workdir:
         _missing_arg_exit('--workdir')
     else:
         if not os.path.isdir(_options.workdir):
             _logger.error('The workdir given ' + _options.workdir + 
+                          ' does not exist.')
+            _clean_exit(-1)
+
+# Check MODE_SD optional arguments
+
+    if _options.rootfs:
+        if not os.path.isdir(_options.rootfs):
+            _logger.error('The rootfs directory ' + _options.rootfs +
                           ' does not exist.')
             _clean_exit(-1)
         
@@ -292,8 +294,7 @@ if _options.installation_mode == MODE_SD:
     
     fs_installer = methods.sdcard.FilesystemInstaller()
     
-    if not fs_installer.set_rootfs(_options.rootfs):
-        _clean_exit(-1)
+    fs_installer.set_rootfs(_options.rootfs)
 
     sd_installer = methods.sdcard.SDCardInstaller(bl_installer, fs_installer)
     
