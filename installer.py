@@ -188,13 +188,13 @@ _parser.add_option('--workdir',
 
 # MODE_SD - Optional arguments
 
-_options = _parser.get_options()
-
 _parser.add_option('--rootfs',
                    help="Path to the rootfs that will be installed.",
                    metavar='<rootfs>',
                    dest='rootfs',
                    default=None)
+
+_options = _parser.get_options()
 
 # Check verbose
 
