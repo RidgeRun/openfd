@@ -605,7 +605,7 @@ class SDCardInstaller(object):
         
         partition_index = 1
         
-        for partition in self._partitions:
+        for part in self._partitions:
             fs_state = ''
             device_part = device + \
                             self.get_partition_suffix(device, partition_index)
