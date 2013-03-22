@@ -4,8 +4,8 @@
 # Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
-# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
-# Author: Diego Benavides <diego.benavides@ridgerun.com>
+# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+#          Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -77,7 +77,7 @@ def _clean_exit(code=0):
     if code == 0:
         pass
     else:
-        _logger.error('Exiting with code ' + str(code)) 
+        _logger.error('Exiting with code %d' % code) 
 
     exit(code)
 
@@ -87,7 +87,7 @@ def _missing_arg_exit(arg):
     """
     
     _parser.print_help()
-    _logger.error('argument ' + arg + ' is required')
+    _logger.error('Argument %s is required' % arg)
     _clean_exit(-1)
 
 def _abort_install():

@@ -4,8 +4,8 @@
 # Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
-# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
-# Author: Diego Benavides <diego.benavides@ridgerun.com>
+# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+#          Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -59,11 +59,11 @@ class Partition(object):
         Constructor.
         """
         
-        self._name       = name
-        self._start      = 0
-        self._size       = 0
-        self._bootable   = False
-        self._type       = ''
+        self._name = name
+        self._start = 0
+        self._size = 0
+        self._bootable = False
+        self._type = ''
         self._filesystem = ''
         self._components = None
         

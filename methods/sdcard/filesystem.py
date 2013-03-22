@@ -4,8 +4,8 @@
 # Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
-# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
-# Author: Diego Benavides <diego.benavides@ridgerun.com>
+# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+#          Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -51,11 +51,11 @@ class FilesystemInstaller(object):
         Constructor.
         """
         
-        self._logger      = rrutils.logger.get_global_logger()
-        self._executer    = rrutils.executer.Executer()
-        self._dryrun      = False
-        self._workdir     = None
-        self._rootfs      = None
+        self._logger = rrutils.logger.get_global_logger()
+        self._executer = rrutils.executer.Executer()
+        self._dryrun = False
+        self._workdir = None
+        self._rootfs = None
         self._executer.set_logger(self._logger)
         
     def set_dryrun(self, dryrun):
@@ -110,11 +110,12 @@ class FilesystemInstaller(object):
         
         if self._rootfs:
         
-            cmd = "cd " + self._rootfs + " ; find . | sudo cpio -pdum " + mount_point
+            cmd = 'cd ' + self._rootfs + ' ; find . | sudo cpio -pdum ' + \
+                    mount_point
             
             if self._executer.check_call(cmd) != 0:
-                err_msg = 'Failed installing rootfs into ' +  mount_point
-                self._logger.error(err_msg)
+                msg = 'Failed installing rootfs into %s' %  mount_point 
+                self._logger.error(msg)
                 return False
         
         return True

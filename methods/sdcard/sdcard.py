@@ -4,8 +4,8 @@
 # Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
-# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
-# Author: Diego Benavides <diego.benavides@ridgerun.com>
+# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+#          Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -59,15 +59,15 @@ class SDCardInstaller(object):
         Constructor.
         """
         
-        self._logger      = rrutils.logger.get_global_logger()
-        self._executer    = rrutils.executer.Executer()
-        self._dryrun      = False
+        self._logger = rrutils.logger.get_global_logger()
+        self._executer = rrutils.executer.Executer()
+        self._dryrun = False
         self._interactive = True
-        self._partitions  = []
+        self._partitions = []
         self._executer.set_logger(self._logger)
         self._bl_installer = bl_installer
         self._fs_installer = fs_installer
-        self._workdir     = None
+        self._workdir = None
     
     def _confirm_device_size(self, device):
         """
@@ -663,14 +663,14 @@ class SDCardInstaller(object):
                 
                 if component == partition.Partition.COMPONENT_BOOTLOADER:
                     ret = self._bl_installer.flash(device)
-                    if not ret: return False
+                    if ret is False: return False
                     
                     ret =  self._bl_installer.install_uboot_env(mount_point)
-                    if not ret: return False
+                    if ret is False: return False
                     
                 elif component == partition.Partition.COMPONENT_KERNEL:
                     ret = self._bl_installer.install_kernel(mount_point)
-                    if not ret: return False
+                    if ret is False: return False
                     
                 elif component == partition.Partition.COMPONENT_ROOTFS:
                     if self._fs_installer.get_rootfs() == None:
@@ -681,10 +681,10 @@ class SDCardInstaller(object):
                         self._logger.error(err_msg)
                         return False
                     ret = self._fs_installer.generate_rootfs_partition(mount_point)
-                    if not ret: return False
+                    if ret is False: return False
                     
                 else:
-                    self._logger.error('Component %s is not valid.', component)
+                    self._logger.error('Component %s is not valid', component)
                     return False
                 
             partition_index += 1
@@ -703,31 +703,6 @@ class SDCardInstaller(object):
         for part in self._partitions:
             _str +=  part.__str__()
         return _str
-
-# ==========================================================================
-# Functions
-# ==========================================================================
-def str_readlines(text):
-    """
-    takes a text and returns a list with the lines.
-    """
-    ret = []
-    text = text.split('\n')
-    for line in text:
-        if len(text) > 1:
-            ret.append(line)
-    return ret
-
-def get_words(line):
-    """
-    Takes a string line and returns a list with the words.
-    """
-    ret = []
-    line = line.split(' ')
-    for word in line:
-        if len(word) > 1:
-            ret.append(word)
-    return ret
 
 # ==========================================================================
 # Test cases

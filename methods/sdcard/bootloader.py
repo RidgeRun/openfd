@@ -4,8 +4,8 @@
 # Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
-# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
-# Author: Diego Benavides <diego.benavides@ridgerun.com>
+# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+#          Diego Benavides <diego.benavides@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated
@@ -55,15 +55,15 @@ class BootloaderInstaller(object):
         Constructor.
         """
         
-        self._logger      = rrutils.logger.get_global_logger()
-        self._executer    = rrutils.executer.Executer()
-        self._dryrun      = False
-        self._workdir     = None
-        self._uflash_bin  = None
-        self._ubl_file    = None
-        self._uboot_file  = None
+        self._logger = rrutils.logger.get_global_logger()
+        self._executer = rrutils.executer.Executer()
+        self._dryrun = False
+        self._workdir = None
+        self._uflash_bin = None
+        self._ubl_file = None
+        self._uboot_file = None
         self._uboot_entry_addr = None
-        self._uboot_load_addr  = None
+        self._uboot_load_addr = None
         self._kernel_image = None
         self._executer.set_logger(self._logger)
         
@@ -216,19 +216,21 @@ class BootloaderInstaller(object):
             return False
         
         if not self._uboot_entry_addr:
-            self._logger.error('No entry address specified')
+            self._logger.error('No uboot entry address specified')
 
         if not self._uboot_load_addr:
-            self._logger.error('No load address specified')
+            self._logger.error('No uboot load address specified')
         
         uboot_entry_addr = self._get_str_hex(self._uboot_entry_addr)
         if uboot_entry_addr == None:
-            self._logger.error("Invalid value given to uboot entry address")
+            self._logger.error('Invalid value given to uboot entry address: %s'
+                               % self._uboot_entry_addr)
             return False
         
         uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
         if uboot_load_addr == None:
-            self._logger.error("Invalid value given to uboot load address")
+            self._logger.error('Invalid value given to uboot load address: %s'
+                               % self._uboot_load_addr)
             return False
         
         cmd = 'sudo ' + self._uflash_bin + \
@@ -238,31 +240,28 @@ class BootloaderInstaller(object):
               ' -e ' + uboot_entry_addr + \
               ' -l ' + uboot_load_addr
 
-        self._logger.info('Flashing UBL and U-Boot to ' + device)
+        self._logger.info('Flashing UBL and U-Boot into %s' % device)
         if self._executer.check_call(cmd) != 0:
-                self._logger.error('Failed to flash UBL and U-Boot into ' +
-                                   device)
-                return False
+            self._logger.error('Failed to flash UBL and U-Boot into %s' %
+                               device)
+            return False
 
         return True
     
-    def _get_str_hex(self,value_str):
+    def _get_str_hex(self, value_str):
         """
-        Returns a string with the hex number of the string number passed.
-        Otherwise returns None.
+        Converts the string that may contain a decimal number (like 12), or
+        a hexadecimal number (like 0Xabcd), into an all-lowercase hexadecimal
+        number (like 0xabcd).
         """
-        if (value_str.find('0x') or value_str.find('0X')):
+        
+        if not value_str.upper().find('0X'):
             try:
-                value = int(value_str,0)
+                return hex(int(value_str))
             except:
-                return None
+                return ''
         else:
-            try:
-                value = int(value_str)
-            except:
-                return None
-        ret_value = hex(value)
-        return str(ret_value)
+            return value_str.lower()
         
     def install_uboot_env(self, mount_point):
         """
@@ -275,22 +274,30 @@ class BootloaderInstaller(object):
             return False
         
         if not self._uboot_load_addr:
-            self._logger.error('No load address specified')
+            self._logger.error('No uboot load address specified')
+            return False
         
-        # Here we prepare the uboot env file.
-        uenv_file = os.path.join(self._workdir,"uEnv.txt")
+        # Uboot env file preparation
+        
+        uenv_file = os.path.join(self._workdir, "uEnv.txt")
+        
         uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
-        if uboot_load_addr == None:
-            self._logger.error("Invalid value given to uboot load address")
+        if not uboot_load_addr:
+            self._logger.error('Invalid u-boot load address: %s' %
+                               uboot_load_addr)
+            return False
+        
         uenv = open(uenv_file, "w")
-        uenv.write("bootargs="+self._bootargs+"\n")
-        uenv.write("uenvcmd=echo Running uenvcmd ...; run loaduimage;bootm " \
-                    +uboot_load_addr+"\n")
+        
+        uenv.write('bootargs=%s\n' % self._bootargs)
+        uenv.write('uenvcmd=echo Running uenvcmd ...; run loaduimage; '
+                   'bootm %s\n' % uboot_load_addr)
         uenv.close()
         
         # Now we copy it to mount point
-        if self._executer.check_call("sudo cp "+ uenv_file + " " + mount_point) != 0:
-            self._logger.error("Error installing uboot env file.")
+        cmd = 'sudo cp ' + uenv_file + ' ' + mount_point
+        if self._executer.check_call(cmd) != 0:
+            self._logger.error('Failed to install uboot env file.')
             return False
         
         return True
@@ -298,25 +305,18 @@ class BootloaderInstaller(object):
     def install_kernel(self, mount_point):
         """
         Install the Kernel on the given device.
-        This method needs that kernel_image be already set.
+        This method needs the kernel_image to be set.
         """
         
         if not self._kernel_image:
             self._logger.error('No kernel image specified')
-        
-        if not os.path.isdir(mount_point):
-            self._logger.error('Error: The mount point given does not exist.')
             return False
         
-        if not os.path.isfile(self._kernel_image):
-            self._logger.error('Error: '+self._kernel_image+' is not a file!.')
-            return False
-        
-        cmd = "sudo cp " + self._kernel_image +" "+ mount_point+"/uImage"
+        cmd = 'sudo cp ' + self._kernel_image + ' ' + mount_point + '/uImage'
         
         if self._executer.check_call(cmd) != 0:
-            self._logger.error('Failed to copy ' + self._kernel_image + " to " \
-                               +  mount_point)
+            self._logger.error('Failed copying %s to %s' %
+                               (self._kernel_image, mount_point))
             return False
         
         return True
