@@ -89,6 +89,14 @@ def _missing_arg_exit(arg):
     _parser.print_help()
     _logger.error('argument ' + arg + ' is required')
     _clean_exit(-1)
+
+def _abort_install():
+    """
+    Prints abort message, closes open resources and exits.
+    """
+    
+    _logger.error('Installation aborted.')
+    _clean_exit(-1)
    
 # ==========================================================================
 # Command line arguments
@@ -209,7 +217,7 @@ if _options.quiet:
 # Check mmap file
 
 if not os.path.isfile(_options.mmap_file):
-    _logger.error('Unable to find ' + _options.mmap_file)
+    _logger.error('Unable to find %s.' % _options.mmap_file)
     _clean_exit(-1)
 
 # Check MODE_SD required arguments
@@ -223,24 +231,24 @@ if _options.installation_mode == MODE_SD:
         _missing_arg_exit('--uflash')
     else:
         if not os.path.isfile(_options.uflash_bin):
-            _logger.error('Unable to find ' + _options.uflash_bin)
+            _logger.error('Unable to find %s.' % _options.uflash_bin)
             _clean_exit(-1)
         elif not os.access(_options.uflash_bin, os.X_OK):
-            _logger.error('No execute permissions on ' + _options.uflash_bin)
+            _logger.error('No execute permissions on %s.' % _options.uflash_bin)
             _clean_exit(-1)
         
     if not _options.ubl_file:
         _missing_arg_exit('--ubl-file')
     else:
         if not os.path.isfile(_options.ubl_file):
-            _logger.error('Unable to find ' + _options.ubl_file)
+            _logger.error('Unable to find %s.' % _options.ubl_file)
             _clean_exit(-1)
         
     if not _options.uboot_file:
         _missing_arg_exit('--uboot-file')
     else:
         if not os.path.isfile(_options.uboot_file):
-            _logger.error('Unable to find ' + _options.uboot_file)
+            _logger.error('Unable to find %s.' % _options.uboot_file)
             _clean_exit(-1)
         
     if not _options.uboot_entry_addr:
@@ -256,16 +264,14 @@ if _options.installation_mode == MODE_SD:
         _missing_arg_exit('--workdir')
     else:
         if not os.path.isdir(_options.workdir):
-            _logger.error('The workdir given ' + _options.workdir + 
-                          ' does not exist.')
+            _logger.error('Unable to find %s.' % _options.workdir)
             _clean_exit(-1)
 
 # Check MODE_SD optional arguments
 
     if _options.rootfs:
         if not os.path.isdir(_options.rootfs):
-            _logger.error('The rootfs directory ' + _options.rootfs +
-                          ' does not exist.')
+            _logger.error('Unable to find %s.' % _options.rootfs)
             _clean_exit(-1)
         
 # Clean the device string
@@ -278,51 +284,44 @@ _options.device = _options.device.rstrip('/')
 
 if _options.installation_mode == MODE_SD:
     
-    bl_installer = methods.sdcard.BootloaderInstaller()
+    # Bootloader installer
     
-    if not bl_installer.set_uflash_bin(_options.uflash_bin):
-        _clean_exit(-1)
-    if not bl_installer.set_ubl_file(_options.ubl_file):
-        _clean_exit(-1)
-    if not bl_installer.set_uboot_file(_options.uboot_file):
-        _clean_exit(-1)
+    bl_installer = methods.sdcard.BootloaderInstaller()
+    bl_installer.set_dryrun(_options.dryrun)
+    bl_installer.set_uflash_bin(_options.uflash_bin)
+    bl_installer.set_ubl_file(_options.ubl_file)
+    bl_installer.set_uboot_file(_options.uboot_file)
     bl_installer.set_uboot_entry_addr(_options.uboot_entry_addr)
     bl_installer.set_uboot_load_addr(_options.uboot_load_addr)
     bl_installer.set_bootargs(_options.uboot_bootargs)
-    if not bl_installer.set_kernel_image(_options.kernel_file):
-        _clean_exit(-1)
+    bl_installer.set_kernel_image(_options.kernel_file)
+    
+    # Filesystem installer
     
     fs_installer = methods.sdcard.FilesystemInstaller()
-    
+    fs_installer.set_dryrun(_options.dryrun)
     fs_installer.set_rootfs(_options.rootfs)
 
+    # SDCard installer
+
     sd_installer = methods.sdcard.SDCardInstaller(bl_installer, fs_installer)
-    
     sd_installer.set_interactive(_options.interactive)
     sd_installer.set_dryrun(_options.dryrun)
+    sd_installer.set_workdir(_options.workdir)
+    
+    # Operations
     
     ret = sd_installer.format_sd(_options.mmap_file, _options.device)
+    if ret is False: _abort_install()
     
-    if ret is False:
-        _logger.error('Installation aborted while formatting')
-        _clean_exit(-1)
-    
-    sd_installer.set_workdir(_options.workdir)
-    if not sd_installer.mount_partitions(_options.device,_options.workdir):
-        _logger.error('Could not mount ' + _options.device + 'on ' + 
-                      _options.workdir + "aborting.")
-        _clean_exit(-1)
+    ret = sd_installer.mount_partitions(_options.device,_options.workdir)
+    if ret is False: _abort_install()
     
     ret = sd_installer.install_components(_options.dryrun, _options.device)
-    if not ret:
-        _logger.error('Installation aborted while installing components.')
-        _clean_exit(-1)
+    if ret is False: _abort_install()
     
     ret = sd_installer.check_fs(_options.device)
-    
-    if not ret:
-        _logger.error('Failed the filesystem check')
-        _clean_exit(-1)
+    if ret is False: _abort_install()
         
 _logger.info('Installation complete')
 

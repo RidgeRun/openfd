@@ -87,12 +87,8 @@ class BootloaderInstaller(object):
         """
         Sets the path to the uflash tool.
         """
-        if os.path.isfile(uflash_bin):
-            self._uflash_bin = uflash_bin
-            return True
-        else:
-            self._logger.error(uflash_bin+' Does not exist.')
-            return False
+        
+        self._uflash_bin = uflash_bin
         
     def get_uflash_bin(self):
         """
@@ -105,12 +101,8 @@ class BootloaderInstaller(object):
         """
         Sets the path to the ubl file.
         """
-        if os.path.isfile(ubl_file):
-            self._ubl_file = ubl_file
-            return True
-        else:
-            self._logger.error(ubl_file+' Does not exist.')
-            return False
+        
+        self._ubl_file = ubl_file
         
     def get_ubl_file(self):
         """
@@ -123,12 +115,8 @@ class BootloaderInstaller(object):
         """
         Sets the path to the uboot_file.
         """
-        if os.path.isfile(uboot_file):
-            self._uboot_file = uboot_file
-            return True
-        else:
-            self._logger.error(uboot_file+' Does not exist.')
-            return False
+        
+        self._uboot_file = uboot_file
         
     def get_uboot_file(self):
         """
@@ -179,12 +167,8 @@ class BootloaderInstaller(object):
         """
         Sets the path to the kernel_image.
         """
-        if os.path.isfile(kernel_image):
-            self._kernel_image = kernel_image
-            return True
-        else:
-            self._logger.error(kernel_image+' Does not exist.')
-            return False
+        
+        self._kernel_image = kernel_image
         
     def get_kernel_image(self):
         """

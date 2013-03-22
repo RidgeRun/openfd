@@ -696,7 +696,7 @@ class SDCardInstaller(object):
                     return False
                 
             partition_index += 1
-        self._logger.info("Components successfully installed.")
+        
         return True
                 
     def __str__(self):
