@@ -95,7 +95,7 @@ def _abort_install():
     Prints abort message, closes open resources and exits.
     """
     
-    _logger.error('Installation aborted.')
+    _logger.error('Installation aborted')
     _clean_exit(-1)
    
 # ==========================================================================
@@ -231,24 +231,24 @@ if _options.installation_mode == MODE_SD:
         _missing_arg_exit('--uflash')
     else:
         if not os.path.isfile(_options.uflash_bin):
-            _logger.error('Unable to find %s.' % _options.uflash_bin)
+            _logger.error('Unable to find %s' % _options.uflash_bin)
             _clean_exit(-1)
         elif not os.access(_options.uflash_bin, os.X_OK):
-            _logger.error('No execute permissions on %s.' % _options.uflash_bin)
+            _logger.error('No execute permissions on %s' % _options.uflash_bin)
             _clean_exit(-1)
         
     if not _options.ubl_file:
         _missing_arg_exit('--ubl-file')
     else:
         if not os.path.isfile(_options.ubl_file):
-            _logger.error('Unable to find %s.' % _options.ubl_file)
+            _logger.error('Unable to find %s' % _options.ubl_file)
             _clean_exit(-1)
         
     if not _options.uboot_file:
         _missing_arg_exit('--uboot-file')
     else:
         if not os.path.isfile(_options.uboot_file):
-            _logger.error('Unable to find %s.' % _options.uboot_file)
+            _logger.error('Unable to find %s' % _options.uboot_file)
             _clean_exit(-1)
         
     if not _options.uboot_entry_addr:
@@ -264,14 +264,14 @@ if _options.installation_mode == MODE_SD:
         _missing_arg_exit('--workdir')
     else:
         if not os.path.isdir(_options.workdir):
-            _logger.error('Unable to find %s.' % _options.workdir)
+            _logger.error('Unable to find %s' % _options.workdir)
             _clean_exit(-1)
 
 # Check MODE_SD optional arguments
 
     if _options.rootfs:
         if not os.path.isdir(_options.rootfs):
-            _logger.error('Unable to find %s.' % _options.rootfs)
+            _logger.error('Unable to find %s' % _options.rootfs)
             _clean_exit(-1)
         
 # Clean the device string
@@ -295,12 +295,14 @@ if _options.installation_mode == MODE_SD:
     bl_installer.set_uboot_load_addr(_options.uboot_load_addr)
     bl_installer.set_bootargs(_options.uboot_bootargs)
     bl_installer.set_kernel_image(_options.kernel_file)
+    bl_installer.set_workdir(_options.workdir)
     
     # Filesystem installer
     
     fs_installer = methods.sdcard.FilesystemInstaller()
     fs_installer.set_dryrun(_options.dryrun)
     fs_installer.set_rootfs(_options.rootfs)
+    fs_installer.set_workdir(_options.workdir)
 
     # SDCard installer
 

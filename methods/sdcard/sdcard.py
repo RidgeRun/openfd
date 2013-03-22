@@ -83,8 +83,8 @@ class SDCardInstaller(object):
         
         if size_gb > SDCardInstaller.WARN_DEVICE_SIZE_GB:
             
-            msg  = 'Device ' + device + ' has ' + str(size_gb) + ' gigabytes, '
-            msg += 'it does not look like an SD card'
+            msg = ('Device %s has %d gigabytes, it does not look like an '
+                   'SD card.' % (device, size_gb))
             
             msg_color = SDCardInstaller.WARN_COLOR 
             
@@ -110,8 +110,9 @@ class SDCardInstaller(object):
         
         if partitions:
         
-            msg  = 'The following partitions from device ' + device
-            msg += ' will be unmounted:\n'
+            msg = ('The following partitions from device %s will be '
+                   'unmounted:\n' % device)
+            
             for part in partitions:
                 msg += part + '\n'
         
@@ -234,7 +235,7 @@ class SDCardInstaller(object):
 
         if not self._dryrun:
             if not output:
-                self._logger.error("Unable to obtain the size for " + device)
+                self._logger.error('Unable to obtain the size for %s' % device)
             else:
                 size = long(output)
         
@@ -245,7 +246,7 @@ class SDCardInstaller(object):
         Returns the given device size, in cylinders.
         """
         
-        size_b   = self.get_device_size_b(device)
+        size_b = self.get_device_size_b(device)
         size_cyl = size_b / geometry.CYLINDER_BYTE_SIZE 
         
         return int(math.floor(size_cyl))
@@ -281,8 +282,7 @@ class SDCardInstaller(object):
         
         directory = directory.rstrip('/')
         if not os.path.isdir(directory):
-            self._logger.error('Error: The directory '+ directory +
-                               ' does not exist.')
+            self._logger.error('Directory %s does not exist' % directory)
             return False
         
         partition_index = 1
@@ -298,7 +298,8 @@ class SDCardInstaller(object):
             
             cmd = 'mkdir -p ' + mount_point
             if self._executer.check_call(cmd) != 0:
-                self._logger.error('Failed to create directory ' + mount_point)
+                self._logger.error('Failed to create directory %s' %
+                                   mount_point)
                 return False
             
             # Map the partition's filesystem to a type that the 'mount'
@@ -322,8 +323,8 @@ class SDCardInstaller(object):
                 cmd = 'sudo mount ' + device_part + ' ' + mount_point
             
             if self._executer.check_call(cmd) != 0:
-                self._logger.error('Failed to mount ' + device_part + ' in ' + 
-                                   mount_point)        
+                self._logger.error('Failed to mount %s in %s' % (device_part,
+                                                                 mount_point))        
                 return False
             
             partition_index += 1
@@ -344,7 +345,7 @@ class SDCardInstaller(object):
             cmd = 'sudo umount ' + part
             
             if self._executer.check_call(cmd) != 0:
-                self._logger.error('Failed to unmount ' + part)
+                self._logger.error('Failed to unmount %s' % part)
                 return False
         
         return True
@@ -363,21 +364,21 @@ class SDCardInstaller(object):
         
         # Check we were able to get correctly the device size
         if cylinders == 0 and not self._dryrun:
-            self._logger.error('Unable to partition device ' + device +
-                               ' (size is 0).')
+            self._logger.error('Unable to partition device %s (size is 0)' %
+                               device)
             return False
         
         # Check we have enough size to fit all the partitions and the MBR.
         if cylinders < self._min_total_cyl_size() and not self._dryrun:
-            self._logger.error('Size of partitions is too large to fit in ' +
-                               device + '.')
+            self._logger.error('Size of partitions is too large to fit in %s' %
+                               device)
             return False
 
         # Just before creating the partitions, prompt the user
         if self._interactive:
             
-            msg  = 'You are about to repartition your device ' + device
-            msg += ' (all your data will be lost)'
+            msg = ('You are about to repartition your device %s '
+                   '(all your data will be lost)' % device)
             
             msg_color = SDCardInstaller.WARN_COLOR
             
@@ -404,7 +405,7 @@ class SDCardInstaller(object):
         cmd += 'EOF'
         
         if self._executer.check_call(cmd) != 0:
-            self._logger.error('Unable to partition device ' + device)
+            self._logger.error('Unable to partition device %s' % device)
             return False
         
         return True
@@ -456,21 +457,20 @@ class SDCardInstaller(object):
                 cmd  = 'sudo mkfs.ext3 ' + device_part
                 cmd += ' -L ' + part.get_name()
             else:
-                self._logger.error("Can't format partition " +
-                                     part.get_name() + ", unknown filesystem: " +
-                                     part.get_filesystem())
+                msg = ("Can't format partition %s, unknown filesystem: %s" %
+                       (part.get_name(), part.get_filesystem()))
+                self._logger.error(msg)
                 return False
             
             if cmd:
                 if self._executer.check_call(cmd) == 0:
-                    self._logger.info('Formatted ' + part.get_name() +
-                                      ' (' + part.get_filesystem() + ')' +
-                                      ' into ' + device_part)
+                    msg = ('Formatted %s (%s) into %s' % (part.get_name(),
+                                                          part.get_filesystem(),
+                                                          device_part))
                     partition_index += 1
                 else:
-                    self._logger.error('Unable to format ' +
-                                       part.get_name() + ' into ' +
-                                       device_part)
+                    self._logger.error('Unable to format %s into %s' %
+                                       (part.get_name(), device_part))
                     return False
         
         return True
@@ -491,9 +491,9 @@ class SDCardInstaller(object):
         
         # Check device existence
         if not self.device_exists(device) and not self._dryrun:
-            self._logger.info('Try inserting the SD card again and ' +
+            self._logger.info('Try inserting the SD card again and '
                                'unmounting the partitions.')
-            self._logger.error('No valid disk is available on ' + device + '.')
+            self._logger.error('No valid disk is available on %s' % device)
             return False
         
         # Check device is not mounted
@@ -505,22 +505,22 @@ class SDCardInstaller(object):
                 
             # Auto-unmount
             if not self.auto_unmount_partitions(device):
-                self._logger.error('Failed auto-unmounting ' + device +
-                                   ', refusing to install.')
+                self._logger.error('Failed auto-unmounting %s, refusing to '
+                                   'install.' % device)
                 return False
         
         # Read the partitions
-        self._logger.info('Reading ' + filename + ' ...')
+        self._logger.info('Reading %s ...' % filename)
         if not self.read_partitions(filename):    
             return False
         
         # Create partitions
-        self._logger.info('Creating partitions on ' + device + ' ...')
+        self._logger.info('Creating partitions on %s ...' % device)
         if not self.create_partitions(device):
             return False
         
         # Format partitions
-        self._logger.info('Formatting partitions on ' + device + ' ...')
+        self._logger.info('Formatting partitions on %s ...' % device)
         if not self.format_partitions(device):
             return False
         
@@ -538,7 +538,7 @@ class SDCardInstaller(object):
         self._partitions[:] = []
         
         if not os.path.exists(filename):
-            self._logger.error("File " + filename + " does not exist.")
+            self._logger.error('File %s does not exist' % filename)
             return False
         
         config = ConfigParser.RawConfigParser()
@@ -580,13 +580,14 @@ class SDCardInstaller(object):
         Checks the integrity of device given, if errors are found it tries 
         to correct them.
         """
+        
         if not self.device_exists(device):
-            self._logger.error("Device "+device+" doesn't exist.")
+            self._logger.error("Device %s doesn't exist" % device)
             return False
         
         if self.device_is_mounted(device):
             if not self.auto_unmount_partitions(device):
-                self._logger.error('Can not unmount device ' + device)
+                self._logger.error("Can't unmount device %s" % device)
                 return False
         
         # according to man fsck
@@ -617,30 +618,26 @@ class SDCardInstaller(object):
                     key = 2 ** i
                     if output & key:
                         fs_state += fsck_outputs[key]
-                        fs_ok = False                
-            self._logger.info(device_part + ' filesystem condition: ' +
-                              fs_state)
-            
+                        fs_ok = False
+            self._logger.info('%s filesystem condition: %s' % (device_part,
+                                                               fs_state))
             partition_index += 1
             
         return fs_ok
     
-    def set_workdir(self,workdir):
+    def set_workdir(self, workdir):
         """
         Sets the path to the directory where to create temporary files
         and also mount devices.
         """
-        if os.path.isdir(workdir):
-            self._workdir = workdir
-            return True
-        else:
-            self._logger.error("Error! " + workdir + " is not a directory.")
-            return False
+        
+        self._workdir = workdir
     
     def get_workdir(self):
         """
         Gets the working directory.
         """
+        
         return self._workdir
     
     def install_components(self, dryrun, device):
@@ -651,11 +648,6 @@ class SDCardInstaller(object):
         fs_installer class.
         Return True on success, False otherwise.
         """
-        
-        self._bl_installer.set_dryrun(dryrun)
-        self._fs_installer.set_dryrun(dryrun)
-        self._bl_installer.set_workdir(self._workdir)
-        self._fs_installer.set_workdir(self._workdir)
         
         partition_index = 1
         

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
@@ -19,7 +19,7 @@
 """
 Representation of a memory partition.
 
-Copyright (C) 2012 RidgeRun, LLC (http://www.ridgerun.com)
+Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
 All Rights Reserved.
 
 The contents of this software are proprietary and confidential to RidgeRun,
@@ -215,14 +215,14 @@ class Partition(object):
     
     def set_components(self,components):
         """
-        Sets the components that will be installed on this partition.
+        Sets the list of components that will be installed on this partition.
         """
         
         self._components = components
     
     def get_components(self):
         """
-        Gets the components that will be installed on this partition.
+        Gets the list of components that will be installed on this partition.
         """
         
         return self._components
