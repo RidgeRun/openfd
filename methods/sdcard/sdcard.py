@@ -84,7 +84,7 @@ class SDCardInstaller(object):
         if size_gb > SDCardInstaller.WARN_DEVICE_SIZE_GB:
             
             msg = ('Device %s has %d gigabytes, it does not look like an '
-                   'SD card.' % (device, size_gb))
+                   'SD card' % (device, size_gb))
             
             msg_color = SDCardInstaller.WARN_COLOR 
             
@@ -492,7 +492,7 @@ class SDCardInstaller(object):
         # Check device existence
         if not self.device_exists(device) and not self._dryrun:
             self._logger.info('Try inserting the SD card again and '
-                               'unmounting the partitions.')
+                               'unmounting the partitions')
             self._logger.error('No valid disk is available on %s' % device)
             return False
         
@@ -506,7 +506,7 @@ class SDCardInstaller(object):
             # Auto-unmount
             if not self.auto_unmount_partitions(device):
                 self._logger.error('Failed auto-unmounting %s, refusing to '
-                                   'install.' % device)
+                                   'install' % device)
                 return False
         
         # Read the partitions

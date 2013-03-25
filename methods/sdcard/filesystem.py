@@ -78,6 +78,7 @@ class FilesystemInstaller(object):
         """
         Sets the path to the workdir.
         """
+        
         self._workdir = workdir
         
     def get_workdir(self):

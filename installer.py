@@ -189,8 +189,8 @@ _parser.add_option('--uboot-bootargs',
                    metavar='<uboot_bootargs>',
                    dest='uboot_bootargs')
 
-_parser.add_option('--workdir',
-                   help="On " + MODE_SD + " mode, sets the work directory",
+_parser.add_option('--work-dir',
+                   help="Directory to perform temporary operations",
                    metavar='<workdir>',
                    dest='workdir')
 
@@ -261,7 +261,7 @@ if _options.installation_mode == MODE_SD:
         _missing_arg_exit('--uboot-bootargs')
     
     if not _options.workdir:
-        _missing_arg_exit('--workdir')
+        _missing_arg_exit('--work-dir')
     else:
         if not os.path.isdir(_options.workdir):
             _logger.error('Unable to find %s' % _options.workdir)

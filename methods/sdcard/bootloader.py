@@ -181,12 +181,8 @@ class BootloaderInstaller(object):
         """
         Sets the path to the workdir.
         """
-        if os.path.isdir(workdir):
-            self._workdir = workdir
-            return True
-        else:
-            self._logger.error(workdir+' Is not a directory.')
-            return False
+        
+        self._workdir = workdir
         
     def get_workdir(self):
         """
