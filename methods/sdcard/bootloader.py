@@ -129,6 +129,7 @@ class BootloaderInstaller(object):
         """
         Sets the path to the uboot_entry_addr.
         """
+        
         self._uboot_entry_addr = uboot_entry_addr
         
     def get_uboot_entry_addr(self):
@@ -161,6 +162,7 @@ class BootloaderInstaller(object):
         """
         Gets the boot args.
         """
+        
         return self._bootargs
     
     def set_kernel_image(self, kernel_image):
@@ -251,6 +253,9 @@ class BootloaderInstaller(object):
         number (like 0xabcd).
         """
         
+        if not value_str:
+            return ''
+        
         if not value_str.upper().find('0X'):
             try:
                 return hex(int(value_str))
@@ -261,8 +266,8 @@ class BootloaderInstaller(object):
         
     def install_uboot_env(self, mount_point):
         """
-        Install the U-Boot environment to the given mount point.
-        This method needs that uboot_load_addr be already set.
+        Installs the U-Boot environment to the given mount point. Assumes
+        a valid uboot load address and workdir.
         """
         
         if not os.path.isdir(mount_point):
@@ -271,6 +276,10 @@ class BootloaderInstaller(object):
         
         if not self._uboot_load_addr:
             self._logger.error('No uboot load address specified')
+            return False
+        
+        if not self._workdir:
+            self._logger.error('No workdir specified')
             return False
         
         # Uboot env file preparation
@@ -283,12 +292,13 @@ class BootloaderInstaller(object):
                                uboot_load_addr)
             return False
         
-        uenv = open(uenv_file, "w")
-        
-        uenv.write('bootargs=%s\n' % self._bootargs)
-        uenv.write('uenvcmd=echo Running uenvcmd ...; run loaduimage; '
-                   'bootm %s\n' % uboot_load_addr)
-        uenv.close()
+        if not self._dryrun:
+            uenv = open(uenv_file, "w")
+            
+            uenv.write('bootargs=%s\n' % self._bootargs)
+            uenv.write('uenvcmd=echo Running uenvcmd ...; run loaduimage; '
+                       'bootm %s\n' % uboot_load_addr)
+            uenv.close()
         
         # Now we copy it to mount point
         cmd = 'sudo cp ' + uenv_file + ' ' + mount_point
@@ -374,7 +384,7 @@ if __name__ == '__main__':
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash'
     
     bl_installer.set_uflash_bin(uflash_bin)
-      
+
 # ==========================================================================
 # Test cases - Unit tests
 # ==========================================================================
@@ -383,46 +393,55 @@ if __name__ == '__main__':
     
     tc_start(1, sleep_time=0)
     
-    # Check device existence (positive test case)
+    # Initial setup
     
-    ubl_file         = devdir + '/images/ubl_DM36x_sdmmc.bin'
+    ubl_file = devdir + '/images/ubl_DM36x_sdmmc.bin'
+    uboot_file = devdir + '/images/bootloader'
+    workdir = devdir + "/images/"
+    uboot_entry_addr = '0x82000000' # 2181038080
+    uboot_load_addr = '2181038080' # 0x82000000
     
     bl_installer.set_ubl_file(ubl_file)
-    
-    uboot_file       = devdir + '/images/bootloader'
-    
     bl_installer.set_uboot_file(uboot_file)
-    
-    uboot_entry_addr = '0x82000000' # 2181038080
-    
     bl_installer.set_uboot_entry_addr(uboot_entry_addr)
-    
-    uboot_load_addr  = '2181038080' # 0x82000000
-    
     bl_installer.set_uboot_load_addr(uboot_load_addr)
+    bl_installer.set_workdir(workdir)
+    
+    # Flash the device
     
     if bl_installer.flash(device):
         print "Device " + device + " correctly flashed"
     else:
         print "Error flashing " + device
     
-    # Try to install uboot env on sd.
+    # --------------- TC 2 ---------------
+    
+    tc_start(2)
+    
+    # Uboot env installation
     
     mount_point = '/media/boot'
     
-    bl_installer.set_bootargs(" davinci_enc_mngr.ch0_output=COMPONENT "
-    + "davinci_enc_mngr.ch0_mode=1080I-30  " +
-    "davinci_display.cont2_bufsize=13631488 " +
-    "vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 "
-    + "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
-    + "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1"
-    + " mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3   ")
+    bl_installer.set_bootargs("davinci_enc_mngr.ch0_output=COMPONENT "
+                              "davinci_enc_mngr.ch0_mode=1080I-30  "
+                              "davinci_display.cont2_bufsize=13631488 "
+                              "vpfe_capture.cont_bufoffset=13631488 "
+                              "vpfe_capture.cont_bufsize=12582912 "
+                              "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
+                              "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1 "
+                              "mem=83M root=/dev/mmcblk0p2 rootdelay=2 "
+                              "rootfstype=ext3")
     
     if bl_installer.install_uboot_env(mount_point):
-        print "uboot env successfully installed on " + mount_point
+        print "Uboot env successfully installed on " + mount_point
     else:
         print "Error installing uboot env on " + mount_point
-        sys.exit(-1)
+
+    # --------------- TC 3 ---------------
+    
+    tc_start(3)
+    
+    # Kernel installation
     
     kernel_image = devdir + '/images/kernel.uImage'
     
@@ -431,7 +450,6 @@ if __name__ == '__main__':
     if bl_installer.install_kernel(mount_point):
         print "Kernel successfully installed on " + mount_point
     else:
-        print "Error installing kernel "+ kernel_image + " on " + mount_point
-        sys.exit(-1)
+        print "Error installing kernel " + kernel_image + " on " + mount_point
     
     print "Test cases finished"
