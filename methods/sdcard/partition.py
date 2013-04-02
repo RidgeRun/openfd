@@ -240,7 +240,6 @@ class Partition(object):
         """
         
         _str  = ''
-        _str += 'Device:     ' + str(self._device) + '\n'
         _str += 'Partition:  ' + str(self._device_partition) + '\n'
         _str += 'Name:       ' + self._name + '\n'
         _str += 'Start:      ' + str(self._start) + '\n'
