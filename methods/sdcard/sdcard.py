@@ -576,7 +576,7 @@ class SDCardInstaller(object):
                 
         return True
     
-    def check_fs(self,device):
+    def check_fs(self, device):
         """
         Checks the integrity of device given, if errors are found it tries 
         to correct them.
@@ -641,13 +641,11 @@ class SDCardInstaller(object):
         
         return self._workdir
     
-    def install_components(self, dryrun, device):
+    def install_components(self, device):
         """
-        This method is the one that installs the components on the partitions.
-        It expects only the dryrun mode, because it is assumed that the needed
-        arguments are already set on the corresponding bl_installer or 
-        fs_installer class.
-        Return True on success, False otherwise.
+        Installs the specified components for each partition.
+        
+        Returns true on success, false otherwise.
         """
         
         partition_index = 1
@@ -657,13 +655,13 @@ class SDCardInstaller(object):
             device_part = device + \
                             self.get_partition_suffix(device, partition_index)
             cmd = 'mount | grep ' + device_part + '  | cut -f 3 -d " "'
-            output = self._executer.check_output(cmd)
-            mount_point = output[1].replace('\n','')
+            ret, output = self._executer.check_output(cmd)
+            mount_point = output.replace('\n', '')
             
             for component in part.get_components():
                 
                 if component == partition.Partition.COMPONENT_BOOTLOADER:
-                    ret = self._comp_installer.flash(device)
+                    ret = self._comp_installer.install_uboot(device)
                     if ret is False: return False
                     
                     ret =  self._comp_installer.install_uboot_env(mount_point)
@@ -749,9 +747,26 @@ if __name__ == '__main__':
     
     # Component installer
     
+    uflash_bin = devdir + \
+       '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash'
+    ubl_file = devdir + '/images/ubl_DM36x_sdmmc.bin'
+    uboot_file = devdir + '/images/bootloader'
+    uboot_entry_addr = '0x82000000' # 2181038080
+    uboot_load_addr = '2181038080' # 0x82000000
+    kernel_image = devdir + '/images/kernel.uImage'
+    rootfs = devdir + '/fs/fs'
+    workdir = devdir + "/images"
+
     comp_installer = component.ComponentInstaller()
     
-    
+    comp_installer.set_uflash_bin(uflash_bin)
+    comp_installer.set_ubl_file(ubl_file)
+    comp_installer.set_uboot_file(uboot_file)
+    comp_installer.set_uboot_entry_addr(uboot_entry_addr)
+    comp_installer.set_uboot_load_addr(uboot_load_addr)
+    comp_installer.set_kernel_image(kernel_image)
+    comp_installer.set_rootfs(rootfs)
+    comp_installer.set_workdir(workdir)
     
     # SD card installer 
     
@@ -933,5 +948,16 @@ if __name__ == '__main__':
         print "Partitions from " + device + " successfully mounted"
     else:
         print "Failed mounting partitions from " + device
+    
+    # --------------- TC 17 ---------------
+    
+    tc_start(17)
+    
+    # Test install_components
+    
+    if sd_installer.install_components(device):
+        print "Components successfully installed on " + device
+    else:
+        print "Failed installing components on " + device
     
     print "Test cases finished"

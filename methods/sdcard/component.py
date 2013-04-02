@@ -76,7 +76,7 @@ class ComponentInstaller(object):
         if not value_str:
             return ''
         
-        if not value_str.upper().find('0X'):
+        if value_str.upper().find('0X'):
             try:
                 return hex(int(value_str))
             except:
@@ -259,13 +259,13 @@ class ComponentInstaller(object):
             return False
         
         uboot_entry_addr = self._get_str_hex(self._uboot_entry_addr)
-        if uboot_entry_addr == None:
+        if not uboot_entry_addr:
             self._logger.error('Invalid value given to uboot entry address: %s'
                                % self._uboot_entry_addr)
             return False
         
         uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
-        if uboot_load_addr == None:
+        if not uboot_load_addr:
             self._logger.error('Invalid value given to uboot load address: %s'
                                % self._uboot_load_addr)
             return False
@@ -277,7 +277,7 @@ class ComponentInstaller(object):
               ' -e ' + uboot_entry_addr + \
               ' -l ' + uboot_load_addr
 
-        self._logger.info('Flashing UBL and U-Boot into %s' % device)
+        self._logger.info('Installing uboot')
         if self._executer.check_call(cmd) != 0:
             self._logger.error('Failed to flash UBL and U-Boot into %s' %
                                device)
@@ -291,8 +291,9 @@ class ComponentInstaller(object):
         a valid uboot load address and workdir.
         """
         
-        if not os.path.isdir(mount_point):
-            self._logger.error('Mount point %s does not exist.' % mount_point)
+        if not os.path.isdir(mount_point) and not self._dryrun:
+            self._logger.error('Mount point %s does not exist.' %
+                               mount_point)
             return False
         
         if not self._uboot_load_addr:
@@ -322,8 +323,9 @@ class ComponentInstaller(object):
                        'bootm %s\n' % uboot_load_addr)
             uenv.close()
         
-        # Now we copy it to mount point
         cmd = 'sudo cp ' + uenv_file + ' ' + mount_point
+        
+        self._logger.info('Installing uboot environment')
         if self._executer.check_call(cmd) != 0:
             self._logger.error('Failed to install uboot env file.')
             return False
@@ -343,6 +345,7 @@ class ComponentInstaller(object):
         
         cmd = 'sudo cp ' + self._kernel_image + ' ' + mount_point + '/uImage'
         
+        self._logger.info('Installing kernel')
         if self._executer.check_call(cmd) != 0:
             self._logger.error('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))
@@ -362,6 +365,7 @@ class ComponentInstaller(object):
             cmd = 'cd ' + self._rootfs + ' ; find . | sudo cpio -pdum ' + \
                     mount_point
             
+            self._logger.info('Installing rootfs')
             if self._executer.check_call(cmd) != 0:
                 self._logger.error('Failed installing rootfs into %s' %
                                    mount_point)
@@ -440,7 +444,7 @@ if __name__ == '__main__':
     ubl_file = devdir + '/images/ubl_DM36x_sdmmc.bin'
     uboot_file = devdir + '/images/bootloader'
     workdir = devdir + "/images/"
-    uboot_entry_addr = '0x82000000' # 2181038080
+    uboot_entry_addr = '0x82000000' # 2181038080 
     uboot_load_addr = '2181038080' # 0x82000000
     
     comp_installer.set_ubl_file(ubl_file)
@@ -454,7 +458,7 @@ if __name__ == '__main__':
     if comp_installer.install_uboot(device):
         print "Device " + device + " correctly flashed"
     else:
-        print "Error flashing " + device
+        print "Error installing uboot in " + device
     
     # --------------- TC 2 ---------------
     
@@ -496,7 +500,7 @@ if __name__ == '__main__':
 
     # --------------- TC 4 ---------------
     
-    tc_start(4) 
+    tc_start(4)
     
     rootfs = devdir + "/fs/fs"
     comp_installer.set_rootfs(rootfs)
