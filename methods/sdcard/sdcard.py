@@ -582,25 +582,25 @@ class SDCardInstaller(object):
         to correct them.
         """
         
-        if not self.device_exists(device):
+        if not self.device_exists(device) and not self._dryrun:
             self._logger.error("Device %s doesn't exist" % device)
             return False
         
         if self.device_is_mounted(device):
             if not self.auto_unmount_partitions(device):
-                self._logger.error("Can't unmount device %s" % device)
+                self._logger.error("Can't unmount partitions from %s" % device)
                 return False
         
-        # according to man fsck
-        # The exit code returned by fsck is the sum of the following conditions
-        fsck_outputs = {0    : 'No errors',
-                        1    : 'Filesystem errors corrected',
-                        2    : 'System should be rebooted',
-                        4    : 'Filesystem errors left uncorrected',
-                        8    : 'Operational error',
-                        16   : 'Usage or syntax error',
-                        32   : 'Fsck canceled by user request',
-                        128  : 'Shared-library error'}
+        # According to 'man fsck' the exit code returned by fsck is the sum
+        # of the following conditions
+        fsck_outputs = {0    : 'no errors',
+                        1    : 'filesystem errors corrected',
+                        2    : 'system should be rebooted',
+                        4    : 'filesystem errors left uncorrected',
+                        8    : 'operational error',
+                        16   : 'usage or syntax error',
+                        32   : 'fsck canceled by user request',
+                        128  : 'shared-library error'}
         
         fs_ok = True
         
@@ -611,11 +611,11 @@ class SDCardInstaller(object):
             device_part = device + \
                             self.get_partition_suffix(device, partition_index)
             cmd = "sudo fsck -y " + device_part
-            output = self._executer.check_call(cmd)
-            if output == 0 or output == 1:
-                fs_state += fsck_outputs[output]
+            ret = self._executer.check_call(cmd)
+            if ret == 0 or ret == 1:
+                fs_state += fsck_outputs[ret]
             else:
-                for i in range(8):
+                for i in range(len(fsck_outputs)):
                     key = 2 ** i
                     if output & key:
                         fs_state += fsck_outputs[key]
