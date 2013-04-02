@@ -453,11 +453,20 @@ if __name__ == '__main__':
     comp_installer.set_uboot_entry_addr(uboot_entry_addr)
     comp_installer.set_uboot_load_addr(uboot_load_addr)
     comp_installer.set_workdir(workdir)
+    comp_installer.set_bootargs("davinci_enc_mngr.ch0_output=COMPONENT "
+                          "davinci_enc_mngr.ch0_mode=1080I-30  "
+                          "davinci_display.cont2_bufsize=13631488 "
+                          "vpfe_capture.cont_bufoffset=13631488 "
+                          "vpfe_capture.cont_bufsize=12582912 "
+                          "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
+                          "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1 "
+                          "mem=83M root=/dev/mmcblk0p2 rootdelay=2 "
+                          "rootfstype=ext3")
     
     # Flash the device
     
     if comp_installer.install_uboot(device):
-        print "Device " + device + " correctly flashed"
+        print "Uboot successfully installed on " + device
     else:
         print "Error installing uboot in " + device
     
@@ -468,16 +477,6 @@ if __name__ == '__main__':
     # Uboot env installation
     
     mount_point = '/media/boot'
-    
-    comp_installer.set_bootargs("davinci_enc_mngr.ch0_output=COMPONENT "
-                              "davinci_enc_mngr.ch0_mode=1080I-30  "
-                              "davinci_display.cont2_bufsize=13631488 "
-                              "vpfe_capture.cont_bufoffset=13631488 "
-                              "vpfe_capture.cont_bufsize=12582912 "
-                              "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
-                              "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1 "
-                              "mem=83M root=/dev/mmcblk0p2 rootdelay=2 "
-                              "rootfstype=ext3")
     
     if comp_installer.install_uboot_env(mount_point):
         print "Uboot env successfully installed on " + mount_point

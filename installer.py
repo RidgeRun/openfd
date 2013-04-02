@@ -284,29 +284,22 @@ _options.device = _options.device.rstrip('/')
 
 if _options.installation_mode == MODE_SD:
     
-    # Bootloader installer
+    # Components installer
     
-    bl_installer = methods.sdcard.BootloaderInstaller()
-    bl_installer.set_dryrun(_options.dryrun)
-    bl_installer.set_uflash_bin(_options.uflash_bin)
-    bl_installer.set_ubl_file(_options.ubl_file)
-    bl_installer.set_uboot_file(_options.uboot_file)
-    bl_installer.set_uboot_entry_addr(_options.uboot_entry_addr)
-    bl_installer.set_uboot_load_addr(_options.uboot_load_addr)
-    bl_installer.set_bootargs(_options.uboot_bootargs)
-    bl_installer.set_kernel_image(_options.kernel_file)
-    bl_installer.set_workdir(_options.workdir)
+    comp_installer = methods.sdcard.ComponentInstaller()
+    comp_installer.set_uflash_bin(_options.uflash_bin)
+    comp_installer.set_ubl_file(_options.ubl_file)
+    comp_installer.set_uboot_file(_options.uboot_file)
+    comp_installer.set_uboot_entry_addr(_options.uboot_entry_addr)
+    comp_installer.set_uboot_load_addr(_options.uboot_load_addr)
+    comp_installer.set_bootargs(_options.uboot_bootargs)
+    comp_installer.set_kernel_image(_options.kernel_file)
+    comp_installer.set_rootfs(_options.rootfs)
+    comp_installer.set_workdir(_options.workdir)
     
-    # Filesystem installer
-    
-    fs_installer = methods.sdcard.FilesystemInstaller()
-    fs_installer.set_dryrun(_options.dryrun)
-    fs_installer.set_rootfs(_options.rootfs)
-    fs_installer.set_workdir(_options.workdir)
-
     # SDCard installer
 
-    sd_installer = methods.sdcard.SDCardInstaller(bl_installer, fs_installer)
+    sd_installer = methods.sdcard.SDCardInstaller(comp_installer)
     sd_installer.set_interactive(_options.interactive)
     sd_installer.set_dryrun(_options.dryrun)
     sd_installer.set_workdir(_options.workdir)
@@ -319,7 +312,7 @@ if _options.installation_mode == MODE_SD:
     ret = sd_installer.mount_partitions(_options.device,_options.workdir)
     if ret is False: _abort_install()
     
-    ret = sd_installer.install_components(_options.dryrun, _options.device)
+    ret = sd_installer.install_components(_options.device)
     if ret is False: _abort_install()
     
     ret = sd_installer.check_fs(_options.device)
