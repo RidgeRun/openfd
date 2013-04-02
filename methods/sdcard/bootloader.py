@@ -193,7 +193,7 @@ class BootloaderInstaller(object):
         
         return self._workdir
     
-    def flash(self, device):
+    def flash_uboot(self, device):
         """
         Flashes UBL and U-Boot to the given device, using the uflash tool.
         This method needs that uflash_bin, ubl_file, uboot_file, 

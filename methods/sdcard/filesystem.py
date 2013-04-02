@@ -54,7 +54,6 @@ class FilesystemInstaller(object):
         self._logger = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
         self._dryrun = False
-        self._workdir = None
         self._rootfs = None
         self._executer.set_logger(self._logger)
         
@@ -73,26 +72,14 @@ class FilesystemInstaller(object):
         """
         
         return self._dryrun
-    
-    def set_workdir(self, workdir):
-        """
-        Sets the path to the workdir.
-        """
         
-        self._workdir = workdir
-        
-    def get_workdir(self):
-        """
-        Gets the path to the kernel_image.
-        """
-        
-        return self._workdir
-    
     def set_rootfs(self, rootfs):
         """
         Sets the path to the directory that contains the rootfs that will be
-        installed. Set to None if this installation does not require a rootfs.
+        installed. Set to None if this installation does not require a rootfs,
+        i.e. NFS will be used.
         """
+        
         self._rootfs = rootfs
 
     def get_rootfs(self):
@@ -101,12 +88,14 @@ class FilesystemInstaller(object):
         installed. If None, a rootfs was not specified, more likely because
         this installation does not require rootfs, i.e. NFS will be used. 
         """
+        
         return self._rootfs
     
     def generate_rootfs_partition(self, mount_point):
         """
-        If any, installs the filesystem on the mount point given.
-        Returns True on success, False otherwise.
+        If any, installs rootfs in the given mount point.
+        
+        Returns true on success, false otherwise.
         """
         
         if self._rootfs:
@@ -115,8 +104,8 @@ class FilesystemInstaller(object):
                     mount_point
             
             if self._executer.check_call(cmd) != 0:
-                msg = 'Failed installing rootfs into %s' %  mount_point 
-                self._logger.error(msg)
+                self._logger.error('Failed installing rootfs into %s' %
+                                   mount_point)
                 return False
         
         return True
@@ -184,11 +173,11 @@ if __name__ == '__main__':
     rootfs = devdir + "/fs/fs"
     fs_installer.set_rootfs(rootfs)
     mount_point = "/media/rootfs"
-        
-    if fs_installer. generate_rootfs_partition(mount_point):
-        print "Fs successfully installed on " + mount_point
+
+    if fs_installer.generate_rootfs_partition(mount_point):
+        print "Rootfs successfully installed on " + mount_point
     else:
-        print "Error installing fs on " + mount_point
+        print "Error installing rootfs on " + mount_point
         sys.exit(-1)
     
     print "Test cases finished"

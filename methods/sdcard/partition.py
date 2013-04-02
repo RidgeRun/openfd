@@ -240,14 +240,12 @@ class Partition(object):
         """
         
         _str  = ''
-        _str += 'Partition:  ' + str(self._device_partition) + '\n'
         _str += 'Name:       ' + self._name + '\n'
         _str += 'Start:      ' + str(self._start) + '\n'
         _str += 'Size:       ' + str(self._size) + '\n'
         _str += 'Bootable:   ' + ('Yes' if self._bootable else 'No') + '\n'
         _str += 'Type:       ' + self._type + '\n'
         _str += 'Filesystem: ' + self._filesystem + '\n'
-        _str += 'Mount point:' + str(self._mount_point) + '\n'
         return _str
 
 # ==========================================================================

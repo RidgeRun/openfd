@@ -35,6 +35,7 @@ RidgeRun, LLC.
 import os
 import math
 import partition
+import component
 import geometry
 import ConfigParser
 import rrutils
@@ -54,7 +55,7 @@ class SDCardInstaller(object):
     # Used for dangerous warning messages
     WARN_COLOR = 'yellow'
 
-    def __init__(self, bl_installer, fs_installer):
+    def __init__(self, comp_installer):
         """
         Constructor.
         """
@@ -65,8 +66,7 @@ class SDCardInstaller(object):
         self._interactive = True
         self._partitions = []
         self._executer.set_logger(self._logger)
-        self._bl_installer = bl_installer
-        self._fs_installer = fs_installer
+        self._comp_installer = comp_installer
         self._workdir = None
     
     def _confirm_device_size(self, device):
@@ -156,6 +156,7 @@ class SDCardInstaller(object):
         """
         
         self._dryrun = dryrun
+        self._comp_installer.set_dryrun(dryrun)
         self._executer.set_dryrun(dryrun)
     
     def get_dryrun(self):
@@ -662,25 +663,25 @@ class SDCardInstaller(object):
             for component in part.get_components():
                 
                 if component == partition.Partition.COMPONENT_BOOTLOADER:
-                    ret = self._bl_installer.flash(device)
+                    ret = self._comp_installer.flash(device)
                     if ret is False: return False
                     
-                    ret =  self._bl_installer.install_uboot_env(mount_point)
+                    ret =  self._comp_installer.install_uboot_env(mount_point)
                     if ret is False: return False
                     
                 elif component == partition.Partition.COMPONENT_KERNEL:
-                    ret = self._bl_installer.install_kernel(mount_point)
+                    ret = self._comp_installer.install_kernel(mount_point)
                     if ret is False: return False
                     
                 elif component == partition.Partition.COMPONENT_ROOTFS:
-                    if self._fs_installer.get_rootfs() == None:
+                    if self._comp_installer.get_rootfs() == None:
                         err_msg = ('No directory for component %s in "%s" '
                                    'partition' %
                                    (partition.Partition.COMPONENT_ROOTFS,
                                     part.get_name()))
                         self._logger.error(err_msg)
                         return False
-                    ret = self._fs_installer.generate_rootfs_partition(mount_point)
+                    ret = self._comp_installer.install_rootfs(mount_point)
                     if ret is False: return False
                     
                 else:
@@ -746,7 +747,15 @@ if __name__ == '__main__':
     rrutils.logger.basic_config(verbose=True)
     logger = rrutils.logger.get_global_logger('sdcard-test')
     
-    sd_installer = SDCardInstaller()
+    # Component installer
+    
+    comp_installer = component.ComponentInstaller()
+    
+    
+    
+    # SD card installer 
+    
+    sd_installer = SDCardInstaller(comp_installer)
     
     # The following test cases will be run over the following device,
     # in the given dryrun mode, unless otherwise specified in the test case.
