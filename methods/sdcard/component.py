@@ -62,6 +62,7 @@ class ComponentInstaller(object):
         self._uboot_file = None
         self._uboot_entry_addr = None
         self._uboot_load_addr = None
+        self._bootargs = None
         self._kernel_image = None
         self._rootfs = None
         self._executer.set_logger(self._logger)
