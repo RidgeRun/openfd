@@ -68,7 +68,7 @@ class Partition(object):
         self._components = None
         
     @classmethod
-    def hex_format(self, decimal_value, width=8, upper=True):
+    def hex_format(cls, decimal_value, width=8, upper=True):
         """
         Returns the given decimal value as hex of given width (left zeros
         will be appended). After meeting the width requirement, the
@@ -99,18 +99,18 @@ class Partition(object):
         return '0x' + hex_value
     
     @classmethod
-    def decode_partition_type(self, partition_type):
+    def decode_partition_type(cls, partition_type):
         """
         Given a string indicating the type of a partition, such as 'L' for
         Linux Native or '0xc' for FAT32, returns a friendly name, such as 
         'Linux Native' or 'FAT32'.
         """
         
-        friendly_type = Partition.TYPE_UNKNOWN
+        friendly_type = cls.TYPE_UNKNOWN
         
-        if partition_type == Partition.TYPE_FAT32:
+        if partition_type == cls.TYPE_FAT32:
             friendly_type = 'W95 FAT32 (LBA)'
-        elif partition_type == Partition.TYPE_LINUX_NATIVE:
+        elif partition_type == cls.TYPE_LINUX_NATIVE:
             friendly_type = 'Linux Native'
         
         return friendly_type
