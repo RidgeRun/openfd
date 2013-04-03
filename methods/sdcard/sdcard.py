@@ -181,38 +181,21 @@ class SDCardInstaller(object):
         """
         
         return self._interactive
-        
-    def device_exists(self, device):
-        """
-        Returns true if the device exists, false otherwise.
-        """
 
-        exists  = True
+    def set_workdir(self, workdir):
+        """
+        Sets the path to the directory where to create temporary files
+        and also mount devices.
+        """
         
-        cmd = 'sudo fdisk -l ' + device + ' 2>/dev/null'
-        
-        output = self._executer.check_output(cmd)[1]
-        
-        if not output:
-            exists = False
-            
-        return exists
+        self._workdir = workdir
     
-    def device_is_mounted(self, device):
+    def get_workdir(self):
         """
-        Returns true if the device is mounted or if it's part of a RAID array,
-        false otherwise.
+        Gets the working directory.
         """
         
-        is_mounted = False
-        
-        cmd1 = 'grep --quiet ' + device + ' /proc/mounts'
-        cmd2 = 'grep --quiet ' + device + ' /proc/mdstat'
-        
-        if self._executer.check_call(cmd1) == 0: is_mounted = True
-        if self._executer.check_call(cmd2) == 0: is_mounted = True
-        
-        return is_mounted
+        return self._workdir
 
     def get_device_size_gb(self, device):
         """
@@ -252,6 +235,27 @@ class SDCardInstaller(object):
         
         return int(math.floor(size_cyl))
     
+    def get_partition_suffix(self, device, partition_index):
+        """
+        This function returns a string with the standard partition numeric
+        suffix, depending on the type of device.
+        
+        For example, the first partition (index = 1) in device
+        /dev/sdb is going to have the suffix "1", so that one can compose
+        the complete partition's filename: /dev/sdb1. While a device like
+        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
+        filename for the first partition is "/dev/mmcblk0p1".  
+        """
+        
+        suffix = ''
+        
+        if device.find('mmcblk') != -1:
+            suffix = 'p' + str(partition_index)
+        else:
+            suffix = str(partition_index)
+        
+        return suffix
+    
     def get_device_mounted_partitions(self, device):
         """
         Returns a list with the mounted partitions from the given device.
@@ -266,6 +270,38 @@ class SDCardInstaller(object):
             partitions = output.strip().split('\n')
         
         return partitions
+    
+    def device_exists(self, device):
+        """
+        Returns true if the device exists, false otherwise.
+        """
+
+        exists  = True
+        
+        cmd = 'sudo fdisk -l ' + device + ' 2>/dev/null'
+        
+        output = self._executer.check_output(cmd)[1]
+        
+        if not output:
+            exists = False
+            
+        return exists
+    
+    def device_is_mounted(self, device):
+        """
+        Returns true if the device is mounted or if it's part of a RAID array,
+        false otherwise.
+        """
+        
+        is_mounted = False
+        
+        cmd1 = 'grep --quiet ' + device + ' /proc/mounts'
+        cmd2 = 'grep --quiet ' + device + ' /proc/mdstat'
+        
+        if self._executer.check_call(cmd1) == 0: is_mounted = True
+        if self._executer.check_call(cmd2) == 0: is_mounted = True
+        
+        return is_mounted
     
     def mount_partitions(self, device, directory):
         """
@@ -411,27 +447,6 @@ class SDCardInstaller(object):
         
         return True
 
-    def get_partition_suffix(self, device, partition_index):
-        """
-        This function returns a string with the standard partition numeric
-        suffix, depending on the type of device.
-        
-        For example, the first partition (index = 1) in device
-        /dev/sdb is going to have the suffix "1", so that one can compose
-        the complete partition's filename: /dev/sdb1. While a device like
-        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
-        filename for the first partition is "/dev/mmcblk0p1".  
-        """
-        
-        suffix = ''
-        
-        if device.find('mmcblk') != -1:
-            suffix = 'p' + str(partition_index)
-        else:
-            suffix = str(partition_index)
-        
-        return suffix
-
     def format_partitions(self, device):
         """
         Format the partitions in the given device, assuming these partitions
@@ -576,10 +591,12 @@ class SDCardInstaller(object):
                 
         return True
     
-    def check_fs(self, device):
+    def check_filesystems(self, device):
         """
-        Checks the integrity of device given, if errors are found it tries 
-        to correct them.
+        Checks the integrity of the filesystems in the given device. Upon 
+        error, tries to recover using the 'fsck' command.
+        
+        Returns true on success; false otherwise.
         """
         
         if not self.device_exists(device) and not self._dryrun:
@@ -617,29 +634,17 @@ class SDCardInstaller(object):
             else:
                 for i in range(len(fsck_outputs)):
                     key = 2 ** i
-                    if output & key:
+                    if ret & key:
                         fs_state += fsck_outputs[key]
                         fs_ok = False
             self._logger.info('%s filesystem condition: %s' % (device_part,
                                                                fs_state))
+            
+            if not fs_ok: break
+            
             partition_index += 1
             
         return fs_ok
-    
-    def set_workdir(self, workdir):
-        """
-        Sets the path to the directory where to create temporary files
-        and also mount devices.
-        """
-        
-        self._workdir = workdir
-    
-    def get_workdir(self):
-        """
-        Gets the working directory.
-        """
-        
-        return self._workdir
     
     def install_components(self, device):
         """

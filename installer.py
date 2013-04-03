@@ -315,7 +315,7 @@ if _options.installation_mode == MODE_SD:
     ret = sd_installer.install_components(_options.device)
     if ret is False: _abort_install()
     
-    ret = sd_installer.check_fs(_options.device)
+    ret = sd_installer.check_filesystems(_options.device)
     if ret is False: _abort_install()
         
 _logger.info('Installation complete')
