@@ -311,7 +311,6 @@ def main():
         comp_installer.set_bootargs(_options.uboot_bootargs)
         comp_installer.set_kernel_image(_options.kernel_file)
         comp_installer.set_rootfs(_options.rootfs)
-        comp_installer.set_workdir(_options.workdir)
         
         # SDCard installer
     
@@ -325,7 +324,7 @@ def main():
         ret = sd_installer.format_sd(_options.mmap_file, _options.device)
         if ret is False: _abort_install()
         
-        ret = sd_installer.mount_partitions(_options.device,_options.workdir)
+        ret = sd_installer.mount_partitions(_options.device, _options.workdir)
         if ret is False: _abort_install()
         
         ret = sd_installer.install_components(_options.device)

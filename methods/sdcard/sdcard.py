@@ -188,6 +188,7 @@ class SDCardInstaller(object):
         and also mount devices.
         """
         
+        self._comp_installer.set_workdir(workdir)
         self._workdir = workdir
     
     def get_workdir(self):
