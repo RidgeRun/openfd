@@ -67,24 +67,6 @@ class ComponentInstaller(object):
         self._rootfs = None
         self._executer.set_logger(self._logger)
 
-    def _get_str_hex(self, value_str):
-        """
-        Converts the string that may contain a decimal number (like 12), or
-        a hexadecimal number (like 0xC), into an all-lowercase hexadecimal
-        number (like 0xc).
-        """
-        
-        if not value_str:
-            return ''
-        
-        if value_str.upper().find('0X'):
-            try:
-                return hex(int(value_str))
-            except:
-                return ''
-        else:
-            return value_str.lower()
-
     def set_dryrun(self, dryrun):
         """
         Sets on/off the dryrun mode. In dryrun mode any commands will
@@ -259,13 +241,13 @@ class ComponentInstaller(object):
             self._logger.error('No uboot load address specified')
             return False
         
-        uboot_entry_addr = self._get_str_hex(self._uboot_entry_addr)
+        uboot_entry_addr = common.str_to_hex(self._uboot_entry_addr)
         if not uboot_entry_addr:
             self._logger.error('Invalid value given to uboot entry address: %s'
                                % self._uboot_entry_addr)
             return False
         
-        uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
+        uboot_load_addr = common.str_to_hex(self._uboot_load_addr)
         if not uboot_load_addr:
             self._logger.error('Invalid value given to uboot load address: %s'
                                % self._uboot_load_addr)
@@ -309,7 +291,7 @@ class ComponentInstaller(object):
         
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
         
-        uboot_load_addr = self._get_str_hex(self._uboot_load_addr)
+        uboot_load_addr = common.str_to_hex(self._uboot_load_addr)
         if not uboot_load_addr:
             self._logger.error('Invalid u-boot load address: %s' %
                                uboot_load_addr)
@@ -385,6 +367,7 @@ if __name__ == '__main__':
 # ==========================================================================
 
     import time
+    import common
 
     def tc_start(tc_id, sleep_time=1):
         """
