@@ -574,6 +574,7 @@ class SDCardInstaller(object):
                 
                 if config.has_option(section, 'components'):
                     components = config.get(section, 'components')
+                    components = components.strip(', ')
                     part.components = components.replace(' ','').split(',')
                 
                 self._partitions.append(part)
