@@ -37,8 +37,8 @@ RidgeRun, LLC.
 
 import os
 import rrutils
+import rrutils.hexutils as hexutils
 import sys
-import common
 
 # ==========================================================================
 # Public Classes
@@ -275,13 +275,13 @@ class ComponentInstaller(object):
             self._logger.error('No uboot load address specified')
             return False
         
-        uboot_entry_addr = common.str_to_hex(self._uboot_entry_addr)
+        uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
         if not uboot_entry_addr:
             self._logger.error('Invalid value given to uboot entry address: %s'
                                % self._uboot_entry_addr)
             return False
         
-        uboot_load_addr = common.str_to_hex(self._uboot_load_addr)
+        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         if not uboot_load_addr:
             self._logger.error('Invalid value given to uboot load address: %s'
                                % self._uboot_load_addr)
@@ -325,7 +325,7 @@ class ComponentInstaller(object):
         
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
         
-        uboot_load_addr = common.str_to_hex(self._uboot_load_addr)
+        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         if not uboot_load_addr:
             self._logger.error('Invalid u-boot load address: %s' %
                                uboot_load_addr)

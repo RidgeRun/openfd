@@ -29,6 +29,12 @@ RidgeRun, LLC.
 """
 
 # ==========================================================================
+# Imports
+# ==========================================================================
+
+import rrutils.hexutils as hexutils
+
+# ==========================================================================
 # Classes
 # ==========================================================================
 
@@ -249,8 +255,6 @@ class Partition(object):
 
 if __name__ == '__main__':
     
-    import common
-    
     p = Partition('test-partition')
     
     print p.name
@@ -258,14 +262,14 @@ if __name__ == '__main__':
     p.size = 100
     
     print p.size
-    print common.hex_format(p.size)
+    print hexutils.hex_format(p.size)
     
     p.size = '-'
     print p.size
     
     p.start = 100
     print p.start
-    print common.hex_addr(p.start)
+    print hexutils.hex_addr(p.start)
     
     p.bootable = True
     if p.is_bootable:
