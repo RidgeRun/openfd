@@ -65,7 +65,7 @@ class SDCardInstaller(object):
         self._dryrun = False
         self._interactive = True
         self._partitions = []
-        self._executer.set_logger(self._logger)
+        self._executer.logger = self._logger
         self._comp_installer = comp_installer
     
     def _confirm_device_size(self, device):
@@ -156,7 +156,7 @@ class SDCardInstaller(object):
         
         self._dryrun = dryrun
         self._comp_installer.dryrun = dryrun
-        self._executer.set_dryrun(dryrun)
+        self._executer.dryrun = dryrun
     
     def __get_dryrun(self):
         """

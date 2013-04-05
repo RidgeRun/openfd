@@ -3,7 +3,7 @@
 # Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
 # All Rights Reserved.
 #
-# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+# Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
 # The contents of this software are proprietary and confidential to RidgeRun,
 # LLC.  No part of this program may be photocopied, reproduced or translated

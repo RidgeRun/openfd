@@ -66,7 +66,7 @@ class ComponentInstaller(object):
         self._bootargs = None
         self._kernel_image = None
         self._rootfs = None
-        self._executer.set_logger(self._logger)
+        self._executer.logger = self._logger
 
     def __set_dryrun(self, dryrun):
         """
@@ -75,7 +75,7 @@ class ComponentInstaller(object):
         """
         
         self._dryrun = dryrun
-        self._executer.set_dryrun(dryrun)
+        self._executer.dryrun = dryrun
     
     def __get_dryrun(self):
         """
