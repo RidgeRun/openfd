@@ -311,13 +311,13 @@ def main():
         comp_installer.bootargs = _options.uboot_bootargs
         comp_installer.kernel_image = _options.kernel_file
         comp_installer.rootfs = _options.rootfs
+        comp_installer.workdir = _options.workdir
         
         # SDCard installer
     
         sd_installer = methods.sdcard.SDCardInstaller(comp_installer)
-        sd_installer.set_interactive(_options.interactive)
-        sd_installer.set_dryrun(_options.dryrun)
-        sd_installer.set_workdir(_options.workdir)
+        sd_installer.interactive = _options.interactive
+        sd_installer.dryrun = _options.dryrun
         
         # Operations
         

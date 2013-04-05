@@ -67,7 +67,6 @@ class SDCardInstaller(object):
         self._partitions = []
         self._executer.set_logger(self._logger)
         self._comp_installer = comp_installer
-        self._workdir = None
     
     def _confirm_device_size(self, device):
         """
@@ -149,7 +148,7 @@ class SDCardInstaller(object):
         
         return min_cyl_size
             
-    def set_dryrun(self, dryrun):
+    def __set_dryrun(self, dryrun):
         """
         Sets on/off the dryrun mode. In dryrun mode any commands will
         not be executed (just logged).
@@ -159,14 +158,17 @@ class SDCardInstaller(object):
         self._comp_installer.dryrun = dryrun
         self._executer.set_dryrun(dryrun)
     
-    def get_dryrun(self):
+    def __get_dryrun(self):
         """
         Returns true if the dryrun mode is on; false otherwise.
         """
         
         return self._dryrun
     
-    def set_interactive(self, interactive):
+    dryrun = property(__get_dryrun, __set_dryrun,
+                     doc="""Gets or sets the dryrun mode.""")
+    
+    def __set_interactive(self, interactive):
         """
         Sets on/off the interactive mode. In interactive mode the user
         will be prompted before some actions, such as partitioning a device.
@@ -175,28 +177,15 @@ class SDCardInstaller(object):
         
         self._interactive = interactive
     
-    def get_interactive(self):
+    def __get_interactive(self):
         """
         Returns true if the interactive mode is on; false otherwise.
         """
         
         return self._interactive
-
-    def set_workdir(self, workdir):
-        """
-        Sets the path to the directory where to create temporary files
-        and also mount devices.
-        """
-        
-        self._comp_installer.workdir = workdir
-        self._workdir = workdir
     
-    def get_workdir(self):
-        """
-        Gets the working directory.
-        """
-        
-        return self._workdir
+    interactive = property(__get_interactive, __set_interactive,
+                           doc="""Gets or sets the interactive mode.""")
 
     def get_device_size_gb(self, device):
         """
@@ -783,8 +772,8 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.set_dryrun(True)
-    sd_installer.set_interactive(True)
+    sd_installer.dryrun = True
+    sd_installer.interactive = True
     
 # ==========================================================================
 # Test cases - Unit tests
