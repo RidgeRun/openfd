@@ -424,7 +424,7 @@ class SDCardInstaller(object):
             cmd += str(part.start) + ','
             cmd += str(part.size) + ','
             cmd += str(part.type)
-            if part.is_bootable:
+            if part.is_bootable():
                 cmd += ',*'
             cmd += '\n'
         

@@ -272,7 +272,7 @@ if __name__ == '__main__':
     print hexutils.hex_addr(p.start)
     
     p.bootable = True
-    if p.is_bootable:
+    if p.is_bootable():
         print "Partition " + p.name + " is bootable"
     else:
         print "Partition " + p.name + " is not bootable"
