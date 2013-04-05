@@ -303,14 +303,14 @@ def main():
         # Components installer
         
         comp_installer = methods.sdcard.ComponentInstaller()
-        comp_installer.set_uflash_bin(_options.uflash_bin)
-        comp_installer.set_ubl_file(_options.ubl_file)
-        comp_installer.set_uboot_file(_options.uboot_file)
-        comp_installer.set_uboot_entry_addr(_options.uboot_entry_addr)
-        comp_installer.set_uboot_load_addr(_options.uboot_load_addr)
-        comp_installer.set_bootargs(_options.uboot_bootargs)
-        comp_installer.set_kernel_image(_options.kernel_file)
-        comp_installer.set_rootfs(_options.rootfs)
+        comp_installer.uflash_bin = _options.uflash_bin
+        comp_installer.ubl_file =_options.ubl_file
+        comp_installer.uboot_file = _options.uboot_file
+        comp_installer.uboot_entry_addr = _options.uboot_entry_addr
+        comp_installer.uboot_load_addr = _options.uboot_load_addr
+        comp_installer.bootargs = _options.uboot_bootargs
+        comp_installer.kernel_image = _options.kernel_file
+        comp_installer.rootfs = _options.rootfs
         
         # SDCard installer
     

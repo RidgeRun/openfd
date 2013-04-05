@@ -38,6 +38,7 @@ RidgeRun, LLC.
 import os
 import rrutils
 import sys
+import common
 
 # ==========================================================================
 # Public Classes
@@ -67,7 +68,7 @@ class ComponentInstaller(object):
         self._rootfs = None
         self._executer.set_logger(self._logger)
 
-    def set_dryrun(self, dryrun):
+    def __set_dryrun(self, dryrun):
         """
         Sets on/off the dryrun mode. In dryrun mode any commands will
         not be executed (just logged).
@@ -76,110 +77,137 @@ class ComponentInstaller(object):
         self._dryrun = dryrun
         self._executer.set_dryrun(dryrun)
     
-    def get_dryrun(self):
+    def __get_dryrun(self):
         """
         Returns true if the dryrun mode is on; false otherwise.
         """
         
         return self._dryrun
+    
+    dryrun = property(__get_dryrun, __set_dryrun,
+                      doc="""Gets or sets the dryrun mode.""")
         
-    def set_uflash_bin(self, uflash_bin):
+    def __set_uflash_bin(self, uflash_bin):
         """
         Sets the path to the uflash tool.
         """
         
         self._uflash_bin = uflash_bin
         
-    def get_uflash_bin(self):
+    def __get_uflash_bin(self):
         """
         Gets the path to the uflash tool.
         """
         
         return self._uflash_bin
     
-    def set_ubl_file(self, ubl_file):
+    uflash_bin = property(__get_uflash_bin, __set_uflash_bin,
+                          doc="""Gets or sets the path to the uflash tool""")
+    
+    def __set_ubl_file(self, ubl_file):
         """
         Sets the path to the ubl file.
         """
         
         self._ubl_file = ubl_file
         
-    def get_ubl_file(self):
+    def __get_ubl_file(self):
         """
         Gets the path to the ubl file.
         """
         
         return self._ubl_file
     
-    def set_uboot_file(self, uboot_file):
+    ubl_file = property(__get_ubl_file, __set_ubl_file,
+                        doc="""Gets or sets the path to the ubl file.""")
+    
+    def __set_uboot_file(self, uboot_file):
         """
         Sets the path to the uboot file.
         """
         
         self._uboot_file = uboot_file
         
-    def get_uboot_file(self):
+    def __get_uboot_file(self):
         """
         Gets the path to the uboot file.
         """
         
         return self._uboot_file
     
-    def set_uboot_entry_addr(self, uboot_entry_addr):
+    uboot_file = property(__get_uboot_file, __set_uboot_file,
+                          doc="""Gets or sets the path to the uboot file.""")
+    
+    def __set_uboot_entry_addr(self, uboot_entry_addr):
         """
         Sets the uboot entry address.
         """
         
         self._uboot_entry_addr = uboot_entry_addr
         
-    def get_uboot_entry_addr(self):
+    def __get_uboot_entry_addr(self):
         """
         Gets the path to the uboot entry address.
         """
         
         return self._uboot_entry_addr
     
-    def set_uboot_load_addr(self, uboot_load_addr):
+    uboot_entry_addr = property(__get_uboot_entry_addr, __set_uboot_entry_addr,
+                                doc="""Gets or sets the uboot entry
+                                address.""")
+    
+    def __set_uboot_load_addr(self, uboot_load_addr):
         """
         Sets the path to the ubootload address.
         """
         self._uboot_load_addr = uboot_load_addr
         
-    def get_uboot_load_addr(self):
+    def __get_uboot_load_addr(self):
         """
         Gets the path to the uboot load address.
         """
         
         return self._uboot_load_addr
     
-    def set_bootargs(self,bootargs):
+    uboot_load_addr = property(__get_uboot_load_addr, __set_uboot_load_addr,
+                               doc="""Gets or sets the uboot load address.""")
+    
+    def __set_bootargs(self,bootargs):
         """
         Sets the uboot environment variable "bootargs".
         """
         self._bootargs = bootargs
     
-    def get_bootargs(self):
+    def __get_bootargs(self):
         """
         Gets the uboot environment variable "bootargs".
         """
         
         return self._bootargs
     
-    def set_kernel_image(self, kernel_image):
+    bootargs = property(__get_bootargs, __set_bootargs,
+                        doc="""Gets or sets the uboot environment variable
+                        'bootargs'.""")
+    
+    def __set_kernel_image(self, kernel_image):
         """
         Sets the path to the kernel image.
         """
         
         self._kernel_image = kernel_image
         
-    def get_kernel_image(self):
+    def __get_kernel_image(self):
         """
         Gets the path to the kernel image.
         """
         
         return self._kernel_image
     
-    def set_rootfs(self, rootfs):
+    kernel_image = property(__get_kernel_image, __set_kernel_image,
+                            doc="""Gets or sets the path to the kernel
+                            image.""")
+    
+    def __set_rootfs(self, rootfs):
         """
         Sets the path to rootfs. Set to None if this installation does not
         require a rootfs, i.e. NFS will be used.
@@ -187,7 +215,7 @@ class ComponentInstaller(object):
         
         self._rootfs = rootfs
 
-    def get_rootfs(self):
+    def __get_rootfs(self):
         """
         Gets the path to rootfs. If None, a rootfs was not specified, more
         likely because this installation does not require rootfs, i.e. NFS
@@ -196,7 +224,10 @@ class ComponentInstaller(object):
         
         return self._rootfs
     
-    def set_workdir(self, workdir):
+    rootfs = property(__get_rootfs, __set_rootfs,
+                      doc="""Gets or sets the path to rootfs.""")
+    
+    def __set_workdir(self, workdir):
         """
         Sets the path to the workdir - a directory where this installer can 
         write to files and perform other temporary operations.
@@ -204,13 +235,16 @@ class ComponentInstaller(object):
         
         self._workdir = workdir
         
-    def get_workdir(self):
+    def __get_workdir(self):
         """
         Gets the path to the workdir - a directory where this installer can 
         write to files and perform other temporary operations.
         """
         
         return self._workdir
+    
+    workdir = property(__get_workdir, __set_workdir,
+                       doc="""Gets or sets the path to the workdir.""")
     
     def install_uboot(self, device):
         """
@@ -367,7 +401,6 @@ if __name__ == '__main__':
 # ==========================================================================
 
     import time
-    import common
 
     def tc_start(tc_id, sleep_time=1):
         """
@@ -408,12 +441,12 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    comp_installer.set_dryrun(True)
+    comp_installer.dryrun = True
     
     uflash_bin = devdir + \
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash'
     
-    comp_installer.set_uflash_bin(uflash_bin)
+    comp_installer.uflash_bin = uflash_bin
 
 # ==========================================================================
 # Test cases - Unit tests
@@ -431,12 +464,12 @@ if __name__ == '__main__':
     uboot_entry_addr = '0x82000000' # 2181038080 
     uboot_load_addr = '2181038080' # 0x82000000
     
-    comp_installer.set_ubl_file(ubl_file)
-    comp_installer.set_uboot_file(uboot_file)
-    comp_installer.set_uboot_entry_addr(uboot_entry_addr)
-    comp_installer.set_uboot_load_addr(uboot_load_addr)
-    comp_installer.set_workdir(workdir)
-    comp_installer.set_bootargs("davinci_enc_mngr.ch0_output=COMPONENT "
+    comp_installer.set_ubl_file = ubl_file
+    comp_installer.set_uboot_file = uboot_file
+    comp_installer.set_uboot_entry_addr = uboot_entry_addr
+    comp_installer.set_uboot_load_addr = uboot_load_addr
+    comp_installer.set_workdir = workdir
+    comp_installer.bootargs = ("davinci_enc_mngr.ch0_output=COMPONENT "
                           "davinci_enc_mngr.ch0_mode=1080I-30  "
                           "davinci_display.cont2_bufsize=13631488 "
                           "vpfe_capture.cont_bufoffset=13631488 "
@@ -474,7 +507,7 @@ if __name__ == '__main__':
     
     kernel_image = devdir + '/images/kernel.uImage'
     
-    comp_installer.set_kernel_image(kernel_image)
+    comp_installer.kernel_image = kernel_image
     
     if comp_installer.install_kernel(mount_point):
         print "Kernel successfully installed on " + mount_point
@@ -485,8 +518,7 @@ if __name__ == '__main__':
     
     tc_start(4)
     
-    rootfs = devdir + "/fs/fs"
-    comp_installer.set_rootfs(rootfs)
+    comp_installer.rootfs = devdir + "/fs/fs"
     mount_point = "/media/rootfs"
 
     if comp_installer.install_rootfs(mount_point):

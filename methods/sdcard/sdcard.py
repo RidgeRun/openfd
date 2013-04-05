@@ -156,7 +156,7 @@ class SDCardInstaller(object):
         """
         
         self._dryrun = dryrun
-        self._comp_installer.set_dryrun(dryrun)
+        self._comp_installer.dryrun = dryrun
         self._executer.set_dryrun(dryrun)
     
     def get_dryrun(self):
@@ -188,7 +188,7 @@ class SDCardInstaller(object):
         and also mount devices.
         """
         
-        self._comp_installer.set_workdir(workdir)
+        self._comp_installer.workdir = workdir
         self._workdir = workdir
     
     def get_workdir(self):
@@ -677,7 +677,7 @@ class SDCardInstaller(object):
                     if ret is False: return False
                     
                 elif component == Partition.COMPONENT_ROOTFS:
-                    if self._comp_installer.get_rootfs() == None:
+                    if self._comp_installer.rootfs is None:
                         err_msg = ('No directory for component %s in "%s" '
                                    'partition' %
                                    (Partition.COMPONENT_ROOTFS, part.name))
@@ -763,14 +763,14 @@ if __name__ == '__main__':
 
     comp_installer = component.ComponentInstaller()
     
-    comp_installer.set_uflash_bin(uflash_bin)
-    comp_installer.set_ubl_file(ubl_file)
-    comp_installer.set_uboot_file(uboot_file)
-    comp_installer.set_uboot_entry_addr(uboot_entry_addr)
-    comp_installer.set_uboot_load_addr(uboot_load_addr)
-    comp_installer.set_kernel_image(kernel_image)
-    comp_installer.set_rootfs(rootfs)
-    comp_installer.set_workdir(workdir)
+    comp_installer.uflash_bin = uflash_bin
+    comp_installer.ubl_file = ubl_file
+    comp_installer.uboot_file = uboot_file
+    comp_installer.uboot_entry_addr = uboot_entry_addr
+    comp_installer.uboot_load_addr = uboot_load_addr
+    comp_installer.kernel_image = kernel_image
+    comp_installer.rootfs = rootfs
+    comp_installer.workdir = workdir
     
     # SD card installer 
     
