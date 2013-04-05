@@ -34,7 +34,7 @@ RidgeRun, LLC.
 
 import os
 import math
-import partition
+from partition import Partition
 import component
 import geometry
 import ConfigParser
@@ -140,12 +140,12 @@ class SDCardInstaller(object):
         min_cyl_size = 1
         
         for part in self._partitions:
-            if part.get_size() == geometry.FULL_SIZE:
+            if part.size == geometry.FULL_SIZE:
                 # If size is unspecified, at least estimate 1 cylinder for
                 # that partition
                 min_cyl_size += 1
             else:
-                min_cyl_size += int(part.get_size())
+                min_cyl_size += int(part.size)
         
         return min_cyl_size
             
@@ -330,7 +330,7 @@ class SDCardInstaller(object):
             device_part = device + \
                             self.get_partition_suffix(device, partition_index)
                             
-            mount_point = directory + '/' + part.get_name()
+            mount_point = directory + '/' + part.name
         
             # Create the directory where to mount
             
@@ -344,11 +344,10 @@ class SDCardInstaller(object):
             # command understands
             
             part_type = None
-            part_fs = part.get_filesystem()
             
-            if part_fs == partition.Partition.FILESYSTEM_VFAT:
+            if part.filesystem == Partition.FILESYSTEM_VFAT:
                 part_type = 'vfat'
-            elif part_fs == partition.Partition.FILESYSTEM_EXT3:
+            elif part.filesystem == Partition.FILESYSTEM_EXT3:
                 part_type = 'ext3'
             
             # Now mount
@@ -433,10 +432,10 @@ class SDCardInstaller(object):
               ' '   + device + ' << EOF\n'
   
         for part in self._partitions:
-            cmd += str(part.get_start()) + ','
-            cmd += str(part.get_size()) + ','
-            cmd += str(part.get_type())
-            if part.is_bootable():
+            cmd += str(part.start) + ','
+            cmd += str(part.size) + ','
+            cmd += str(part.type)
+            if part.is_bootable:
                 cmd += ',*'
             cmd += '\n'
         
@@ -467,27 +466,27 @@ class SDCardInstaller(object):
             
             # Format
             cmd = ''
-            if part.get_filesystem() == partition.Partition.FILESYSTEM_VFAT:
+            if part.filesystem == Partition.FILESYSTEM_VFAT:
                 cmd  = 'sudo mkfs.vfat -F 32 '
-                cmd += device_part + ' -n ' + part.get_name()
-            elif part.get_filesystem() == partition.Partition.FILESYSTEM_EXT3:
+                cmd += device_part + ' -n ' + part.name
+            elif part.filesystem == Partition.FILESYSTEM_EXT3:
                 cmd  = 'sudo mkfs.ext3 ' + device_part
-                cmd += ' -L ' + part.get_name()
+                cmd += ' -L ' + part.name
             else:
                 msg = ("Can't format partition %s, unknown filesystem: %s" %
-                       (part.get_name(), part.get_filesystem()))
+                       (part.name, part.filesystem))
                 self._logger.error(msg)
                 return False
             
             if cmd:
                 if self._executer.check_call(cmd) == 0:
-                    msg = ('Formatted %s (%s) into %s' % (part.get_name(),
-                                                          part.get_filesystem(),
+                    msg = ('Formatted %s (%s) into %s' % (part.name,
+                                                          part.filesystem,
                                                           device_part))
                     partition_index += 1
                 else:
                     self._logger.error('Unable to format %s into %s' %
-                                       (part.get_name(), device_part))
+                                       (part.name, device_part))
                     return False
         
         return True
@@ -566,27 +565,27 @@ class SDCardInstaller(object):
             part = None
             
             if config.has_option(section, 'name'):
-                part = partition.Partition(config.get(section, 'name'))
+                part = Partition(config.get(section, 'name'))
             
             if part:
                 if config.has_option(section, 'start'):
-                    part.set_start(config.get(section, 'start'))
+                    part.start = config.get(section, 'start')
                     
                 if config.has_option(section, 'size'):
-                    part.set_size(config.get(section, 'size'))
+                    part.size = config.get(section, 'size')
                     
                 if config.has_option(section, 'bootable'):
-                    part.set_bootable(config.getboolean(section, 'bootable'))
+                    part.bootable = config.getboolean(section, 'bootable')
                 
                 if config.has_option(section, 'type'):
-                    part.set_type(config.get(section, 'type'))
+                    part.type = config.get(section, 'type')
                     
                 if config.has_option(section, 'filesystem'):
-                    part.set_filesystem(config.get(section, 'filesystem'))
+                    part.filesystem = config.get(section, 'filesystem')
                 
                 if config.has_option(section, 'components'):
                     components = config.get(section, 'components')
-                    part.set_components(components.replace(' ','').split(','))
+                    part.components = components.replace(' ','').split(',')
                 
                 self._partitions.append(part)
                 
@@ -664,25 +663,24 @@ class SDCardInstaller(object):
             ret, output = self._executer.check_output(cmd)
             mount_point = output.replace('\n', '')
             
-            for component in part.get_components():
+            for component in part.components:
                 
-                if component == partition.Partition.COMPONENT_BOOTLOADER:
+                if component == Partition.COMPONENT_BOOTLOADER:
                     ret = self._comp_installer.install_uboot(device)
                     if ret is False: return False
                     
                     ret =  self._comp_installer.install_uboot_env(mount_point)
                     if ret is False: return False
                     
-                elif component == partition.Partition.COMPONENT_KERNEL:
+                elif component == Partition.COMPONENT_KERNEL:
                     ret = self._comp_installer.install_kernel(mount_point)
                     if ret is False: return False
                     
-                elif component == partition.Partition.COMPONENT_ROOTFS:
+                elif component == Partition.COMPONENT_ROOTFS:
                     if self._comp_installer.get_rootfs() == None:
                         err_msg = ('No directory for component %s in "%s" '
                                    'partition' %
-                                   (partition.Partition.COMPONENT_ROOTFS,
-                                    part.get_name()))
+                                   (Partition.COMPONENT_ROOTFS, part.name))
                         self._logger.error(err_msg)
                         return False
                     ret = self._comp_installer.install_rootfs(mount_point)

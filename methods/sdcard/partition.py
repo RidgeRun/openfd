@@ -28,8 +28,6 @@ into another programming language without prior written consent of
 RidgeRun, LLC.
 """
 
-import common
-
 # ==========================================================================
 # Classes
 # ==========================================================================
@@ -250,6 +248,8 @@ class Partition(object):
 # ==========================================================================        
 
 if __name__ == '__main__':
+    
+    import common
     
     p = Partition('test-partition')
     
