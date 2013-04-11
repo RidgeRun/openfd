@@ -44,6 +44,15 @@ import rrutils
 # Public Classes
 # ==========================================================================
 
+class loop(object):
+    """
+    A very small class intended only for internal use
+    when the installation is done through an image.
+    """
+    def __init__(self, device):
+        self.device = device
+        self.partitions = []
+
 class SDCardInstaller(object):
     """
     Class to handle SD-card operations.
@@ -67,6 +76,7 @@ class SDCardInstaller(object):
         self._partitions = []
         self._executer.logger = self._logger
         self._comp_installer = comp_installer
+        self._loopdevice = None
     
     def _confirm_device_size(self, device):
         """
@@ -239,7 +249,7 @@ class SDCardInstaller(object):
         
         suffix = ''
         
-        if device.find('mmcblk') != -1:
+        if device.find('mmcblk') != -1 or device.find('/dev/loop') != -1:
             suffix = 'p' + str(partition_index)
         else:
             suffix = str(partition_index)
@@ -306,6 +316,9 @@ class SDCardInstaller(object):
         
         Returns true on success; false otherwise.
         """
+        
+        if self._loopdevice.device != None:
+            device = self._loopdevice.device
         
         directory = directory.rstrip('/')
         if not os.path.isdir(directory):
@@ -530,7 +543,158 @@ class SDCardInstaller(object):
             return False
         
         return True
-
+    
+    def format_loopdevice(self, filename, image_name, image_size):
+        """
+        This method will create an image file, this file contains
+        the formatted the partitions as specified by 'mmap-config-file'.
+        This image can later be set on an sdcard.
+        
+        This method recieves:
+        filename -> the mmap-config-file
+        image_name -> the name(with path) of the image file to be created
+        image_size -> the size in MB for the image file
+        
+        Returns true on success; false otherwise. 
+        """
+        
+        # Read the partitions
+        self._logger.info('Reading %s ...' % filename)
+        if not self.read_partitions(filename):    
+            return False
+        
+        # Create image file
+        self._logger.info('Creating image file %s' % image_name)
+        
+        cmd =  'dd if=/dev/zero of=%s bs=1M count=%s' % (image_name,
+                                                         image_size)
+        ret = self._executer.check_output(cmd)
+        if ret[0] != 0:
+            self._logger.error('Failed to create file for the image %s'
+                               % image_name)
+            return False
+        
+        # to start working we need to associate the image with a /dev/loop* dev
+        cmd = 'sudo losetup -f'
+        ret = self._executer.check_output(cmd)
+        if ret[0] == 0:
+            # The command 'sudo losetup -f' has a tricky part
+            # it append '\n' at the end of the device name
+            loopdevice = ret[1].replace('\n','')
+            self._loopdevice = loop(loopdevice)
+            cmd = 'sudo losetup %s %s' % (self._loopdevice.device,  image_name)
+            ret = self._executer.check_call(cmd)
+            
+            if ret != 0:
+                self._logger.error('Failed to associate image file %s to %s'
+                                   % (image_name, self._loopdevice.device))
+                return False
+        else:
+            self._logger.error('Failed when searching free loop devices')
+            return False
+        
+        # If we want to reuse the code for creating and formatting partitions
+        # the image need to have a valid format
+        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._loopdevice.device
+        ret = self._executer.check_output(cmd)
+        if ret[0] != 0:
+            self._logger.error('Failed to format a temporal filesystem on %s'
+                               % image_name)
+            return False
+        
+        # Create partitions
+        self._logger.info('Creating partitions on %s ...' % self._loopdevice.device)
+        if not self.create_partitions(self._loopdevice.device):
+            return False
+        
+        
+        # we associate parts of image file to other available /dev/loop*
+        # devices to work as partitions,and for convenience to reuse code 
+        # we create symbolic links to this devices with the names the rest
+        # of the code use.
+        partition_index = 1
+        for part in self._partitions:
+            device_part = self._loopdevice.device + \
+                            self.get_partition_suffix(self._loopdevice.device,
+                                                      partition_index)
+            
+            cmd = 'sudo losetup -f'
+            ret = self._executer.check_output(cmd)
+            if ret[0] == 0:
+                free_device = ret[1].replace('\n','')
+                self._loopdevice.partitions.append(free_device)
+                cmd = 'sudo ln -sf %s %s' % (free_device, device_part)
+                ret = self._executer.check_call(cmd)
+                if ret != 0:
+                    self._logger.error('Failed to create the symbolic link from %s to %s' % (free_device, device_part))
+                    return False
+                
+                offset = str(int(int(part.start)*geometry.CYLINDER_BYTE_SIZE))
+                if part.size == '-':
+                    cmd = 'sudo losetup -o %s %s %s' % (offset, free_device, image_name)
+                else:
+                    part_size = str(int(int(part.size)*geometry.CYLINDER_BYTE_SIZE))
+                    cmd = 'sudo losetup -o %s --sizelimit %s %s %s' % (offset, part_size, free_device, image_name)
+                
+                ret = self._executer.check_call(cmd)
+                if ret != 0:
+                    self._logger.error('Failed to associate loop device partition %s to image file %$' % (device_part, image_name))
+                    return False
+            
+            else:
+                self._logger.error('Can not find a free loopdevice to asociate %s', device_part)
+            partition_index += 1
+        
+        # Format partitions
+        self._logger.info('Formatting partitions on %s ...' % self._loopdevice.device)
+        if not self.format_partitions(self._loopdevice.device):
+            return False
+        
+        return True
+    
+    def release_loopdevice(self):
+        """
+        Releases all loopdevices used when creating an image file.
+        Should be run after finishing the process.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        # Unmount partitions
+        for dev in self._loopdevice.partitions:
+            cmd = 'sync'
+            ret = self._executer.check_call(cmd)
+            if ret != 0:
+                self._logger.error('unable  to sync loopdevice %s' %dev)
+                return False
+            cmd = 'sudo umount %s' % dev
+            ret = self._executer.check_call(cmd)
+            if ret != 0:
+                self._logger.error('Failed unmounting loopdevice %s' %dev)
+                return False
+        
+        # do a filesystem check
+        ret = self.check_filesystems(self._loopdevice.device)
+        if not ret:
+            self._logger.error('Failed image filesystem check')
+            return False
+        
+        # release the loop devices
+        for dev in self._loopdevice.partitions:
+            cmd = 'sudo losetup -d %s' % dev
+            ret = self._executer.check_call(cmd)
+            if ret != 0:
+                self._logger.error('Failed releasing loopdevice %s' %dev)
+                return False
+        
+        cmd = 'sudo losetup -d %s' % self._loopdevice.device
+        ret = self._executer.check_call(cmd)
+        if ret != 0:
+            self._logger.error('Failed releasing loopdevice %s' % self._loopdevice.device)
+            return False
+        
+        return True
+    
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
@@ -589,6 +753,9 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise.
         """
         
+        if self._loopdevice != None:
+            device = self._loopdevice.device
+        
         if not self.device_exists(device) and not self._dryrun:
             self._logger.error("Device %s doesn't exist" % device)
             return False
@@ -646,9 +813,12 @@ class SDCardInstaller(object):
         partition_index = 1
         
         for part in self._partitions:
-            
-            device_part = device + \
-                            self.get_partition_suffix(device, partition_index)
+            if self._loopdevice != None:
+                device = self._loopdevice.device
+                device_part = self._loopdevice.partitions[partition_index-1]
+            else:
+                device_part = device + \
+                                self.get_partition_suffix(device, partition_index)
             cmd = 'mount | grep ' + device_part + '  | cut -f 3 -d " "'
             ret, output = self._executer.check_output(cmd)
             mount_point = output.replace('\n', '')
