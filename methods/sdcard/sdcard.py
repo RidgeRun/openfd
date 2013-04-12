@@ -603,7 +603,8 @@ class SDCardInstaller(object):
             return False
         
         # Create partitions
-        self._logger.info('Creating partitions on %s ...' % self._loopdevice.device)
+        self._logger.info('Creating partitions on %s ...' 
+                          % self._loopdevice.device)
         if not self.create_partitions(self._loopdevice.device):
             return False
         
@@ -626,27 +627,38 @@ class SDCardInstaller(object):
                 cmd = 'sudo ln -sf %s %s' % (free_device, device_part)
                 ret = self._executer.check_call(cmd)
                 if ret != 0:
-                    self._logger.error('Failed to create the symbolic link from %s to %s' % (free_device, device_part))
+                    self._logger.error('Failed to create the symbolic link from\
+                                        %s to %s' % (free_device, device_part))
                     return False
-                
-                offset = str(int(int(part.start)*geometry.CYLINDER_BYTE_SIZE))
+                # This second conversion to int is needed here because the 
+                # string passed to the command needs to be one of an int value
+                # and the constant geometry.CYLINDER_BYTE_SIZE is a float
+                # and python when doing a mathematical operation the result
+                # is given in the most complex type of the parameters passed
+                # so it will return a float that is no accepted by the command
+                offset = int(int(part.start)*geometry.CYLINDER_BYTE_SIZE)
                 if part.size == '-':
-                    cmd = 'sudo losetup -o %s %s %s' % (offset, free_device, image_name)
+                    cmd = 'sudo losetup -o %s %s %s' % (offset, free_device, 
+                                                        image_name)
                 else:
-                    part_size = str(int(int(part.size)*geometry.CYLINDER_BYTE_SIZE))
-                    cmd = 'sudo losetup -o %s --sizelimit %s %s %s' % (offset, part_size, free_device, image_name)
+                    part_size = int(int(part.size)*geometry.CYLINDER_BYTE_SIZE)
+                    cmd = ('sudo losetup -o %s --sizelimit %s %s %s' 
+                           % (offset, part_size, free_device, image_name))
                 
                 ret = self._executer.check_call(cmd)
                 if ret != 0:
-                    self._logger.error('Failed to associate loop device partition %s to image file %$' % (device_part, image_name))
+                    self._logger.error('Failed to associate loop device \
+                    partition %s to image file %s' % (device_part, image_name))
                     return False
             
             else:
-                self._logger.error('Can not find a free loopdevice to asociate %s', device_part)
+                self._logger.error('Can not find a free loopdevice to asociate \
+                %s', device_part)
             partition_index += 1
         
         # Format partitions
-        self._logger.info('Formatting partitions on %s ...' % self._loopdevice.device)
+        self._logger.info('Formatting partitions on %s ...'
+                          % self._loopdevice.device)
         if not self.format_partitions(self._loopdevice.device):
             return False
         
@@ -690,9 +702,10 @@ class SDCardInstaller(object):
         cmd = 'sudo losetup -d %s' % self._loopdevice.device
         ret = self._executer.check_call(cmd)
         if ret != 0:
-            self._logger.error('Failed releasing loopdevice %s' % self._loopdevice.device)
+            self._logger.error('Failed releasing loopdevice %s'
+                               % self._loopdevice.device)
             return False
-        
+        self._loopdevice = None
         return True
     
     def read_partitions(self, filename):
