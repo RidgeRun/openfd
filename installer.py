@@ -165,11 +165,6 @@ def _parse_args():
     
     # MODE_SD - Required arguments
     
-    _parser.add_option('-d', '--device',
-                       help="Device to install",
-                       metavar='<device>',
-                       dest='device')
-    
     _parser.add_option('--uflash',
                        help="Path to the uflash tool",
                        metavar='<uflash>',
@@ -207,6 +202,22 @@ def _parse_args():
     
     # MODE_SD - Optional arguments
     
+    _parser.add_option('-d', '--device',
+                       help="Device to install",
+                       metavar='<device>',
+                       dest='device')
+    
+    _parser.add_option('--image',
+                       help="The filename of the image to create instead of"\
+                            " instead of installing directly to a SD",
+                       metavar='<image>',
+                       dest='image')
+    
+    _parser.add_option('--image-size',
+                       help="Size of the image file to create",
+                       metavar='<imagesize>',
+                       dest='imagesize')
+    
     _parser.add_option('--rootfs',
                        help="Path to the rootfs that will be installed.",
                        metavar='<rootfs>',
@@ -234,9 +245,6 @@ def _parse_args():
     # Check MODE_SD required arguments
     
     if _options.installation_mode == MODE_SD:
-        
-        if not _options.device:
-            _missing_arg_exit('-d/--device')
             
         if not _options.uflash_bin:
             _missing_arg_exit('--uflash')
@@ -279,15 +287,21 @@ def _parse_args():
                 _clean_exit(-1)
     
     # Check MODE_SD optional arguments
-    
+        
+        if not _options.device:
+            if _options.image:
+                if not _options.imagesize:
+                    _missing_arg_exit('--image-size')
+            else:
+                _missing_arg_exit('-d/--device or --image')
+        else:
+            # Clean the device string    
+            _options.device = _options.device.rstrip('/')
+        
         if _options.rootfs:
             if not os.path.isdir(_options.rootfs):
                 _logger.error('Unable to find %s' % _options.rootfs)
                 _clean_exit(-1)
-            
-    # Clean the device string
-    
-    _options.device = _options.device.rstrip('/')
 
 # ==========================================================================
 # Main logic
@@ -321,8 +335,15 @@ def main():
         
         # Operations
         
-        ret = sd_installer.format_sd(_options.mmap_file, _options.device)
-        if ret is False: _abort_install()
+        if _options.device:
+            ret = sd_installer.format_sd(_options.mmap_file, _options.device)
+            if ret is False: _abort_install()
+        else:
+            ret = sd_installer.format_loopdevice(_options.mmap_file, 
+                                                 _options.workdir + 
+                                                 _options.image, 
+                                                 _options.imagesize)
+            if ret is False: _abort_install()
         
         ret = sd_installer.mount_partitions(_options.device, _options.workdir)
         if ret is False: _abort_install()
@@ -330,8 +351,12 @@ def main():
         ret = sd_installer.install_components(_options.device)
         if ret is False: _abort_install()
         
-        ret = sd_installer.check_filesystems(_options.device)
-        if ret is False: _abort_install()
+        if _options.device:
+            ret = sd_installer.check_filesystems(_options.device)
+            if ret is False: _abort_install()
+        else:
+            ret = sd_installer.release_loopdevice()
+            if ret is False: _abort_install()
             
     _logger.info('Installation complete')
     
