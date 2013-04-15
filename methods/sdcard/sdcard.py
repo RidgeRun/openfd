@@ -317,7 +317,7 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise.
         """
         
-        if self._loopdevice.device != None:
+        if self._loopdevice != None:
             device = self._loopdevice.device
         
         directory = directory.rstrip('/')
@@ -603,10 +603,13 @@ class SDCardInstaller(object):
             return False
         
         # Create partitions
+        interactive = self._interactive
+        self._interactive = False
         self._logger.info('Creating partitions on %s ...' 
                           % self._loopdevice.device)
         if not self.create_partitions(self._loopdevice.device):
             return False
+        self._interactive = interactive
         
         
         # we associate parts of image file to other available /dev/loop*
