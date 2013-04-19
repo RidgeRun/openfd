@@ -59,6 +59,7 @@ class Partition(object):
     COMPONENT_BOOTLOADER = 'bootloader'
     COMPONENT_KERNEL = 'kernel'
     COMPONENT_ROOTFS = 'rootfs'
+    COMPONENT_BLANK = 'blank'
     
     def __init__(self, name):
         """
