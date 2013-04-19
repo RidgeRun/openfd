@@ -861,9 +861,12 @@ class SDCardInstaller(object):
                         return False
                     ret = self._comp_installer.install_rootfs(mount_point)
                     if ret is False: return False
-                    
+                
+                elif component == Partition.COMPONENT_BLANK:
+                    pass
+                
                 else:
-                    self._logger.error('Component %s is not valid', component)
+                    self._logger.error('Component %s is not valid' % component)
                     return False
                 
             partition_index += 1
@@ -1139,5 +1142,32 @@ if __name__ == '__main__':
         print "Components successfully installed on " + device
     else:
         print "Failed installing components on " + device
+    
+    # --------------- TC 18 ---------------
+    
+    tc_start(18)
+    
+    # Test format_loopdevice
+    image_name = devdir + '/images/test_image.img'
+    image_size = '256'
+    
+    if sd_installer.format_loopdevice(sdcard_mmap_filename, image_name,
+                                      image_size):
+        print "Succesfully format the loopdevice for the image " + image_name
+    else:
+        print "Failed to format the loopdevice for the image " + image_name
+
+    # --------------- TC 19 ---------------
+    
+    tc_start(19)
+    
+    # Test release_loopdevice
+    image_name = devdir + '/images/test_image.img'
+    image_size = '256'
+    
+    if sd_installer.release_loopdevice():
+        print "Succesfully release all loopdevices for the image " + image_name
+    else:
+        print "Failed to release all loopdevices for the image " + image_name
     
     print "Test cases finished"
