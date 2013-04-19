@@ -670,7 +670,7 @@ class SDCardInstaller(object):
                     return False
             
             else:
-                self._logger.error('Can not find a free loopdevice to asociate \
+                self._logger.error('Can not find a free loopdevice to associate \
                 %s', device_part)
             partition_index += 1
         
@@ -1163,8 +1163,9 @@ if __name__ == '__main__':
     tc_start(18)
     
     # Test format_loopdevice
+    # This must fail because of the image size
     image_name = devdir + '/images/test_image.img'
-    image_size = '256'
+    image_size = '1'
     
     if sd_installer.format_loopdevice(sdcard_mmap_filename, image_name,
                                       image_size):
@@ -1175,6 +1176,19 @@ if __name__ == '__main__':
     # --------------- TC 19 ---------------
     
     tc_start(19)
+    
+    # Test format_loopdevice
+    image_size = '256'
+    
+    if sd_installer.format_loopdevice(sdcard_mmap_filename, image_name,
+                                      image_size):
+        print "Succesfully format the loopdevice for the image " + image_name
+    else:
+        print "Failed to format the loopdevice for the image " + image_name
+    
+    # --------------- TC 20 ---------------
+    
+    tc_start(20)
     
     # Test release_loopdevice
     image_name = devdir + '/images/test_image.img'
