@@ -618,8 +618,8 @@ class SDCardInstaller(object):
         
         cmd =  'dd if=/dev/zero of=%s bs=1M count=%s' % (image_name,
                                                          image_size)
-        ret = self._executer.check_output(cmd)
-        if ret[0] != 0:
+        ret = self._executer.check_call(cmd)
+        if ret != 0:
             self._logger.error('Failed to create file for the image %s'
                                % image_name)
             return False
@@ -631,6 +631,7 @@ class SDCardInstaller(object):
             # The command 'sudo losetup -f' has a tricky part
             # it append '\n' at the end of the device name
             loopdevice = ret[1].replace('\n','')
+            self.set_device(loopdevice)
             self._loopdevice = loop(loopdevice)
             cmd = 'sudo losetup %s %s' % (self._loopdevice.device,  image_name)
             ret = self._executer.check_call(cmd)
@@ -657,7 +658,7 @@ class SDCardInstaller(object):
         self._interactive = False
         self._logger.info('Creating partitions on %s ...' 
                           % self._loopdevice.device)
-        if not self.create_partitions(self._loopdevice.device):
+        if not self.create_partitions():
             return False
         self._interactive = interactive
         
@@ -669,8 +670,7 @@ class SDCardInstaller(object):
         partition_index = 1
         for part in self._partitions:
             device_part = self._loopdevice.device + \
-                            self.get_partition_suffix(self._loopdevice.device,
-                                                      partition_index)
+                            self.get_partition_suffix(partition_index)
             
             cmd = 'sudo losetup -f'
             ret = self._executer.check_output(cmd)
@@ -712,7 +712,7 @@ class SDCardInstaller(object):
         # Format partitions
         self._logger.info('Formatting partitions on %s ...'
                           % self._loopdevice.device)
-        if not self.format_partitions(self._loopdevice.device):
+        if not self.format_partitions():
             return False
         
         return True
@@ -733,8 +733,9 @@ class SDCardInstaller(object):
                 self._logger.error('unable  to sync loopdevice %s' %dev)
                 return False
             cmd = 'sudo umount %s' % dev
-            ret = self._executer.check_call(cmd)
-            if ret != 0:
+            ret = self._executer.check_output(cmd)
+            if ret[0] != 0:
+                print ret[1]
                 self._logger.error('Failed unmounting loopdevice %s' %dev)
                 return False
         
@@ -822,12 +823,12 @@ class SDCardInstaller(object):
         if self._loopdevice != None:
             device = self._loopdevice.device
         
-        if not self.device_exists(device) and not self._dryrun:
+        if not self.device_exists() and not self._dryrun:
             self._logger.error("Device %s doesn't exist" % device)
             return False
         
-        if self.device_is_mounted(device):
-            if not self.auto_unmount_partitions(device):
+        if self.device_is_mounted():
+            if not self.auto_unmount_partitions():
                 self._logger.error("Can't unmount partitions from %s" % device)
                 return False
         
@@ -849,7 +850,7 @@ class SDCardInstaller(object):
         for part in self._partitions:
             fs_state = ''
             device_part = device + \
-                            self.get_partition_suffix(device, partition_index)
+                            self.get_partition_suffix(partition_index)
             cmd = "sudo fsck -y " + device_part
             ret = self._executer.check_call(cmd)
             if ret == 0 or ret == 1:
@@ -1014,7 +1015,7 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.dryrun = False#True
+    sd_installer.dryrun = True
     sd_installer.interactive = True
     
 # ==========================================================================
@@ -1269,6 +1270,7 @@ if __name__ == '__main__':
     
     # Test format_loopdevice
     # This must fail because of the image size
+    sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
     image_name = devdir + '/images/test_image.img'
     image_size = '1'
     
@@ -1296,8 +1298,12 @@ if __name__ == '__main__':
     tc_start(20)
     
     # Test release_loopdevice
-    image_name = devdir + '/images/test_image.img'
-    image_size = '256'
+    
+    if sd_installer.mount_partitions(devdir + '/images'):
+        print "Partitions from " + device + " successfully mounted"
+    else:
+        print "Failed mounting partitions from " + device    
+    
     
     if sd_installer.release_loopdevice():
         print "Succesfully release all loopdevices for the image " + image_name
