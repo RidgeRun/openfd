@@ -336,7 +336,8 @@ def main():
         # Operations
         
         if _options.device:
-            ret = sd_installer.format_sd(_options.mmap_file, _options.device)
+            sd_installer.set_device(_options.device)
+            ret = sd_installer.format_sd(_options.mmap_file)
             if ret is False: _abort_install()
         else:
             ret = sd_installer.format_loopdevice(_options.mmap_file, 
@@ -345,14 +346,14 @@ def main():
                                                  _options.imagesize)
             if ret is False: _abort_install()
         
-        ret = sd_installer.mount_partitions(_options.device, _options.workdir)
+        ret = sd_installer.mount_partitions(_options.workdir)
         if ret is False: _abort_install()
         
-        ret = sd_installer.install_components(_options.device)
+        ret = sd_installer.install_components()
         if ret is False: _abort_install()
         
         if _options.device:
-            ret = sd_installer.check_filesystems(_options.device)
+            ret = sd_installer.check_filesystems()
             if ret is False: _abort_install()
         else:
             ret = sd_installer.release_loopdevice()
