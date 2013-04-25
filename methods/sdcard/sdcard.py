@@ -812,13 +812,15 @@ class SDCardInstaller(object):
                 
         return True
     
-    def check_filesystems(self, device):
+    def check_filesystems(self):
         """
         Checks the integrity of the filesystems in the given device. Upon 
         error, tries to recover using the 'fsck' command.
         
         Returns true on success; false otherwise.
         """
+        
+        device = self._device
         
         if self._loopdevice != None:
             device = self._loopdevice.device
