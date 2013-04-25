@@ -346,9 +346,6 @@ class SDCardInstaller(object):
         
         device = self._device
         
-        if self._loopdevice != None:
-            device = self._loopdevice.device
-        
         directory = directory.rstrip('/')
         if not os.path.isdir(directory):
             self._logger.error('Directory %s does not exist' % directory)
@@ -740,7 +737,7 @@ class SDCardInstaller(object):
                 return False
         
         # do a filesystem check
-        ret = self.check_filesystems(self._loopdevice.device)
+        ret = self.check_filesystems()
         if not ret:
             self._logger.error('Failed image filesystem check')
             return False
@@ -821,9 +818,6 @@ class SDCardInstaller(object):
         """
         
         device = self._device
-        
-        if self._loopdevice != None:
-            device = self._loopdevice.device
         
         if not self.device_exists() and not self._dryrun:
             self._logger.error("Device %s doesn't exist" % device)
