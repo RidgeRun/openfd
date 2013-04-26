@@ -63,7 +63,10 @@ class SDCardInstaller(object):
     
     # Used for dangerous warning messages
     WARN_COLOR = 'yellow'
-
+    
+    MODE_SD = 'sd'
+    MODE_LOOPBACK = 'loopback'
+    
     def __init__(self, comp_installer):
         """
         Constructor.
@@ -78,6 +81,19 @@ class SDCardInstaller(object):
         self._comp_installer = comp_installer
         self._loopdevice = None
         self._device = None
+        self._mode = None
+    
+    def set_mode(self, mode):
+        """
+        Sets the mode.
+        """
+        self._mode = mode
+    
+    def get_mode(self):
+        """
+        Gets the mode.
+        """
+        return self._mode
     
     def set_device(self, device):
         """
@@ -841,9 +857,7 @@ class SDCardInstaller(object):
         
         fs_ok = True
         
-        partition_index = 1
-        
-        for part in self._partitions:
+        for partition_index in range(1,len(self._partitions)+1):
             fs_state = ''
             device_part = device + \
                             self.get_partition_suffix(partition_index)
@@ -862,8 +876,6 @@ class SDCardInstaller(object):
             
             if not fs_ok: break
             
-            partition_index += 1
-            
         return fs_ok
     
     def install_components(self):
@@ -878,8 +890,7 @@ class SDCardInstaller(object):
         partition_index = 1
         
         for part in self._partitions:
-            if self._loopdevice != None:
-                device = self._loopdevice.device
+            if self._mode == self.MODE_LOOPBACK:
                 device_part = self._loopdevice.partitions[partition_index-1]
             else:
                 device_part = device + \
@@ -1023,6 +1034,8 @@ if __name__ == '__main__':
     tc_start(1, sleep_time=0) 
     
     # Check device existence (positive test case)
+    
+    sd_installer.set_mode(sd_installer.MODE_SD)
     
     sd_installer.set_device(device)
     
@@ -1263,6 +1276,8 @@ if __name__ == '__main__':
     # --------------- TC 18 ---------------
     
     tc_start(18)
+    
+    sd_installer.set_mode(sd_installer.MODE_LOOPBACK)
     
     # Test format_loopdevice
     # This must fail because of the image size
