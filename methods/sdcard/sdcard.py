@@ -458,7 +458,7 @@ class SDCardInstaller(object):
             return False
 
         # Just before creating the partitions, prompt the user
-        if self._interactive:
+        if self._interactive and self._mode != self.MODE_LOOPBACK:
             
             msg = ('You are about to repartition your device %s '
                    '(all your data will be lost)' % device)
@@ -667,14 +667,10 @@ class SDCardInstaller(object):
             return False
         
         # Create partitions
-        interactive = self._interactive
-        self._interactive = False
         self._logger.info('Creating partitions on %s ...' 
                           % self._loopdevice.device)
         if not self.create_partitions():
-            return False
-        self._interactive = interactive
-        
+            return False        
         
         # we associate parts of image file to other available /dev/loop*
         # devices to work as partitions,and for convenience to reuse code 
