@@ -924,13 +924,14 @@ class SDCardInstaller(object):
                     
                 elif component == Partition.COMPONENT_ROOTFS:
                     if self._comp_installer.rootfs is None:
-                        err_msg = ('No directory for component %s in "%s" '
-                                   'partition' %
-                                   (Partition.COMPONENT_ROOTFS, part.name))
-                        self._logger.error(err_msg)
-                        return False
-                    ret = self._comp_installer.install_rootfs(mount_point)
-                    if ret is False: return False
+                        # This is valid because rootfs argument is optional
+                        msg = ('No directory specified for "%s" '
+                                   ' omitting...' %
+                                   (Partition.COMPONENT_ROOTFS))
+                        self._logger.info(msg)
+                    else:
+                        ret = self._comp_installer.install_rootfs(mount_point)
+                        if ret is False: return False
                 
                 elif component == Partition.COMPONENT_BLANK:
                     pass
