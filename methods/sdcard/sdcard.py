@@ -589,42 +589,34 @@ class SDCardInstaller(object):
         
         return True
     
-    def format_loopdevice(self, filename, image_name, image_size):
+    def _test_image_size(self, image_size):
         """
-        This method will create an image file, this file contains
-        the formatted the partitions as specified by 'mmap-config-file'.
-        This image can later be set on an sdcard.
+        Test that the image will be big enough to hold the partitions.
         
-        This method recieves:
-        filename -> the mmap-config-file
-        image_name -> the name(with path) of the image file to be created
-        image_size -> the size in MB for the image file
-        
-        Returns true on success; false otherwise. 
+        Returns true on success; false otherwise.
         """
         
-        # Read the partitions
-        self._logger.info('Reading %s ...' % filename)
-        if not self.read_partitions(filename):    
-            return False
-        
-        # Test that the image will be big enough to hold the partitions
-        # 1 MB = 1048576 B
-        image_size_bytes = int(image_size) * 1048576
+        image_size_bytes = int(image_size) << 20
         image_size_cyl = image_size_bytes / geometry.CYLINDER_BYTE_SIZE
         
         if image_size_cyl < self._min_total_cyl_size():
             image_min_size_needed = (self._min_total_cyl_size() * 
-                                    geometry.CYLINDER_BYTE_SIZE) / 1048576
-            image_min_size_needed = int(math.ceil(image_min_size_needed))
+                                    geometry.CYLINDER_BYTE_SIZE)
+            image_min_size_needed = int(image_min_size_needed) >> 20
             self._logger.error('Image size of %s MB is too small to hold the '
                                 'partitions, the image must be at least %s MB '
                                 'to hold them.' %(image_size, 
                                                   image_min_size_needed))
             return False
+        return True
+    
+    def _create_image_file(self, image_name, image_size):
+        """
+        Creates the image file with a valid format.
+        It associates the file with a loopdevice. 
         
-        # Create image file
-        self._logger.info('Creating image file %s' % image_name)
+        Returns true on success; false otherwise.
+        """
         
         cmd =  'dd if=/dev/zero of=%s bs=1M count=%s' % (image_name,
                                                          image_size)
@@ -633,8 +625,7 @@ class SDCardInstaller(object):
             self._logger.error('Failed to create file for the image %s'
                                % image_name)
             return False
-        
-        # to start working we need to associate the image with a /dev/loop* dev
+                
         cmd = 'sudo losetup -f'
         ret, loopdevice = self._executer.check_output(cmd)
         if ret == 0:
@@ -652,7 +643,7 @@ class SDCardInstaller(object):
             return False
         
         # If we want to reuse the code for creating and formatting partitions
-        # the image need to have a valid format
+        # the image needs to have a valid format
         cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._device
         ret = self._executer.check_call(cmd)
         if ret != 0:
@@ -660,14 +651,16 @@ class SDCardInstaller(object):
                                % image_name)
             return False
         
-        # Create partitions
-        self._logger.info('Creating partitions on %s ...' 
-                          % self._device)
-        if not self.create_partitions():
-            return False        
+        return True
+    
+    def _associate_loopdevice_partitions(self, image_name):
+        """
+        Associates parts of the image file to an available /dev/loop*,
+        so that it works as a device partition.
         
-        # we associate parts of image file to other available /dev/loop*
-        # devices to work as partitions
+        Returns true on success; false otherwise.
+        """
+        
         partition_index = 1
         for part in self._partitions:
             device_part = self._device + \
@@ -675,34 +668,92 @@ class SDCardInstaller(object):
             
             cmd = 'sudo losetup -f'
             ret, free_device = self._executer.check_output(cmd)
-            if ret == 0:
-                free_device = free_device.rstrip('\n')
-                self._loopdevice_partitions[device_part] = free_device
-                offset = int(part.start)*int(geometry.CYLINDER_BYTE_SIZE)
-                if part.size == '-':
-                    cmd = 'sudo losetup -o %s %s %s' % (offset, free_device, 
+            
+            if ret != 0:
+                self._detach_loopdevice()
+                self._logger.error('Can not find a free loopdevice')
+                return False
+            
+            free_device = free_device.rstrip('\n')
+            self._loopdevice_partitions[device_part] = free_device
+            offset = int(part.start)*int(geometry.CYLINDER_BYTE_SIZE)
+            if part.size == '-':
+                cmd = 'sudo losetup -o %s %s %s' % (offset, free_device,
                                                         image_name)
-                else:
-                    part_size = int(int(part.size)*geometry.CYLINDER_BYTE_SIZE)
-                    cmd = ('sudo losetup -o %s --sizelimit %s %s %s' 
+            else:
+                part_size = int(int(part.size)*geometry.CYLINDER_BYTE_SIZE)
+                cmd = ('sudo losetup -o %s --sizelimit %s %s %s' 
                            % (offset, part_size, free_device, image_name))
                 
-                ret = self._executer.check_call(cmd)
-                if ret != 0:
-                    self._logger.error('Failed to associate loop device \
-                    partition %s to image file %s' % (device_part, image_name))
-                    return False
+            ret = self._executer.check_call(cmd)
             
-            else:
-                self._logger.error('Can not find a free loopdevice to associate \
-                %s', device_part)
             partition_index += 1
+        return True
+    
+    def format_loopdevice(self, filename, image_name, image_size):
+        """
+        This method will create an image file, this file contains
+        the formatted the partitions as specified by 'mmap-config-file'.
+        This image can later be set on an sdcard.
+        
+        This method recieves:
+        filename -> the mmap-config-file
+        image_name -> the name(with path) of the image file to be created
+        image_size -> the size in MB for the image file
+        
+        Returns true on success; false otherwise. 
+        """
+        
+        # Read the partitions
+        self._logger.info('Reading %s ...' % filename)
+        if not self.read_partitions(filename): return False
+        
+        # test image file size
+        self._logger.info('Testing size of image file %s...' % image_name)
+        if not self._test_image_size(image_size): return False
+        
+        # Create image file
+        self._logger.info('Creating image file %s' % image_name)
+        if not self._create_image_file(image_name, image_size): return False
+        
+        # Create partitions
+        self._logger.info('Creating partitions on %s ...' % self._device)
+        if not self.create_partitions():
+            return False
+        
+        # Create partitions
+        self._logger.info('Associating partitions for loopdevice...')
+        if not self._associate_loopdevice_partitions(image_name): return False
         
         # Format partitions
         self._logger.info('Formatting partitions on %s ...'
                           % self._device)
-        if not self.format_partitions():
+        if not self.format_partitions(): return False
+        
+        return True
+    
+    def _detach_loopdevice(self):
+        """
+        Detach all loopdevices associated with a partition, also it detaches
+        the image.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        for dev in self._loopdevice_partitions.itervalues():
+            cmd = 'sudo losetup -d %s' % dev
+            ret = self._executer.check_call(cmd)
+            if ret != 0:
+                self._logger.error('Failed releasing loopdevice %s' %dev)
+                return False
+        
+        cmd = 'sudo losetup -d %s' % self._device
+        ret = self._executer.check_call(cmd)
+        if ret != 0:
+            self._logger.error('Failed releasing loopdevice %s'
+                               % self._device)
             return False
+        self._loopdevice_partitions.clear()
         
         return True
     
@@ -722,8 +773,8 @@ class SDCardInstaller(object):
                 self._logger.error('unable  to sync loopdevice %s' %dev)
                 return False
             cmd = 'sudo umount %s' % dev
-            ret = self._executer.check_output(cmd)
-            if ret[0] != 0:
+            ret = self._executer.check_call(cmd)
+            if ret != 0:
                 self._logger.error('Failed unmounting loopdevice %s' %dev)
                 return False
         
@@ -733,21 +784,9 @@ class SDCardInstaller(object):
             self._logger.error('Failed image filesystem check')
             return False
         
-        # release the loop devices
-        for dev in self._loopdevice_partitions.itervalues():
-            cmd = 'sudo losetup -d %s' % dev
-            ret = self._executer.check_call(cmd)
-            if ret != 0:
-                self._logger.error('Failed releasing loopdevice %s' %dev)
-                return False
+        # detach loopdevice
+        if not self._detach_loopdevice(): return False
         
-        cmd = 'sudo losetup -d %s' % self._device
-        ret = self._executer.check_call(cmd)
-        if ret != 0:
-            self._logger.error('Failed releasing loopdevice %s'
-                               % self._device)
-            return False
-        self._loopdevice_partitions.clear()
         return True
     
     def read_partitions(self, filename):
