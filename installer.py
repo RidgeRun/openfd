@@ -54,6 +54,7 @@ _logger  = None
 # Constants
 
 MODE_SD = 'sd'
+MODE_LOOPBACK = 'loopback'
 
 # ==========================================================================
 # Logging
@@ -115,14 +116,15 @@ def _parse_args():
     
     # Required arguments
     
-    installation_modes = MODE_SD
+    installation_modes = MODE_SD, MODE_LOOPBACK
     
     _parser.add_option('-m', '--mode',
-                       help="Installation mode: %s" % installation_modes,
+                       help="Installation mode: % s" % 
+                       ''.join('%s' % mode for mode in installation_modes),
                        metavar='<mode>',
                        dest='installation_mode',
                        required=True,
-                       choices=[MODE_SD])
+                       choices=installation_modes)
     
     _parser.add_option('-f', '--mmap-config-file',
                        help="Memory map config file",
@@ -165,6 +167,26 @@ def _parse_args():
     
     # MODE_SD - Required arguments
     
+    _parser.add_option('-d', '--device',
+                       help="Device to install",
+                       metavar='<device>',
+                       dest='device')
+    
+    # MODE_LOOPBACK - Required arguments
+    
+    _parser.add_option('--image',
+                       help="The filename of the image to create instead of"\
+                            " instead of installing directly to a SD",
+                       metavar='<image>',
+                       dest='image')
+    
+    _parser.add_option('--image-size',
+                       help="Size of the image file to create",
+                       metavar='<imagesize>',
+                       dest='imagesize')
+    
+    # MODE_SD and MODE_LOOPBACK - Required arguments
+    
     _parser.add_option('--uflash',
                        help="Path to the uflash tool",
                        metavar='<uflash>',
@@ -200,23 +222,7 @@ def _parse_args():
                        metavar='<workdir>',
                        dest='workdir')
     
-    # MODE_SD - Optional arguments
-    
-    _parser.add_option('-d', '--device',
-                       help="Device to install",
-                       metavar='<device>',
-                       dest='device')
-    
-    _parser.add_option('--image',
-                       help="The filename of the image to create instead of"\
-                            " instead of installing directly to a SD",
-                       metavar='<image>',
-                       dest='image')
-    
-    _parser.add_option('--image-size',
-                       help="Size of the image file to create",
-                       metavar='<imagesize>',
-                       dest='imagesize')
+    # MODE_SD and MODE_LOOPBACK - Optional arguments
     
     _parser.add_option('--rootfs',
                        help="Path to the rootfs that will be installed.",
@@ -243,8 +249,24 @@ def _parse_args():
         _clean_exit(-1)
     
     # Check MODE_SD required arguments
-    
     if _options.installation_mode == MODE_SD:
+        
+        if not _options.device:
+            _missing_arg_exit('-d/--device')
+        else:
+            # Clean the device string    
+            _options.device = _options.device.rstrip('/')
+    
+    # Check LOOPBACK required arguments
+    if _options.installation_mode == MODE_LOOPBACK:
+        
+        if not _options.image: _missing_arg_exit('--image')
+        
+        if not _options.imagesize: _missing_arg_exit('--image-size')
+    
+    # Check MODE_SD or MODE_LOOPBACK required arguments
+    
+    if _options.installation_mode == MODE_SD or _options.installation_mode == MODE_LOOPBACK:
             
         if not _options.uflash_bin:
             _missing_arg_exit('--uflash')
@@ -286,17 +308,7 @@ def _parse_args():
                 _logger.error('Unable to find %s' % _options.workdir)
                 _clean_exit(-1)
     
-    # Check MODE_SD optional arguments
-        
-        if not _options.device:
-            if _options.image:
-                if not _options.imagesize:
-                    _missing_arg_exit('--image-size')
-            else:
-                _missing_arg_exit('-d/--device or --image')
-        else:
-            # Clean the device string    
-            _options.device = _options.device.rstrip('/')
+    # Check MODE_SD or MODE_LOOPBACK optional arguments
         
         if _options.rootfs:
             if not os.path.isdir(_options.rootfs):
@@ -312,7 +324,7 @@ def main():
     _init_logging()
     _parse_args()
 
-    if _options.installation_mode == MODE_SD:
+    if _options.installation_mode == MODE_SD or _options.installation_mode == MODE_LOOPBACK:
         
         # Components installer
         
@@ -335,7 +347,7 @@ def main():
         
         # Operations
         
-        if _options.device:
+        if _options.installation_mode == MODE_SD:
             sd_installer.set_device(_options.device)
             sd_installer.set_mode(sd_installer.MODE_SD)
             ret = sd_installer.format_sd(_options.mmap_file)
@@ -354,7 +366,7 @@ def main():
         ret = sd_installer.install_components()
         if ret is False: _abort_install()
         
-        if _options.device:
+        if _options.installation_mode == MODE_SD:
             ret = sd_installer.check_filesystems()
             if ret is False: _abort_install()
         else:
