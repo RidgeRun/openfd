@@ -50,7 +50,6 @@ class loop(object):
     when the installation is done through an image.
     """
     def __init__(self, device):
-        self.device = device
         self.partitions = []
 
 class SDCardInstaller(object):
@@ -646,12 +645,12 @@ class SDCardInstaller(object):
             loopdevice = ret[1].replace('\n','')
             self.set_device(loopdevice)
             self._loopdevice = loop(loopdevice)
-            cmd = 'sudo losetup %s %s' % (self._loopdevice.device,  image_name)
+            cmd = 'sudo losetup %s %s' % (self._device,  image_name)
             ret = self._executer.check_call(cmd)
             
             if ret != 0:
                 self._logger.error('Failed to associate image file %s to %s'
-                                   % (image_name, self._loopdevice.device))
+                                   % (image_name, self._device))
                 return False
         else:
             self._logger.error('Failed when searching free loop devices')
@@ -659,7 +658,7 @@ class SDCardInstaller(object):
         
         # If we want to reuse the code for creating and formatting partitions
         # the image need to have a valid format
-        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._loopdevice.device
+        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._device
         ret = self._executer.check_output(cmd)
         if ret[0] != 0:
             self._logger.error('Failed to format a temporal filesystem on %s'
@@ -668,7 +667,7 @@ class SDCardInstaller(object):
         
         # Create partitions
         self._logger.info('Creating partitions on %s ...' 
-                          % self._loopdevice.device)
+                          % self._device)
         if not self.create_partitions():
             return False        
         
@@ -678,7 +677,7 @@ class SDCardInstaller(object):
         # of the code use.
         partition_index = 1
         for part in self._partitions:
-            device_part = self._loopdevice.device + \
+            device_part = self._device + \
                             self.get_partition_suffix(partition_index)
             
             cmd = 'sudo losetup -f'
@@ -720,7 +719,7 @@ class SDCardInstaller(object):
         
         # Format partitions
         self._logger.info('Formatting partitions on %s ...'
-                          % self._loopdevice.device)
+                          % self._device)
         if not self.format_partitions():
             return False
         
@@ -762,11 +761,11 @@ class SDCardInstaller(object):
                 self._logger.error('Failed releasing loopdevice %s' %dev)
                 return False
         
-        cmd = 'sudo losetup -d %s' % self._loopdevice.device
+        cmd = 'sudo losetup -d %s' % self._device
         ret = self._executer.check_call(cmd)
         if ret != 0:
             self._logger.error('Failed releasing loopdevice %s'
-                               % self._loopdevice.device)
+                               % self._device)
             return False
         self._loopdevice = None
         return True
