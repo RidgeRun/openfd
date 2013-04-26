@@ -337,9 +337,11 @@ def main():
         
         if _options.device:
             sd_installer.set_device(_options.device)
+            sd_installer.set_mode(sd_installer.MODE_SD)
             ret = sd_installer.format_sd(_options.mmap_file)
             if ret is False: _abort_install()
         else:
+            sd_installer.set_mode(sd_installer.MODE_LOOPBACK)
             ret = sd_installer.format_loopdevice(_options.mmap_file, 
                                                  _options.workdir + 
                                                  _options.image, 
