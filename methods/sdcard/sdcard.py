@@ -71,7 +71,7 @@ class SDCardInstaller(object):
         self._partitions = []
         self._executer.logger = self._logger
         self._comp_installer = comp_installer
-        self._loopdevice_partitions = []
+        self._loopdevice_partitions = {}
         self._device = None
         self._mode = None
     
@@ -285,6 +285,15 @@ class SDCardInstaller(object):
         
         return suffix
     
+    def get_partition_filename(self, partition_index):
+        # Get the complete filename for the partition (i.e. /dev/sdb1)
+        device_part = self._device + \
+                        self.get_partition_suffix(partition_index)
+            
+        if self._mode == self.MODE_LOOPBACK:
+                device_part = self._loopdevice_partitions[device_part]
+        return device_part
+    
     def get_device_mounted_partitions(self):
         """
         Returns a list with the mounted partitions from the given device.
@@ -363,8 +372,7 @@ class SDCardInstaller(object):
         for part in self._partitions:
         
             # Get the complete filename for the partition (i.e. /dev/sdb1)
-            device_part = device + \
-                            self.get_partition_suffix(partition_index)
+            device_part = self.get_partition_filename(partition_index)
                             
             mount_point = directory + '/' + part.name
         
@@ -494,15 +502,12 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise.
         """
         
-        device = self._device
-        
         partition_index = 1
         
         for part in self._partitions:
             
             # Get the complete filename for the partition (i.e. /dev/sdb1)
-            device_part = device + \
-                            self.get_partition_suffix(partition_index)
+            device_part = self.get_partition_filename(partition_index)
             
             # Format
             cmd = ''
@@ -631,11 +636,9 @@ class SDCardInstaller(object):
         
         # to start working we need to associate the image with a /dev/loop* dev
         cmd = 'sudo losetup -f'
-        ret = self._executer.check_output(cmd)
-        if ret[0] == 0:
-            # The command 'sudo losetup -f' has a tricky part
-            # it append '\n' at the end of the device name
-            loopdevice = ret[1].replace('\n','')
+        ret, loopdevice = self._executer.check_output(cmd)
+        if ret == 0:
+            loopdevice = loopdevice.rstrip('\n')
             self.set_device(loopdevice)
             cmd = 'sudo losetup %s %s' % (self._device,  image_name)
             ret = self._executer.check_call(cmd)
@@ -651,8 +654,8 @@ class SDCardInstaller(object):
         # If we want to reuse the code for creating and formatting partitions
         # the image need to have a valid format
         cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._device
-        ret = self._executer.check_output(cmd)
-        if ret[0] != 0:
+        ret = self._executer.check_call(cmd)
+        if ret != 0:
             self._logger.error('Failed to format a temporal filesystem on %s'
                                % image_name)
             return False
@@ -664,32 +667,18 @@ class SDCardInstaller(object):
             return False        
         
         # we associate parts of image file to other available /dev/loop*
-        # devices to work as partitions,and for convenience to reuse code 
-        # we create symbolic links to this devices with the names the rest
-        # of the code use.
+        # devices to work as partitions
         partition_index = 1
         for part in self._partitions:
             device_part = self._device + \
                             self.get_partition_suffix(partition_index)
             
             cmd = 'sudo losetup -f'
-            ret = self._executer.check_output(cmd)
-            if ret[0] == 0:
-                free_device = ret[1].replace('\n','')
-                self._loopdevice_partitions.append(free_device)
-                cmd = 'sudo ln -sf %s %s' % (free_device, device_part)
-                ret = self._executer.check_call(cmd)
-                if ret != 0:
-                    self._logger.error('Failed to create the symbolic link from\
-                                        %s to %s' % (free_device, device_part))
-                    return False
-                # This second conversion to int is needed here because the 
-                # string passed to the command needs to be one of an int value
-                # and the constant geometry.CYLINDER_BYTE_SIZE is a float
-                # and python when doing a mathematical operation the result
-                # is given in the most complex type of the parameters passed
-                # so it will return a float that is no accepted by the command
-                offset = int(int(part.start)*geometry.CYLINDER_BYTE_SIZE)
+            ret, free_device = self._executer.check_output(cmd)
+            if ret == 0:
+                free_device = free_device.rstrip('\n')
+                self._loopdevice_partitions[device_part] = free_device
+                offset = int(part.start)*int(geometry.CYLINDER_BYTE_SIZE)
                 if part.size == '-':
                     cmd = 'sudo losetup -o %s %s %s' % (offset, free_device, 
                                                         image_name)
@@ -726,7 +715,7 @@ class SDCardInstaller(object):
         """
         
         # Unmount partitions
-        for dev in self._loopdevice_partitions:
+        for dev in self._loopdevice_partitions.itervalues():
             cmd = 'sync'
             ret = self._executer.check_call(cmd)
             if ret != 0:
@@ -735,7 +724,6 @@ class SDCardInstaller(object):
             cmd = 'sudo umount %s' % dev
             ret = self._executer.check_output(cmd)
             if ret[0] != 0:
-                print ret[1]
                 self._logger.error('Failed unmounting loopdevice %s' %dev)
                 return False
         
@@ -746,7 +734,7 @@ class SDCardInstaller(object):
             return False
         
         # release the loop devices
-        for dev in self._loopdevice_partitions:
+        for dev in self._loopdevice_partitions.itervalues():
             cmd = 'sudo losetup -d %s' % dev
             ret = self._executer.check_call(cmd)
             if ret != 0:
@@ -759,7 +747,7 @@ class SDCardInstaller(object):
             self._logger.error('Failed releasing loopdevice %s'
                                % self._device)
             return False
-        self._loopdevice_partitions = []
+        self._loopdevice_partitions.clear()
         return True
     
     def read_partitions(self, filename):
@@ -809,7 +797,6 @@ class SDCardInstaller(object):
                     part.components = components.replace(' ','').split(',')
                 
                 self._partitions.append(part)
-                
         return True
     
     def check_filesystems(self):
@@ -846,8 +833,7 @@ class SDCardInstaller(object):
         
         for partition_index in range(1,len(self._partitions)+1):
             fs_state = ''
-            device_part = device + \
-                            self.get_partition_suffix(partition_index)
+            device_part = self.get_partition_filename(partition_index)
             cmd = "sudo fsck -y " + device_part
             ret = self._executer.check_call(cmd)
             if ret == 0 or ret == 1:
@@ -877,11 +863,9 @@ class SDCardInstaller(object):
         partition_index = 1
         
         for part in self._partitions:
-            if self._mode == self.MODE_LOOPBACK:
-                device_part = self._loopdevice_partitions[partition_index-1]
-            else:
-                device_part = device + \
-                                self.get_partition_suffix(partition_index)
+            
+            device_part = self.get_partition_filename(partition_index)
+            
             cmd = 'mount | grep ' + device_part + '  | cut -f 3 -d " "'
             ret, output = self._executer.check_output(cmd)
             mount_point = output.replace('\n', '')
