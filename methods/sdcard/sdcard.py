@@ -44,14 +44,6 @@ import rrutils
 # Public Classes
 # ==========================================================================
 
-class loop(object):
-    """
-    A very small class intended only for internal use
-    when the installation is done through an image.
-    """
-    def __init__(self, device):
-        self.partitions = []
-
 class SDCardInstaller(object):
     """
     Class to handle SD-card operations.
@@ -63,6 +55,7 @@ class SDCardInstaller(object):
     # Used for dangerous warning messages
     WARN_COLOR = 'yellow'
     
+    # Used to indicate the installation mode
     MODE_SD = 'sd'
     MODE_LOOPBACK = 'loopback'
     
@@ -78,7 +71,7 @@ class SDCardInstaller(object):
         self._partitions = []
         self._executer.logger = self._logger
         self._comp_installer = comp_installer
-        self._loopdevice = None
+        self._loopdevice_partitions = []
         self._device = None
         self._mode = None
     
@@ -644,7 +637,6 @@ class SDCardInstaller(object):
             # it append '\n' at the end of the device name
             loopdevice = ret[1].replace('\n','')
             self.set_device(loopdevice)
-            self._loopdevice = loop(loopdevice)
             cmd = 'sudo losetup %s %s' % (self._device,  image_name)
             ret = self._executer.check_call(cmd)
             
@@ -684,7 +676,7 @@ class SDCardInstaller(object):
             ret = self._executer.check_output(cmd)
             if ret[0] == 0:
                 free_device = ret[1].replace('\n','')
-                self._loopdevice.partitions.append(free_device)
+                self._loopdevice_partitions.append(free_device)
                 cmd = 'sudo ln -sf %s %s' % (free_device, device_part)
                 ret = self._executer.check_call(cmd)
                 if ret != 0:
@@ -734,7 +726,7 @@ class SDCardInstaller(object):
         """
         
         # Unmount partitions
-        for dev in self._loopdevice.partitions:
+        for dev in self._loopdevice_partitions:
             cmd = 'sync'
             ret = self._executer.check_call(cmd)
             if ret != 0:
@@ -754,7 +746,7 @@ class SDCardInstaller(object):
             return False
         
         # release the loop devices
-        for dev in self._loopdevice.partitions:
+        for dev in self._loopdevice_partitions:
             cmd = 'sudo losetup -d %s' % dev
             ret = self._executer.check_call(cmd)
             if ret != 0:
@@ -767,7 +759,7 @@ class SDCardInstaller(object):
             self._logger.error('Failed releasing loopdevice %s'
                                % self._device)
             return False
-        self._loopdevice = None
+        self._loopdevice_partitions = []
         return True
     
     def read_partitions(self, filename):
@@ -886,7 +878,7 @@ class SDCardInstaller(object):
         
         for part in self._partitions:
             if self._mode == self.MODE_LOOPBACK:
-                device_part = self._loopdevice.partitions[partition_index-1]
+                device_part = self._loopdevice_partitions[partition_index-1]
             else:
                 device_part = device + \
                                 self.get_partition_suffix(partition_index)
