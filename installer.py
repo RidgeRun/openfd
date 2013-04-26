@@ -175,13 +175,12 @@ def _parse_args():
     # MODE_LOOPBACK - Required arguments
     
     _parser.add_option('--image',
-                       help="The filename of the image to create instead of"\
-                            " instead of installing directly to a SD",
+                       help="The filename of the image to create in workdir",
                        metavar='<image>',
                        dest='image')
     
     _parser.add_option('--image-size',
-                       help="Size of the image file to create",
+                       help="Size in MB of the image file to create",
                        metavar='<imagesize>',
                        dest='imagesize')
     
