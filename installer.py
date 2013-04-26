@@ -180,7 +180,8 @@ def _parse_args():
                        dest='image')
     
     _parser.add_option('--image-size',
-                       help="Size in MB of the image file to create",
+                       help="Size in MB of the image file to create (integer" \
+                       " number)",
                        metavar='<imagesize>',
                        dest='imagesize')
     
@@ -261,7 +262,13 @@ def _parse_args():
         
         if not _options.image: _missing_arg_exit('--image')
         
-        if not _options.imagesize: _missing_arg_exit('--image-size')
+        if not _options.imagesize:
+            _missing_arg_exit('--image-size')
+        else:
+            try:
+                int(_options.imagesize)
+            except:
+                _missing_arg_exit('--image-size, must be an integer')
     
     # Check MODE_SD or MODE_LOOPBACK required arguments
     

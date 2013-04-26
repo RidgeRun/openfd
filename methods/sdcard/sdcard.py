@@ -604,7 +604,7 @@ class SDCardInstaller(object):
                                     geometry.CYLINDER_BYTE_SIZE)
             image_min_size_needed = int(image_min_size_needed) >> 20
             self._logger.error('Image size of %s MB is too small to hold the '
-                                'partitions, the image must be at least %s MB '
+                                'partitions, the image must be bigger than %s MB '
                                 'to hold them.' %(image_size, 
                                                   image_min_size_needed))
             return False
