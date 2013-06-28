@@ -31,7 +31,9 @@ RidgeRun, LLC.
 # Imports
 # ==========================================================================
 
+import time
 import serial
+import rrutils
 
 # ==========================================================================
 # Public Classes
@@ -48,9 +50,36 @@ class SerialInstaller(object):
     def __init__(self, port='/dev/ttyS0', baud=115200, timeout=2):
         """
         Constructor.
+        
+        Raises:
+            SerialException: On error while opening the serial port.
         """
         
-        self._port = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+        self._logger = rrutils.logger.get_global_logger()
+        try:
+            self._port = serial.Serial(port=port,
+                                       baudrate=baud,
+                                       timeout=timeout)
+        except serial.SerialException as e:
+            self._logger.debug(e)
+            raise e
+
+    @classmethod
+    def com_error_msg(cls, port):
+        """
+        Standard error message to report a failure communicating with the given
+        port.
+        
+        Args:
+            port: The port for which communication failed.
+            
+        Returns:
+            A string with the standard message.
+        """
+        
+        return ('Failed to handshake with uboot.\n'
+               'Be sure u-boot is active on port %s and you have terminal '
+               'programs like minicom closed.' % port)
 
     def __expect(self, response, timeout=5):
         """
@@ -70,12 +99,34 @@ class SerialInstaller(object):
         
         start_time = time.time()
         
-        while self._port.readline().strip('\s\r\n') != response:
-            elapsed_time = time.time() - start_time
-            if elapsed_time > timeout:
-                return False
+        try:
+            while self._port.readline().strip('\s\r\n') != response:
+                elapsed_time = time.time() - start_time
+                if elapsed_time > timeout:
+                    return False
+        except serial.SerialException as e:
+            self._logger.debug(e)
+            return False
             
         return True
+
+    def uboot_sync(self):
+        """
+        Synchronizes with uboot. If successful, uboot's prompt will 
+        be ready to receive commands.
+            
+        Returns:
+            Returns true on success; false otherwise.
+        """
+    
+        self._port.flush()
+        self._port.write('echo resync\n')
+        if not self.__expect('resync'):
+            msg = SerialInstaller.com_error_msg(self._port.port)
+            self._logger.error(msg)
+            return False
+        
+        return True 
 
 # ==========================================================================
 # Test cases
@@ -87,7 +138,7 @@ if __name__ == '__main__':
 # Test cases  - Support functions
 # ==========================================================================
 
-    import time
+    import sys
 
     def tc_start(tc_id, sleep_time=1):
         """
@@ -105,4 +156,37 @@ if __name__ == '__main__':
 # Test cases  - Initialization
 # ==========================================================================
 
-    inst = SerialInstaller('/dev/ttyUSB0', 115200)
+    # Initialize the logger
+    rrutils.logger.basic_config(verbose=True)
+    logger = rrutils.logger.get_global_logger('serial_com-test')
+    logger.setLevel(rrutils.logger.DEBUG)
+
+# ==========================================================================
+# Test cases - Unit tests
+# ==========================================================================
+    
+    # --------------- TC 1 ---------------
+    
+    tc_start(1, sleep_time=0) 
+    
+    # Open port (positive test case)
+
+    inst = None
+    port = '/dev/ttyUSB0'
+    try:
+        inst = SerialInstaller(port, 115200)
+    except:
+        print SerialInstaller.com_error_msg(port)
+        sys.exit(-1)
+    
+    # --------------- TC 2 ---------------
+    
+    tc_start(2)
+    
+    # Handshake with uboot
+    
+    if inst.uboot_sync():
+        print 'Synchronized with uboot'
+    else:
+        print 'Failed to sync with uboot'
+    
