@@ -42,15 +42,40 @@ class SerialInstaller(object):
     Serial communication operations to support the installer.
     
     Attributes:
-        ser: A Serial port for serial communication. 
+        _port: A Serial port instance for serial communication. 
     """
     
-    def __init__(self, port='/dev/ttyS0', baud=115200):
+    def __init__(self, port='/dev/ttyS0', baud=115200, timeout=2):
         """
         Constructor.
         """
         
-        self.ser = serial.Serial(port, baud)
+        self._port = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+
+    def __expect(self, response, timeout=5):
+        """
+        Expects a response from the serial port for no more than timeout
+        seconds.
+        
+        The lines read from the serial port will be stripped (\s\r\n) before
+        being compared with response.
+        
+        Args:
+            response: A string to expect in the serial port.
+            timeout: Timeout in seconds to wait for the response. 
+            
+        Returns:
+            Returns true if the response is found; false otherwise.
+        """
+        
+        start_time = time.time()
+        
+        while self._port.readline().strip('\s\r\n') != response:
+            elapsed_time = time.time() - start_time
+            if elapsed_time > timeout:
+                return False
+            
+        return True
 
 # ==========================================================================
 # Test cases
