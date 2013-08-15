@@ -41,7 +41,8 @@ import rrutils
 
 class SerialInstaller(object):
     """
-    Serial communication operations to support the installer.
+    Serial communication operations to support the installer. Based on
+    pySerial.
     
     Attributes:
         _port: A Serial port instance for serial communication. 
@@ -51,17 +52,24 @@ class SerialInstaller(object):
         """
         Constructor.
         
+        Args:
+            port: Device name or port number (i.e. /dev/ttyS0)
+            baud: Baud rate such as 9600 or 115200 etc
+            timeout: Set a read timeout value
+        
         Raises:
             SerialException: On error while opening the serial port.
         """
         
         self._logger = rrutils.logger.get_global_logger()
+        
+        # Open the serial port
         try:
             self._port = serial.Serial(port=port,
                                        baudrate=baud,
                                        timeout=timeout)
         except serial.SerialException as e:
-            self._logger.debug(e)
+            self._logger.error(e)
             raise e
 
     @classmethod
@@ -94,21 +102,33 @@ class SerialInstaller(object):
             timeout: Timeout in seconds to wait for the response. 
             
         Returns:
-            Returns true if the response is found; false otherwise.
+            Returns a tuple with two items. The first one is true if the
+            response was found; false otherwise. The second is the complete
+            line where the response was found, or the last line read if the
+            response wasn't found and the timeout reached. The line is
+            returned stripped (\s\r\n).
         """
         
         start_time = time.time()
         
-        try:
-            while self._port.readline().strip('\s\r\n') != response:
-                elapsed_time = time.time() - start_time
-                if elapsed_time > timeout:
-                    return False
-        except serial.SerialException as e:
-            self._logger.debug(e)
-            return False
+        found = False
+        line = ''
+        
+        while not found:
             
-        return True
+            try:
+               msg = line = self._port.readline().strip('\s\r\n')
+            except serial.SerialException as e:
+                self._logger.error(e)
+                return False, ''
+            
+            if line.find(response) != -1:
+                found = True
+                
+            if (time.time() - start_time) > timeout:
+                break
+
+        return found, line
 
     def uboot_sync(self):
         """
@@ -121,13 +141,37 @@ class SerialInstaller(object):
     
         self._port.flush()
         self._port.write('echo resync\n')
-        if not self.__expect('resync'):
+        
+        ret = self.__expect('resync')[0]
+        
+        if not ret:
             msg = SerialInstaller.com_error_msg(self._port.port)
             self._logger.error(msg)
             return False
         
         return True 
 
+    def get_nand_block_size(self):
+        
+        self._port.write('nand info\n')
+        ret, line = self.__expect('Device 0')
+        
+        if not ret:
+            self._logger.error('Can\'t find Device 0')
+            return False
+        
+        self._logger.debug('NAND info: %s' % line)
+        
+        # Two versions of uboot output:
+        # old: Device 0: Samsung K9K1208Q0C at 0x2000000 (64 MB, 16 kB sector)
+        # new: Device 0: NAND 256MiB 1,8V 16-bit, sector size 128 KiB
+        
+        # Old - not necessary for now
+        
+        # New - TODO
+        
+ 
+        
 # ==========================================================================
 # Test cases
 # ==========================================================================
@@ -175,8 +219,9 @@ if __name__ == '__main__':
     port = '/dev/ttyUSB0'
     try:
         inst = SerialInstaller(port, 115200)
+        print "Port %s opened" % port
     except:
-        print SerialInstaller.com_error_msg(port)
+        print 'Failed to open %s' % port
         sys.exit(-1)
     
     # --------------- TC 2 ---------------
@@ -190,3 +235,10 @@ if __name__ == '__main__':
     else:
         print 'Failed to sync with uboot'
     
+    # --------------- TC 3 ---------------
+    
+    tc_start(3)
+    
+    # Get NAND dimensions
+
+    inst.get_nand_block_size()
