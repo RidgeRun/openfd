@@ -63,6 +63,7 @@ class SerialInstaller(object):
         """
         
         self._logger = rrutils.logger.get_global_logger()
+        self._nand_block_size = 0 
         
         # Open the serial port
         try:
@@ -118,7 +119,7 @@ class SerialInstaller(object):
         while not found:
             
             try:
-               msg = line = self._port.readline().strip('\s\r\n')
+                line = self._port.readline().strip('\s\r\n')
             except serial.SerialException as e:
                 self._logger.error(e)
                 return False, ''
@@ -152,14 +153,28 @@ class SerialInstaller(object):
         
         return True 
 
-    def get_nand_block_size_b(self):
+    def __set_nand_block_size(self, size):
         """
-        Obtains the NAND block size from uboot.
+        Sets the NAND block size (bytes). When this value is manually set,
+        uboot will not be queried. Set it back to 0 to obtain the NAND block
+        size from uboot.
+        """
+        
+        self._nand_block_size = int(size)
+
+    def __get_nand_block_size(self):
+        """
+        Gets the NAND block size (bytes). The value will be obtained from
+        uboot, unless it was manually specified through the nand_block_size
+        property, and would return such value.
         
         Returns:
             The size in bytes of the NAND block size; 0 if it was unable
             to obtain it. 
         """
+        
+        if self._nand_block_size != 0:
+            return self._nand_block_size
         
         size_kb = 0
         
@@ -185,8 +200,10 @@ class SerialInstaller(object):
             else:
                 self._logger.error('Unable to determine the NAND block size')
         
-        return size_kb << 10
-            
+        return size_kb << 10 
+    
+    nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
+                           doc="""Gets or sets the NAND block size""")
         
 # ==========================================================================
 # Test cases
@@ -257,7 +274,15 @@ if __name__ == '__main__':
     
     # Get NAND dimensions
 
-    size = inst.get_nand_block_size_b()
+    inst.nand_block_size = 15
+    size = inst.nand_block_size
+    if size != 0:
+        print "NAND block size: 0x%x" % size
+    else:
+        print "Failed to obtain the NAND block size"
+        
+    inst.nand_block_size = 0 # Force to query uboot
+    size = inst.nand_block_size
     if size != 0:
         print "NAND block size: 0x%x" % size
     else:
