@@ -32,6 +32,7 @@ RidgeRun, LLC.
 # ==========================================================================
 
 import time
+import re
 import serial
 import rrutils
 
@@ -151,11 +152,19 @@ class SerialInstaller(object):
         
         return True 
 
-    def get_nand_block_size(self):
+    def get_nand_block_size_b(self):
+        """
+        Obtains the NAND block size from uboot.
+        
+        Returns:
+            The size in bytes of the NAND block size; 0 if it was unable
+            to obtain it. 
+        """
+        
+        size_kb = 0
         
         self._port.write('nand info\n')
         ret, line = self.__expect('Device 0')
-        
         if not ret:
             self._logger.error('Can\'t find Device 0')
             return False
@@ -166,11 +175,18 @@ class SerialInstaller(object):
         # old: Device 0: Samsung K9K1208Q0C at 0x2000000 (64 MB, 16 kB sector)
         # new: Device 0: NAND 256MiB 1,8V 16-bit, sector size 128 KiB
         
-        # Old - not necessary for now
+        m = re.match('.* (\d+) kb.*', line, re.IGNORECASE)
+        if m: # try the old output
+            size_kb = int(m.group(1))
+        else:
+            m = re.match('.* (\d+) kib.*', line, re.IGNORECASE)
+            if m: # try the new output
+                size_kb = int(m.group(1))
+            else:
+                self._logger.error('Unable to determine the NAND block size')
         
-        # New - TODO
-        
- 
+        return size_kb << 10
+            
         
 # ==========================================================================
 # Test cases
@@ -241,4 +257,8 @@ if __name__ == '__main__':
     
     # Get NAND dimensions
 
-    inst.get_nand_block_size()
+    size = inst.get_nand_block_size_b()
+    if size != 0:
+        print "NAND block size: 0x%x" % size
+    else:
+        print "Failed to obtain the NAND block size"
