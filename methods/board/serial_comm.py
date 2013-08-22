@@ -152,6 +152,7 @@ class SerialInstaller(object):
             to obtain it. 
         """
         
+        # If specified, return the value set by the user
         if self._nand_block_size != 0:
             return self._nand_block_size
         
@@ -170,16 +171,11 @@ class SerialInstaller(object):
         # old: Device 0: Samsung K9K1208Q0C at 0x2000000 (64 MB, 16 kB sector)
         # new: Device 0: NAND 256MiB 1,8V 16-bit, sector size 128 KiB
         
-        size_kb = 0
-        m = re.match('.* (\d+) kb.*', line, re.IGNORECASE)
+        m = re.match('.* (?P<size_kb>\d+) (kb|kib).*', line, re.IGNORECASE)
         if m:
-            size_kb = int(m.group(1))
+            size_kb = int(m.group('size_kb'))
         else:
-            m = re.match('.* (\d+) kib.*', line, re.IGNORECASE)
-            if m:
-                size_kb = int(m.group(1))
-            else:
-                self._logger.error('Unable to determine the NAND block size')
+            self._logger.error('Unable to determine the NAND block size')
         
         return size_kb << 10 
     
@@ -339,7 +335,7 @@ if __name__ == '__main__':
     port = '/dev/ttyUSB0'
     try:
         inst = SerialInstaller()
-        if inst.open_comm(port='/dev/ttyUSB0',baud=115200):
+        if inst.open_comm(port='/dev/ttyUSB0', baud=115200):
             print 'Port %s opened' % port
         else:
             print 'Failed to open port %s' % port
