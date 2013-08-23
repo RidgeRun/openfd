@@ -59,7 +59,11 @@ class SerialInstaller(object):
         nand_block_size: The NAND block size will be retrieved from uboot
             by default. But if this property was manually set, uboot will
             not be queried, unless it is manually set back to the value 0.
-        dryrun: When True, all commands will be logged, but not executed.
+        nand_page_size: The NAND page size will be retrieved from uboot
+            by default. But if this property was manually set, uboot will
+            not be queried, unless it is manually set back to the value 0.
+        dryrun: When dryrun mode is set, all commands will be logged, but not
+            executed.
     """
         
     def __init__(self):
@@ -72,6 +76,8 @@ class SerialInstaller(object):
         self._executer.logger = self._logger
         self._dryrun = False
         self._port = None
+        self._nand_block_size = 0
+        self._page_block_size = 0
 
     @classmethod
     def uboot_comm_error_msg(cls, port):
@@ -156,11 +162,12 @@ class SerialInstaller(object):
         if self._nand_block_size != 0:
             return self._nand_block_size
         
+        # Ask uboot
+        
         if self.check_open_port() is False: return 0
         
-        # Ask uboot
         self._port.write('nand info\n')
-        ret, line = self.__expect('Device 0')
+        ret, line = self.expect('Device 0')
         if not ret:
             self._logger.error('Can\'t find Device 0')
             return False
@@ -180,7 +187,59 @@ class SerialInstaller(object):
         return size_kb << 10 
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
-                           doc="""Gets or sets the NAND block size""")
+                           doc="""Gets or sets the NAND block size (bytes)""")
+    
+    def __set_nand_page_size(self, size):
+        """
+        Sets the NAND page size (bytes). When this value is manually set,
+        uboot will not be queried. Set it back to 0 to obtain the NAND page
+        size from uboot.
+        """
+        
+        self._nand_page_size = int(size)
+    
+    def __get_nand_page_size(self):
+        """
+        Gets the NAND page size (bytes). The value will be obtained from
+        uboot, unless it was manually specified through the nand_page_size
+        property, and would return such value.
+        
+        Returns:
+            The size in bytes of the NAND page size; 0 if it was unable
+            to obtain it. 
+        """
+        
+        # If specified, return the value set by the user
+        if self._nand_page_size != 0:
+            return self._nand_page_size
+        
+        # Ask uboot
+        
+        if self.check_open_port() is False: return 0
+        
+        page_size = 0
+        possible_sizes=['0200', '0400', '0800', '1000']
+        
+        for size in possible_sizes:
+            
+            self._port.write('nand dump.oob %s\n' % size)
+            ret, line = self.expect('Page 0000')
+            if not ret: continue
+            
+            # Detect the page size upon a change on the output
+            m = re.match('^Page 0000(?P<page_size>\d+) .*', line)
+            if m:
+                page_size = int(m.group('page_size'), 16)
+                if page_size != 0:
+                    break
+
+        if page_size == 0:
+            self._logger.error('Unable to determine the NAND page size')
+
+        return page_size
+    
+    nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
+                          doc="""Gets or sets the NAND page size (bytes)""")
     
     def open_comm(self, port=DEFAULT_PORT,
                   baud=DEFAULT_BAUDRATE,
@@ -223,7 +282,7 @@ class SerialInstaller(object):
         
         return True
 
-    def __expect(self, response, timeout=5):
+    def expect(self, response, timeout=5):
         """
         Expects a response from the serial port for no more than timeout
         seconds.
@@ -279,7 +338,7 @@ class SerialInstaller(object):
         self._port.flush()
         self._port.write('echo resync\n')
         
-        ret = self.__expect('resync')[0]
+        ret = self.expect('resync')[0]
         
         if not ret:
             msg = SerialInstaller.uboot_comm_error_msg(self._port.port)
@@ -362,17 +421,35 @@ if __name__ == '__main__':
     
     # Get NAND dimensions
 
+    # NAND block size
+
     inst.nand_block_size = 15
     size = inst.nand_block_size
     if size != 0:
-        print "NAND block size: 0x%x" % size
+        print "NAND block size (manual): 0x%x" % size
     else:
         print "Failed to obtain the NAND block size"
         
     inst.nand_block_size = 0 # Force to query uboot
     size = inst.nand_block_size
     if size != 0:
-        print "NAND block size: 0x%x" % size
+        print "NAND block size (uboot): 0x%x" % size
     else:
         print "Failed to obtain the NAND block size"
+    
+    # NAND page size
+    
+    inst.nand_page_size = 15
+    size = inst.nand_page_size
+    if size != 0:
+        print "NAND page size (manual): %d" % size
+    else:
+        print "Failed to obtain the NAND page size"
+        
+    inst.nand_page_size = 0 # Force to query uboot
+    size = inst.nand_page_size
+    if size != 0:
+        print "NAND page size (uboot): %d" % size
+    else:
+        print "Failed to obtain the NAND page size"
     
