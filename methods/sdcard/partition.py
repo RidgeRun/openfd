@@ -16,10 +16,6 @@
 #
 # ==========================================================================
 
-"""
-Representation of a memory partition.
-"""
-
 # ==========================================================================
 # Imports
 # ==========================================================================
@@ -53,23 +49,35 @@ class Partition(object):
     COMPONENT_ROOTFS = 'rootfs'
     COMPONENT_BLANK = 'blank'
     
-    def __init__(self, name):
-        """
-        Constructor.
+    def __init__(self, name, start_addr=0, size=0, bootable=False,
+                 part_type='', filesystem='', components=[]):
+        """    
+        :param name: Partition name.
+        :param start_addr: Partition start addres (decimal).
+        :param size: Partition size in cylinders.
+        :param bootable: Enables the bootable flag on this partition.
+        :param part_type: Partition type. Possible values: :const:`TYPE_LINUX_NATIVE`,
+            :const:`TYPE_FAT32`, :const:`TYPE_UNKNOWN`.
+        :param filesystem: Partition filesystem. Possible values:
+            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`, 
+            :const:`FILESYSTEM_UNKNOWN`.
+        :param components: A list of partition components. Possile Values:
+            :const:`COMPONENT_BOOTLOADER`, :const:`COMPONENT_KERNEL`,
+            :const:`COMPONENT_ROOTFS`, :const:`COMPONENT_BLANK`
         """
         
         self._name = name
-        self._start = 0
-        self._size = 0
-        self._bootable = False
-        self._type = ''
-        self._filesystem = ''
-        self._components = []
+        self._start = start_addr
+        self._size = size
+        self._bootable = bootable
+        self._type = part_type
+        self._filesystem = filesystem
+        self._components = components
     
     @property
     def name(self):
         """
-        Gets the partition name.
+        Partition name (read-only).
         """
         
         return self._name
@@ -89,8 +97,7 @@ class Partition(object):
         return self._start
         
     start = property(__get_start, __set_start,
-                     doc="""Gets or sets the partition start address
-                     (decimal).""")
+                     doc="""Partition start address (decimal).""")
         
     def __set_size(self, size):
         """
@@ -109,7 +116,7 @@ class Partition(object):
         return self._size
     
     size = property(__get_size, __set_size,
-                    doc="""Gets or sets the partition size (decimal). Size can
+                    doc="""Partition size in cylinders (decimal). Size can
                     be '-' to indicate the max size available (where not
                     specified).""")
     
@@ -138,14 +145,16 @@ class Partition(object):
         return self._type
     
     type = property(__get_type, __set_type,
-                    doc="""Gets or sets the partition type.""")
+                    doc="""Partition type.""")
     
     @classmethod
     def decode_partition_type(cls, partition_type):
         """
-        Given a string indicating the type of a partition, such as 'L' for
-        Linux Native or '0xc' for FAT32, returns a friendly name, such as 
-        'Linux Native' or 'FAT32'.
+        Given a partition type, like :const:`TYPE_LINUX_NATIVE`, returns
+        a friendly name, such as 'Linux Native'.
+        
+        :param partition_type: Partition type.
+        :returns: Partition type friendly name.
         """
         
         friendly_type = cls.TYPE_UNKNOWN
@@ -177,7 +186,7 @@ class Partition(object):
         return self._filesystem
     
     filesystem = property(__get_filesystem, __set_filesystem,
-                          doc="""Gets or sets the partition filesystem.""")
+                          doc="""Partition filesystem.""")
     
     def __set_bootable(self, bootable):
         """
@@ -194,8 +203,7 @@ class Partition(object):
         return self._bootable
     
     bootable = property(__get_bootable, __set_bootable,
-                        doc="""Gets or sets the bootable property on
-                        the partition.""")
+                        doc="""Partition bootable flag.""")
     
     def is_bootable(self):
         """
@@ -218,7 +226,7 @@ class Partition(object):
         return self._components
     
     components = property(__get_components, __set_components,
-                          doc="""Gets or sets the list of components that
+                          doc="""List of components that
                           will be installed on this partition.""")
     
     def __str__(self):
