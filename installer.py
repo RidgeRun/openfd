@@ -24,14 +24,51 @@ firmware to the target board. Current methods are:
     - Attached board on communication port.
     - Deploy all the firmware to an SD card.
     - Create and SD card installer for flash memory.
-
-Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
-All Rights Reserved.
-
-The contents of this software are proprietary and confidential to RidgeRun,
-LLC.  No part of this program may be photocopied, reproduced or translated
-into another programming language without prior written consent of 
-RidgeRun, LLC.
+    
+Help output:
+::
+    usage: installer.py [-h] -m <mode> -f <mmap> --kernel-file <kernel_file> [-y]
+                        [-v] [-q] [--dryrun] [-d <device>] [--image <image>]
+                        [--image-size <imagesize>] [--uflash <uflash>]
+                        [--ubl-file <ubl_file>] [--uboot-file <uboot_file>]
+                        [--uboot-entry-addr <uboot_entry_addr>]
+                        [--uboot-load-addr <uboot_load_addr>]
+                        [--uboot-bootargs <uboot_bootargs>] [--work-dir <workdir>]
+                        [--rootfs <rootfs>]
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      -m <mode>, --mode <mode>
+                            Installation mode: sdloopback
+      -f <mmap>, --mmap-config-file <mmap>
+                            Memory map config file
+      --kernel-file <kernel_file>
+                            Path to the Kernel Image file to be installed.
+      -y, --assume-yes      Automatic 'yes' to prompts; run non-interactively
+      -v, --verbose         Enable debug
+      -q, --quiet           Be as quiet as possible
+      --dryrun              Sets the dryrun mode On (shell commands will be
+                            logged, but not executed)
+      -d <device>, --device <device>
+                            Device to install
+      --image <image>       The filename of the image to create in workdir
+      --image-size <imagesize>
+                            Size in MB of the image file to create (integer
+                            number)
+      --uflash <uflash>     Path to the uflash tool
+      --ubl-file <ubl_file>
+                            Path to the UBL file
+      --uboot-file <uboot_file>
+                            Path to the U-Boot file
+      --uboot-entry-addr <uboot_entry_addr>
+                            U-Boot entry address (decimal)
+      --uboot-load-addr <uboot_load_addr>
+                            U-Boot load address (decimal)
+      --uboot-bootargs <uboot_bootargs>
+                            U-Boot bootargs environment variable (passed to the
+                            Linux kernel)
+      --work-dir <workdir>  Directory to perform temporary operations
+      --rootfs <rootfs>     Path to the rootfs that will be installed.
 """
 
 # ==========================================================================
@@ -54,6 +91,7 @@ _logger  = None
 # Constants
 
 MODE_SD = 'sd'
+MODE_SERIAL = 'serial'
 MODE_LOOPBACK = 'loopback'
 
 # ==========================================================================
@@ -127,13 +165,13 @@ def _parse_args():
                        choices=installation_modes)
     
     _parser.add_option('-f', '--mmap-config-file',
-                       help="Memory map config file",
+                       help='Memory map config file',
                        metavar='<mmap>',
                        dest='mmap_file',
                        required=True)
     
     _parser.add_option('--kernel-file',
-                       help="Path to the Kernel Image file to be installed.",
+                       help='Path to the Kernel Image file to be installed.',
                        metavar='<kernel_file>',
                        dest='kernel_file',
                        required=True)
@@ -141,26 +179,27 @@ def _parse_args():
     # Optional arguments
     
     _parser.add_option('-y', '--assume-yes',
-                       help="Automatic 'yes' to prompts; run non-interactively",
+                       help='Automatic \'yes\' to prompts; '
+                       'run non-interactively',
                        dest='interactive',
                        action='store_false',
                        default=True)
     
     _parser.add_option('-v', '--verbose',
-                       help="Enable debug",
-                       dest="verbose",
+                       help='Enable debug',
+                       dest='verbose',
                        action='store_true',
                        default=False)
     
     _parser.add_option('-q', '--quiet',
-                       help="Be as quiet as possible",
-                       dest="quiet",
+                       help='Be as quiet as possible',
+                       dest='quiet',
                        action='store_true',
                        default=False)
     
     _parser.add_option('--dryrun',
-                       help="Sets the dryrun mode On (shell commands will be " \
-                            "logged, but not executed)",
+                       help='Sets the dryrun mode On (shell commands will be '
+                            'logged, but not executed)',
                        dest='dryrun',
                        action='store_true',
                        default=False)
@@ -188,47 +227,49 @@ def _parse_args():
     # MODE_SD and MODE_LOOPBACK - Required arguments
     
     _parser.add_option('--uflash',
-                       help="Path to the uflash tool",
+                       help='Path to the uflash tool',
                        metavar='<uflash>',
                        dest='uflash_bin')
     
     _parser.add_option('--ubl-file',
-                       help="Path to the UBL file",
+                       help='Path to the UBL file',
                        metavar='<ubl_file>',
                        dest='ubl_file')
     
     _parser.add_option('--uboot-file',
-                       help="Path to the U-Boot file",
+                       help='Path to the U-Boot file',
                        metavar='<uboot_file>',
                        dest='uboot_file')
     
     _parser.add_option('--uboot-entry-addr',
-                       help="U-Boot entry address (decimal)",
+                       help='U-Boot entry address (decimal)',
                        metavar='<uboot_entry_addr>',
                        dest='uboot_entry_addr')
     
     _parser.add_option('--uboot-load-addr',
-                       help="U-Boot load address (decimal)",
+                       help='U-Boot load address (decimal)',
                        metavar='<uboot_load_addr>',
                        dest='uboot_load_addr')
     
     _parser.add_option('--uboot-bootargs',
-                       help="U-Boot bootargs environment variable (passed to the Linux kernel)",
+                       help='U-Boot bootargs environment variable (passed to the Linux kernel)',
                        metavar='<uboot_bootargs>',
                        dest='uboot_bootargs')
     
     _parser.add_option('--work-dir',
-                       help="Directory to perform temporary operations",
+                       help='Directory to perform temporary operations',
                        metavar='<workdir>',
                        dest='workdir')
     
     # MODE_SD and MODE_LOOPBACK - Optional arguments
     
     _parser.add_option('--rootfs',
-                       help="Path to the rootfs that will be installed.",
+                       help='Path to the rootfs that will be installed.',
                        metavar='<rootfs>',
                        dest='rootfs',
                        default=None)
+    
+    # Parse
     
     _options = _parser.get_options()
     
@@ -249,6 +290,7 @@ def _parse_args():
         _clean_exit(-1)
     
     # Check MODE_SD required arguments
+    
     if _options.installation_mode == MODE_SD:
         
         if not _options.device:
@@ -258,6 +300,7 @@ def _parse_args():
             _options.device = _options.device.rstrip('/')
     
     # Check LOOPBACK required arguments
+    
     if _options.installation_mode == MODE_LOOPBACK:
         
         if not _options.image: _missing_arg_exit('--image')
@@ -314,7 +357,7 @@ def _parse_args():
                 _logger.error('Unable to find %s' % _options.workdir)
                 _clean_exit(-1)
     
-    # Check MODE_SD or MODE_LOOPBACK optional arguments
+        # Check MODE_SD or MODE_LOOPBACK optional arguments
         
         if _options.rootfs:
             if not os.path.isdir(_options.rootfs):
@@ -378,6 +421,9 @@ def main():
         else:
             ret = sd_installer.release_loopdevice()
             if ret is False: _abort_install()
+        
+    if _options.installation_mode == MODE_SERIAL:
+        pass
             
     _logger.info('Installation complete')
     

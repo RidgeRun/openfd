@@ -17,14 +17,6 @@
 
 """
 Serial communication operations to support the installer.
-
-Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
-All Rights Reserved.
-
-The contents of this software are proprietary and confidential to RidgeRun,
-LLC.  No part of this program may be photocopied, reproduced or translated
-into another programming language without prior written consent of 
-RidgeRun, LLC.
 """
 
 # ==========================================================================
@@ -99,8 +91,8 @@ class SerialInstaller(object):
     @property
     def port(self):
         """
-        Gets the Serial port instance. It may be None if no
-        serial port has been opened using open_comm().
+        Gets the Serial port instance. It may be None if no serial port
+        has been opened using open_comm().
         """
         
         return self._port
@@ -287,7 +279,7 @@ class SerialInstaller(object):
         Expects a response from the serial port for no more than timeout
         seconds.
         
-        The lines read from the serial port will be stripped (\s\r\n) before
+        The lines read from the serial port will be stripped before
         being compared with response.
         
         Args:
@@ -299,7 +291,7 @@ class SerialInstaller(object):
             response was found; false otherwise. The second is the complete
             line where the response was found, or the last line read if the
             response wasn't found and the timeout reached. The line is
-            returned stripped (\s\r\n).
+            returned stripped.
         """
         
         found = False

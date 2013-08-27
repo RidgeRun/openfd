@@ -18,14 +18,6 @@
 
 """
 Representation of a memory partition.
-
-Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
-All Rights Reserved.
-
-The contents of this software are proprietary and confidential to RidgeRun,
-LLC.  No part of this program may be photocopied, reproduced or translated
-into another programming language without prior written consent of 
-RidgeRun, LLC.
 """
 
 # ==========================================================================
