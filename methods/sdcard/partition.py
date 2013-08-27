@@ -56,6 +56,7 @@ class Partition(object):
         :param start_addr: Partition start addres (decimal).
         :param size: Partition size in cylinders.
         :param bootable: Enables the bootable flag on this partition.
+        :type bootable: boolean
         :param part_type: Partition type. Possible values: :const:`TYPE_LINUX_NATIVE`,
             :const:`TYPE_FAT32`, :const:`TYPE_UNKNOWN`.
         :param filesystem: Partition filesystem. Possible values:
