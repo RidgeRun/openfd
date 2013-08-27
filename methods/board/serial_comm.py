@@ -44,18 +44,6 @@ class SerialInstaller(object):
     """
     Serial communication operations to support the installer. Based on
     pySerial.
-    
-    Attributes:
-        port: A Serial port instance for serial communication. None if no
-            serial port has been opened using open_comm().
-        nand_block_size: The NAND block size will be retrieved from uboot
-            by default. But if this property was manually set, uboot will
-            not be queried, unless it is manually set back to the value 0.
-        nand_page_size: The NAND page size will be retrieved from uboot
-            by default. But if this property was manually set, uboot will
-            not be queried, unless it is manually set back to the value 0.
-        dryrun: When dryrun mode is set, all commands will be logged, but not
-            executed.
     """
         
     def __init__(self):
@@ -74,14 +62,11 @@ class SerialInstaller(object):
     @classmethod
     def uboot_comm_error_msg(cls, port):
         """
-        Standard error message to report a failure communicating with the given
-        port.
+        Standard error message to report a failure communicating with uboot
+        in the given port.
         
-        Args:
-            port: The port for which communication failed.
-            
-        Returns:
-            A string with the standard message.
+        :param port: The port for which communication failed.
+        :return: A string with the standard message.
         """
         
         return ('Failed to handshake with uboot.\n'
@@ -99,10 +84,7 @@ class SerialInstaller(object):
     
     def check_open_port(self):
         """
-        Checks if the serial port has been successfully opened.
-        
-        Returns:
-            Returns true if the port is opened; false otherwise.
+        Returns true if the port is opened; false otherwise.
         """
         
         if self._port is None:
@@ -179,7 +161,11 @@ class SerialInstaller(object):
         return size_kb << 10 
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
-                           doc="""Gets or sets the NAND block size (bytes)""")
+                           doc="""Gets or sets the NAND block size (bytes). The
+                           value will be obtained from uboot, unless
+                           manually specified.""")
+    
+    
     
     def __set_nand_page_size(self, size):
         """
@@ -231,7 +217,9 @@ class SerialInstaller(object):
         return page_size
     
     nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
-                          doc="""Gets or sets the NAND page size (bytes)""")
+                          doc="""Gets or sets the NAND page size (bytes). The
+                           value will be obtained from uboot, unless
+                           manually specified.""")
     
     def open_comm(self, port=DEFAULT_PORT,
                   baud=DEFAULT_BAUDRATE,
@@ -239,16 +227,11 @@ class SerialInstaller(object):
         """
         Opens the communication with the Serial port.
         
-        Args:
-            port: Device name or port number (i.e. /dev/ttyS0)
-            baud: Baud rate such as 9600 or 115200 etc
-            timeout: Set a read timeout value
-            
-        Returns:
-            Returns true on success; false otherwise.
-            
-        Raises:
-            SerialException: On error while opening the serial port.
+        :param port: Device name or port number (i.e. /dev/ttyS0)
+        :param baud: Baud rate such as 9600 or 115200 etc
+        :param timeout: Set a read timeout value
+        :return: Returns true on success; false otherwise.
+        :exception SerialException: On error while opening the serial port.
         """
         
         # Terminal line settings
@@ -282,13 +265,10 @@ class SerialInstaller(object):
         The lines read from the serial port will be stripped before
         being compared with response.
         
-        Args:
-            response: A string to expect in the serial port.
-            timeout: Timeout in seconds to wait for the response. 
-            
-        Returns:
-            Returns a tuple with two items. The first one is true if the
-            response was found; false otherwise. The second is the complete
+        :param response: A string to expect in the serial port.
+        :param timeout: Timeout in seconds to wait for the response.
+        :return: Returns a tuple with two items. The first item is true if the
+            response was found; false otherwise. The second tem is the complete
             line where the response was found, or the last line read if the
             response wasn't found and the timeout reached. The line is
             returned stripped.
@@ -321,8 +301,7 @@ class SerialInstaller(object):
         Synchronizes with uboot. If successful, uboot's prompt will 
         be ready to receive commands.
             
-        Returns:
-            Returns true on success; false otherwise.
+        Returns true on success; false otherwise.
         """
     
         if self.check_open_port() is False: return False
