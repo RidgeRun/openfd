@@ -893,10 +893,6 @@ class SDCardInstaller(object):
         return True
                 
     def __str__(self):
-        """
-        To string.
-        """
-        
         _str  = ''
         _str += 'Interactive: ' + ('On' if self._interactive else "Off") + '\n'
         _str += 'Dryrun mode: ' + ('On' if self._dryrun else "Off") + '\n'
@@ -980,7 +976,8 @@ if __name__ == '__main__':
     # WARNING: Dryrun mode is set by default, but be careful
     # you don't repartition a device you don't want to.
     
-    device = "/dev/sdb"
+    device = '/dev/sdb'
+    loop_device = '/dev/loop0'
     sd_installer.dryrun = False
     sd_installer.interactive = True
     
@@ -999,9 +996,9 @@ if __name__ == '__main__':
     sd_installer.device = device
     
     if sd_installer._device_exists():
-        print "Device " + sd_installer.device + " exists."
+        print "Device %s exists." % sd_installer.device
     else:
-        print "Device " + sd_installer.device + " doesn't exist."
+        print "Device %s doesn't exist." % sd_installer.device
     
     # --------------- TC 2 ---------------
     
@@ -1014,9 +1011,9 @@ if __name__ == '__main__':
     sd_installer.device = temp_device
     
     if sd_installer._device_exists():
-        print "Device " + sd_installer.device + " exists."
+        print "Device %s exists." % sd_installer.device
     else:
-        print "Device " + sd_installer.device + " doesn't exist."
+        print "Device %s doesn't exist." % sd_installer.device
 
     # --------------- TC 3 ---------------
     
@@ -1027,9 +1024,9 @@ if __name__ == '__main__':
     sd_installer.device = device
     
     if sd_installer._device_is_mounted():
-        print "Device " + sd_installer.device + " is mounted."
+        print "Device %s is mounted." % sd_installer.device
     else:
-        print "Device " + sd_installer.device + " isn't mounted."
+        print "Device %s isn't mounted." % sd_installer.device
     
     # --------------- TC 4 ---------------
     
@@ -1042,24 +1039,26 @@ if __name__ == '__main__':
     sd_installer.device = temp_device
     
     if sd_installer._device_is_mounted():
-        print "Device " + sd_installer.device + " is mounted."
+        print "Device %s is mounted." % sd_installer.device
     else:
-        print "Device " + sd_installer.device + " isn't mounted."
+        print "Device %s isn't mounted." % sd_installer.device
     
     # --------------- TC 5 ---------------
     
     tc_start(5)
     
+    sd_installer.device = device
+    
     # Test read_partitions
     sdcard_mmap_filename = '../../../../../images/sd-mmap.config'
     
     if not os.path.isfile(sdcard_mmap_filename):
-        print 'Unable to find ' + sdcard_mmap_filename
+        print 'Unable to find %s' % sdcard_mmap_filename
         exit(-1)
     
     sd_installer._read_partitions(sdcard_mmap_filename)
     
-    print "Partitions at " + sdcard_mmap_filename + " read succesfully." 
+    print "Partitions at %s read succesfully." % sdcard_mmap_filename 
 
     # --------------- TC 6 ---------------
     
@@ -1070,8 +1069,7 @@ if __name__ == '__main__':
     sd_installer.device = device
     
     size = sd_installer._get_device_size_b()
-    print ("Device " + sd_installer.device + " has " + str(size) + 
-           " bytes")
+    print "Device %s has %d bytes" % (sd_installer.device, size)
 
     # --------------- TC 7 ---------------
     
@@ -1080,8 +1078,7 @@ if __name__ == '__main__':
     # Test get_device_size_gb
     
     size = sd_installer._get_device_size_gb()
-    print ("Device " + sd_installer.device + " has " + str(size) + 
-           " gigabytes")
+    print "Device %s has %d gigabytes" % (sd_installer.device, size)
 
     # --------------- TC 8 ---------------
     
@@ -1090,8 +1087,7 @@ if __name__ == '__main__':
     # Test get_device_size_cyl
     
     size = sd_installer._get_device_size_cyl()
-    print ("Device " + sd_installer.device + " has " + str(size) + 
-           " cylinders")
+    print "Device %s has %d cylinders" % (sd_installer.device, size)
 
     # --------------- TC 9 ---------------
     
@@ -1099,7 +1095,7 @@ if __name__ == '__main__':
 
     # Test get_device_mounted_partitions
     
-    print "Device " + sd_installer.device + " mounted partitions:"
+    print "Device %s mounted partitions: " % sd_installer.device 
     print sd_installer._get_device_mounted_partitions()
     
     # --------------- TC 10 ---------------
@@ -1126,7 +1122,7 @@ if __name__ == '__main__':
     # Test create partitions
     
     if not sd_installer._create_partitions():
-        print 'failed to create partitions on %s' % sd_installer.device
+        print 'Failed to create partitions on %s' % sd_installer.device
 
     # --------------- TC 12 ---------------
     
@@ -1136,10 +1132,14 @@ if __name__ == '__main__':
     
     devices_list = ['/dev/sdb', '/dev/mmcblk0', '/dev/loop0']
     
-    for device in devices_list:
-        sd_installer.device = device
+    prev_device = sd_installer.device
+    
+    for test_device in devices_list:
+        sd_installer.device = test_device
         print 'Partition suffix for %s: %s' % (sd_installer.device, 
                                    sd_installer._get_partition_suffix('1'))
+    
+    sd_installer.device = prev_device
     
     # --------------- TC 13 ---------------
     
@@ -1152,8 +1152,7 @@ if __name__ == '__main__':
     if sd_installer._format_partitions():
         print 'Partitions on %s formatted' % sd_installer.device
     else:
-        print 'Can not format partitions on %s' %sd_installer.device
-    
+        print 'Can\'t format partitions on %s' %sd_installer.device
     
     # --------------- TC 14 ---------------
     
@@ -1164,7 +1163,7 @@ if __name__ == '__main__':
     if sd_installer._confirm_device_size() is False:
         print "User declined device as SD card"
     else:
-        print "Device " + sd_installer.device + " confirmed as SD card"
+        print "Device %s confirmed as SD card" % sd_installer.device
  
     # --------------- TC 15 ---------------
     
@@ -1182,7 +1181,7 @@ if __name__ == '__main__':
     # Test device_auto_unmount
  
     if sd_installer._auto_unmount_partitions():
-        print "Device " + sd_installer.device + " is unmounted"
+        print "Device %s is unmounted" % sd_installer.device
     else:
         print "Failed auto-unmounting " + sd_installer.device
 
@@ -1246,9 +1245,9 @@ if __name__ == '__main__':
     
     if sd_installer.format_loopdevice(sdcard_mmap_filename, image_name,
                                       image_size):
-        print "Succesfully format the loopdevice for the image " + image_name
+        print "Succesfully format the loopdevice for the image %s" % image_name
     else:
-        print "Failed to format the loopdevice for the image " + image_name
+        print "Failed to format the loopdevice for the image %s" % image_name
 
     # --------------- TC 22 ---------------
     
@@ -1259,9 +1258,9 @@ if __name__ == '__main__':
     
     if sd_installer.format_loopdevice(sdcard_mmap_filename, image_name,
                                       image_size):
-        print "Succesfully format the loopdevice for the image " + image_name
+        print "Succesfully format the loopdevice for the image %s" % image_name
     else:
-        print "Failed to format the loopdevice for the image " + image_name
+        print "Failed to format the loopdevice for the image %s" % image_name
     
     # --------------- TC 23 ---------------
     
@@ -1275,8 +1274,8 @@ if __name__ == '__main__':
         print "Failed mounting partitions from %s" % sd_installer.device
     
     if sd_installer.release_loopdevice():
-        print "Succesfully release all loopdevices for the image " + image_name
+        print "Succesfully release all loopdevices for the image %s" % image_name
     else:
-        print "Failed to release all loopdevices for the image " + image_name
+        print "Failed to release all loopdevices for the image %s" % image_name
     
     print "Test cases finished"
