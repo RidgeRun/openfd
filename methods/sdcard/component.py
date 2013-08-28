@@ -59,16 +59,16 @@ class ComponentInstaller(object):
         self._logger = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
         self._executer.logger = self._logger
-        self._workdir = None
-        self._uflash_bin = None
-        self._ubl_file = None
-        self._uboot_file = None
-        self._uboot_entry_addr = None
-        self._uboot_load_addr = None
-        self._bootargs = None
-        self._kernel_image = None
-        self._rootfs = None
-        self._dryrun = False
+        self._workdir = workdir
+        self._uflash_bin = uflash_bin
+        self._ubl_file = ubl_file
+        self._uboot_file = uboot_file
+        self._uboot_entry_addr = uboot_entry_addr
+        self._uboot_load_addr = uboot_load_addr
+        self._bootargs = bootargs
+        self._kernel_image = kernel_image
+        self._rootfs = rootfs
+        self._dryrun = dryrun
 
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun

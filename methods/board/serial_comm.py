@@ -15,10 +15,6 @@
 #
 # ==========================================================================
 
-"""
-Serial communication operations to support the installer.
-"""
-
 # ==========================================================================
 # Imports
 # ==========================================================================
@@ -46,18 +42,21 @@ class SerialInstaller(object):
     pySerial.
     """
         
-    def __init__(self):
+    def __init__(self, nand_block_size=0, nand_page_size=0):
         """
-        Constructor.
+        :param nand_block_size: NAND block size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param nand_page_size: NAND page size (bytes). If not given, the
+            value will be obtained from uboot (once).
         """
         
         self._logger = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
         self._executer.logger = self._logger
-        self._dryrun = False
         self._port = None
-        self._nand_block_size = 0
-        self._page_block_size = 0
+        self._nand_block_size = nand_block_size
+        self._page_page_size = nand_page_size
+        self._dryrun = False
 
     @classmethod
     def uboot_comm_error_msg(cls, port):
@@ -76,7 +75,7 @@ class SerialInstaller(object):
     @property
     def port(self):
         """
-        Gets the Serial port instance. It may be None if no serial port
+        Serial port instance. It may be None if no serial port
         has been opened using open_comm().
         """
         
@@ -94,45 +93,23 @@ class SerialInstaller(object):
             return True
     
     def __set_dryrun(self, dryrun):
-        """
-        Sets on/off the dryrun mode. In dryrun mode any commands will
-        not be executed (just logged).
-        """
-        
         self._dryrun = dryrun
         self._executer.dryrun = dryrun
     
     def __get_dryrun(self):
-        """
-        Returns true if the dryrun mode is on; false otherwise.
-        """
-        
         return self._dryrun
     
     dryrun = property(__get_dryrun, __set_dryrun,
-                     doc="""Gets or sets the dryrun mode.""")
+                     doc="""Enable dryrun mode. Systems commands will be
+                     logged, but not executed.""")
 
     def __set_nand_block_size(self, size):
-        """
-        Sets the NAND block size (bytes). When this value is manually set,
-        uboot will not be queried. Set it back to 0 to obtain the NAND block
-        size from uboot.
-        """
-        
         self._nand_block_size = int(size)
 
     def __get_nand_block_size(self):
-        """
-        Gets the NAND block size (bytes). The value will be obtained from
-        uboot, unless it was manually specified through the nand_block_size
-        property, and would return such value.
         
-        Returns:
-            The size in bytes of the NAND block size; 0 if it was unable
-            to obtain it. 
-        """
+        # Don't query uboot if already set
         
-        # If specified, return the value set by the user
         if self._nand_block_size != 0:
             return self._nand_block_size
         
@@ -158,36 +135,22 @@ class SerialInstaller(object):
         else:
             self._logger.error('Unable to determine the NAND block size')
         
-        return size_kb << 10 
+        self._nand_block_size = size_kb << 10
+        
+        return self._nand_block_size
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
-                           doc="""Gets or sets the NAND block size (bytes). The
-                           value will be obtained from uboot, unless
-                           manually specified.""")
-    
-    
+                           doc="""NAND block size (bytes). The value will be
+                           obtained from uboot (once), unless manually
+                           specified.""")
     
     def __set_nand_page_size(self, size):
-        """
-        Sets the NAND page size (bytes). When this value is manually set,
-        uboot will not be queried. Set it back to 0 to obtain the NAND page
-        size from uboot.
-        """
-        
         self._nand_page_size = int(size)
     
     def __get_nand_page_size(self):
-        """
-        Gets the NAND page size (bytes). The value will be obtained from
-        uboot, unless it was manually specified through the nand_page_size
-        property, and would return such value.
         
-        Returns:
-            The size in bytes of the NAND page size; 0 if it was unable
-            to obtain it. 
-        """
+        # Don't query uboot if already set
         
-        # If specified, return the value set by the user
         if self._nand_page_size != 0:
             return self._nand_page_size
         
@@ -213,13 +176,15 @@ class SerialInstaller(object):
 
         if page_size == 0:
             self._logger.error('Unable to determine the NAND page size')
+        else:
+            self._nand_page_size = page_size
 
-        return page_size
+        return self._nand_page_size
     
     nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
-                          doc="""Gets or sets the NAND page size (bytes). The
-                           value will be obtained from uboot, unless
-                           manually specified.""")
+                          doc="""NAND page size (bytes). The value will be
+                           obtained from uboot (once), unless manually
+                           specified.""")
     
     def open_comm(self, port=DEFAULT_PORT,
                   baud=DEFAULT_BAUDRATE,
@@ -227,7 +192,8 @@ class SerialInstaller(object):
         """
         Opens the communication with the Serial port.
         
-        :param port: Device name or port number (i.e. /dev/ttyS0)
+        :param port: Device name or port number (i.e. '/dev/ttyS0')
+        :type port: string
         :param baud: Baud rate such as 9600 or 115200 etc
         :param timeout: Set a read timeout value
         :return: Returns true on success; false otherwise.
@@ -241,7 +207,7 @@ class SerialInstaller(object):
                '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
                '-parenb -parodd -inpck' % (port, baud))
         
-        ret = self._executer.check_call(cmd)
+        ret = self._executer.call(cmd)
         if ret != 0:
             self._logger.error('Couldn\'t change terminal line settings')
             return False
@@ -299,7 +265,7 @@ class SerialInstaller(object):
     def uboot_sync(self):
         """
         Synchronizes with uboot. If successful, uboot's prompt will 
-        be ready to receive commands.
+        be ready to receive commands after this call.
             
         Returns true on success; false otherwise.
         """
