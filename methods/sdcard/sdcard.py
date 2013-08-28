@@ -466,7 +466,7 @@ class SDCardInstaller(object):
             cmd += str(part.start) + ','
             cmd += str(part.size) + ','
             cmd += str(part.type)
-            if part.is_bootable(): cmd += ',*'
+            if part.is_bootable: cmd += ',*'
             cmd += '\n'
         
         cmd += 'EOF'
@@ -1013,7 +1013,7 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.dryrun = False
+    sd_installer.dryrun = True
     sd_installer.interactive = True
     
 # ==========================================================================

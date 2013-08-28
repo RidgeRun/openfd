@@ -54,11 +54,13 @@ class Partition(object):
         """    
         :param name: Partition name.
         :param start_addr: Partition start addres (decimal).
-        :param size: Partition size in cylinders.
+        :param size: Partition size in cylinders. Size can be '-' to indicate
+            the max size available.
         :param bootable: Enables the bootable flag on this partition.
         :type bootable: boolean
-        :param part_type: Partition type. Possible values: :const:`TYPE_LINUX_NATIVE`,
-            :const:`TYPE_FAT32`, :const:`TYPE_UNKNOWN`.
+        :param part_type: Partition type. Possible values:
+            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
+            :const:`TYPE_UNKNOWN`.
         :param filesystem: Partition filesystem. Possible values:
             :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`, 
             :const:`FILESYSTEM_UNKNOWN`.
@@ -74,79 +76,6 @@ class Partition(object):
         self._type = part_type
         self._filesystem = filesystem
         self._components = components
-    
-    @property
-    def name(self):
-        """
-        Partition name (read-only).
-        """
-        
-        return self._name
-       
-    def __set_start(self, start):
-        """
-        Sets the partition start address (decimal).
-        """
-        
-        self._start = start
-        
-    def __get_start(self):
-        """
-        Gets the partition start address (decimal).
-        """
-        
-        return self._start
-        
-    start = property(__get_start, __set_start,
-                     doc="""Partition start address (decimal).""")
-        
-    def __set_size(self, size):
-        """
-        Sets the partition size (decimal). Size can be '-' to indicate
-        the max size available (where not specified).
-        """
-        
-        self._size = size
-        
-    def __get_size(self):
-        """
-        Gets the partition size (decimal). Size can be '-' to indicate
-        the max size available (where not specified).
-        """
-        
-        return self._size
-    
-    size = property(__get_size, __set_size,
-                    doc="""Partition size in cylinders (decimal). Size can
-                    be '-' to indicate the max size available (where not
-                    specified).""")
-    
-    def __set_type(self, partition_type):
-        """
-        Sets the partition type, according to the specification given
-        in the 'sfdisk' command. Last retrieved:
-        
-          Id is given in hex, without the 0x prefix, or is [E|S|L|X],
-          where L (LINUX_NATIVE (83)) is the default, S is LINUX_SWAP (82),
-          E is EXTENDED_PARTITION  (5), and X is LINUX_EXTENDED (85).
-          
-        Most common types:
-            - Partition.TYPE_FAT32: '0xc'
-            - Partition.TYPE_LINUX_NATIVE: 'L'
-        """
-        
-        self._type = partition_type
-        
-    def __get_type(self):
-        """
-        Gets the partition type. See __set_type() documentation for more info
-        on common partition types.
-        """
-        
-        return self._type
-    
-    type = property(__get_type, __set_type,
-                    doc="""Partition type.""")
     
     @classmethod
     def decode_partition_type(cls, partition_type):
@@ -167,63 +96,66 @@ class Partition(object):
         
         return friendly_type
     
+    @property
+    def name(self):
+        """
+        Partition name (read-only).
+        """
+        
+        return self._name
+       
+    def __set_start(self, start):
+        self._start = start
+        
+    def __get_start(self):
+        return self._start
+        
+    start = property(__get_start, __set_start,
+                     doc="""Partition start address (decimal).""")
+        
+    def __set_size(self, size):
+        self._size = size
+        
+    def __get_size(self):
+        return self._size
+    
+    size = property(__get_size, __set_size,
+                    doc="""Partition size in cylinders (decimal). Size can
+                    be '-' to indicate the max size available.""")
+    
+    def __set_type(self, partition_type):
+        self._type = partition_type
+        
+    def __get_type(self):
+        return self._type
+    
+    type = property(__get_type, __set_type,
+                    doc="""Partition type.""")
+    
     def __set_filesystem(self, filesystem):
-        """
-        Sets the filesystem.
-        
-        Most common filesystems:
-            - Partition.FILESYSTEM_VFAT
-            - Partition.FILESYSTEM_EXT3
-        """
-        
         self._filesystem = filesystem
         
     def __get_filesystem(self):
-        """
-        Gets the filesystem. See set_filesystem() documentation for more info
-        on common filesystems.
-        """
-        
         return self._filesystem
     
     filesystem = property(__get_filesystem, __set_filesystem,
                           doc="""Partition filesystem.""")
     
     def __set_bootable(self, bootable):
-        """
-        Sets the bootable property on the partition.
-        """
-        
         self._bootable = bootable
         
     def __get_bootable(self):
-        """
-        Gets the bootable property on the partition.
-        """
-        
         return self._bootable
     
     bootable = property(__get_bootable, __set_bootable,
                         doc="""Partition bootable flag.""")
-    
-    def is_bootable(self):
-        """
-        Returns true if the partition is bootable, false otherwise.
-        """
-        
-        return self._bootable
+
+    is_bootable = bootable
     
     def __set_components(self, components):
-        """
-        Sets the list of components that will be installed on this partition.
-        """
         self._components = components
         
     def __get_components(self):
-        """
-        Gets the list of components that will be installed on this partition.
-        """
-        
         return self._components
     
     components = property(__get_components, __set_components,
@@ -231,10 +163,6 @@ class Partition(object):
                           will be installed on this partition.""")
     
     def __str__(self):
-        """
-        To string.
-        """
-        
         _str  = ''
         _str += 'Name:       ' + self._name + '\n'
         _str += 'Start:      ' + str(self._start) + '\n'
@@ -274,7 +202,7 @@ if __name__ == '__main__':
     print hexutils.hex_addr(p.start)
     
     p.bootable = True
-    if p.is_bootable():
+    if p.is_bootable:
         print "Partition " + p.name + " is bootable"
     else:
         print "Partition " + p.name + " is not bootable"
