@@ -223,6 +223,15 @@ class SerialInstaller(object):
         
         return True
 
+    def close_comm(self):
+        """
+        Closes the communication with the Serial port immediately.
+        """
+        
+        if self._port:
+            self._port.close()
+            self._port = None
+
     def expect(self, response, timeout=5):
         """
         Expects a response from the serial port for no more than timeout
