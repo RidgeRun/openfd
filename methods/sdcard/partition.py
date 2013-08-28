@@ -64,9 +64,9 @@ class Partition(object):
         :param filesystem: Partition filesystem. Possible values:
             :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`, 
             :const:`FILESYSTEM_UNKNOWN`.
-        :param components: A list of partition components. Possile Values:
+        :param components: A list of partition components. Possible values:
             :const:`COMPONENT_BOOTLOADER`, :const:`COMPONENT_KERNEL`,
-            :const:`COMPONENT_ROOTFS`, :const:`COMPONENT_BLANK`
+            :const:`COMPONENT_ROOTFS`, :const:`COMPONENT_BLANK`.
         """
         
         self._name = name
@@ -130,7 +130,9 @@ class Partition(object):
         return self._type
     
     type = property(__get_type, __set_type,
-                    doc="""Partition type.""")
+                    doc="""Partition type. Possible values:
+                    :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
+                    :const:`TYPE_UNKNOWN`.""")
     
     def __set_filesystem(self, filesystem):
         self._filesystem = filesystem
@@ -139,7 +141,9 @@ class Partition(object):
         return self._filesystem
     
     filesystem = property(__get_filesystem, __set_filesystem,
-                          doc="""Partition filesystem.""")
+                          doc="""Partition filesystem. Possible values: 
+                          :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
+                          :const:`FILESYSTEM_UNKNOWN`.""")
     
     def __set_bootable(self, bootable):
         self._bootable = bootable
@@ -160,7 +164,11 @@ class Partition(object):
     
     components = property(__get_components, __set_components,
                           doc="""List of components that
-                          will be installed on this partition.""")
+                          will be installed on this partition. Possible values:
+                          :const:`COMPONENT_BOOTLOADER`,
+                          :const:`COMPONENT_KERNEL`,
+                          :const:`COMPONENT_ROOTFS`,
+                          :const:`COMPONENT_BLANK`.""")
     
     def __str__(self):
         _str  = ''

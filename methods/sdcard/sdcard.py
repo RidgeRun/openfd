@@ -16,10 +16,6 @@
 #
 # ==========================================================================
 
-"""
-SD-card operations to support the installer.
-"""
-
 # ==========================================================================
 # Imports
 # ==========================================================================
@@ -38,7 +34,7 @@ import rrutils
 
 class SDCardInstaller(object):
     """
-    Class to handle SD-card operations.
+    Class to handle SD-card operations to support the installer.
     """
 
     #: Warn the user when partitioning a device above this size.
@@ -59,10 +55,12 @@ class SDCardInstaller(object):
         :param comp_installer: :class:`ComponentInstaller` instance.
         :param device: Device name (i.e. '/dev/sdb').
         :param mode: Installation mode. Possible values: :const:`MODE_SD`,
-            :const:`MODE_LOOPBACK`
-        :param dryrun: Enable dryrun mode.
+            :const:`MODE_LOOPBACK`.
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
         :type dryrun: boolean
-        :param interactive: Enable interactive mode.
+        :param interactive: Enable interactive mode. The user will
+            be prompted before executing dangerous commands.
         :type interactive: boolean
         """
         
@@ -78,35 +76,44 @@ class SDCardInstaller(object):
         self._loopdevice_partitions = {}
     
     def __set_mode(self, mode):
-        """
-        Sets the mode.
-        """
-        
         self._mode = mode
     
     def __get_mode(self):
-        """
-        Gets the mode.
-        """
-        
         return self._mode
     
-    mode = property(__get_mode, __set_mode, doc="""Installation mode.""")
+    mode = property(__get_mode, __set_mode, doc="""Installation mode. Possible
+            values: :const:`MODE_SD`, :const:`MODE_LOOPBACK`.""")
     
     def __set_device(self, device):
-        """
-        Sets the device.
-        """
         self._device = device
     
     def __get_device(self):
-        """
-        Gets the device.
-        """
         return self._device
     
     device = property(__get_device, __set_device,
                       doc="""Device name (i.e. '/dev/sdb').""")
+    
+    def __set_dryrun(self, dryrun):
+        self._dryrun = dryrun
+        self._comp_installer.dryrun = dryrun
+        self._executer.dryrun = dryrun
+    
+    def __get_dryrun(self):
+        return self._dryrun
+    
+    dryrun = property(__get_dryrun, __set_dryrun,
+                     doc="""Enable dryrun mode. Systems commands will be
+                     logged, but not executed.""")
+    
+    def __set_interactive(self, interactive):
+        self._interactive = interactive
+    
+    def __get_interactive(self):
+        return self._interactive
+    
+    interactive = property(__get_interactive, __set_interactive,
+                           doc="""Enable interactive mode. The user will
+                           be prompted before executing dangerous commands.""")
     
     def _confirm_device_size(self):
         """
@@ -118,7 +125,7 @@ class SDCardInstaller(object):
         """
         
         size_is_good = True
-        size_gb = self.get_device_size_gb() 
+        size_gb = self._get_device_size_gb() 
         
         if size_gb > SDCardInstaller.WARN_DEVICE_SIZE_GB:
             
@@ -187,55 +194,16 @@ class SDCardInstaller(object):
                 min_cyl_size += int(part.size)
         
         return min_cyl_size
-            
-    def __set_dryrun(self, dryrun):
-        """
-        Sets on/off the dryrun mode. In dryrun mode any commands will
-        not be executed (just logged).
-        """
-        
-        self._dryrun = dryrun
-        self._comp_installer.dryrun = dryrun
-        self._executer.dryrun = dryrun
-    
-    def __get_dryrun(self):
-        """
-        Returns true if the dryrun mode is on; false otherwise.
-        """
-        
-        return self._dryrun
-    
-    dryrun = property(__get_dryrun, __set_dryrun,
-                     doc="""Enable dryrun mode.""")
-    
-    def __set_interactive(self, interactive):
-        """
-        Sets on/off the interactive mode. In interactive mode the user
-        will be prompted before some actions, such as partitioning a device.
-        When the interactive mode is off, it will run non-interactively.
-        """
-        
-        self._interactive = interactive
-    
-    def __get_interactive(self):
-        """
-        Returns true if the interactive mode is on; false otherwise.
-        """
-        
-        return self._interactive
-    
-    interactive = property(__get_interactive, __set_interactive,
-                           doc="""Enable interactive mode.""")
 
-    def get_device_size_gb(self):
+    def _get_device_size_gb(self):
         """
         Returns the given device size, in gigabytes.
         """
         
-        size_b = self.get_device_size_b()
+        size_b = self._get_device_size_b()
         return long(size_b >> 30)
 
-    def get_device_size_b(self):
+    def _get_device_size_b(self):
         """
         Returns the given device size, in bytes.
         """
@@ -256,12 +224,12 @@ class SDCardInstaller(object):
         
         return size
     
-    def get_device_size_cyl(self):
+    def _get_device_size_cyl(self):
         """
         Returns the given device size, in cylinders.
         """
         
-        size_b = self.get_device_size_b()
+        size_b = self._get_device_size_b()
         size_cyl = size_b / geometry.CYLINDER_BYTE_SIZE 
         
         return int(math.floor(size_cyl))
@@ -431,7 +399,7 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise
         """
         
-        cylinders = self.get_device_size_cyl()
+        cylinders = self._get_device_size_cyl()
         
         # Check we were able to get correctly the device size
         if cylinders == 0 and not self._dryrun:
@@ -1013,7 +981,7 @@ if __name__ == '__main__':
     # you don't repartition a device you don't want to.
     
     device = "/dev/sdb"
-    sd_installer.dryrun = True
+    sd_installer.dryrun = False
     sd_installer.interactive = True
     
 # ==========================================================================
@@ -1101,7 +1069,7 @@ if __name__ == '__main__':
     
     sd_installer.device = device
     
-    size = sd_installer.get_device_size_b()
+    size = sd_installer._get_device_size_b()
     print ("Device " + sd_installer.device + " has " + str(size) + 
            " bytes")
 
@@ -1111,7 +1079,7 @@ if __name__ == '__main__':
 
     # Test get_device_size_gb
     
-    size = sd_installer.get_device_size_gb()
+    size = sd_installer._get_device_size_gb()
     print ("Device " + sd_installer.device + " has " + str(size) + 
            " gigabytes")
 
@@ -1121,7 +1089,7 @@ if __name__ == '__main__':
 
     # Test get_device_size_cyl
     
-    size = sd_installer.get_device_size_cyl()
+    size = sd_installer._get_device_size_cyl()
     print ("Device " + sd_installer.device + " has " + str(size) + 
            " cylinders")
 
@@ -1170,8 +1138,8 @@ if __name__ == '__main__':
     
     for device in devices_list:
         sd_installer.device = device
-        print 'Partition suffix for %s:' % sd_installer.device
-        print sd_installer._get_partition_suffix('1')
+        print 'Partition suffix for %s: %s' % (sd_installer.device, 
+                                   sd_installer._get_partition_suffix('1'))
     
     # --------------- TC 13 ---------------
     
@@ -1242,9 +1210,9 @@ if __name__ == '__main__':
     
     print sd_installer.__str__()
 
-    # --------------- TC 16 ---------------
+    # --------------- TC 19 ---------------
     
-    tc_start(16)
+    tc_start(19)
     
     # Test mount_partitions
     
@@ -1253,9 +1221,9 @@ if __name__ == '__main__':
     else:
         print "Failed mounting partitions from %s" % sd_installer.device
     
-    # --------------- TC 17 ---------------
+    # --------------- TC 20 ---------------
     
-    tc_start(17)
+    tc_start(20)
     
     # Test install_components
     
@@ -1264,9 +1232,9 @@ if __name__ == '__main__':
     else:
         print "Failed installing components on %s" % sd_installer.device
     
-    # --------------- TC 18 ---------------
+    # --------------- TC 21 ---------------
     
-    tc_start(18)
+    tc_start(21)
     
     sd_installer.mode = sd_installer.MODE_LOOPBACK
     
@@ -1282,9 +1250,9 @@ if __name__ == '__main__':
     else:
         print "Failed to format the loopdevice for the image " + image_name
 
-    # --------------- TC 19 ---------------
+    # --------------- TC 22 ---------------
     
-    tc_start(19)
+    tc_start(22)
     
     # Test format_loopdevice
     image_size = '256'
@@ -1295,9 +1263,9 @@ if __name__ == '__main__':
     else:
         print "Failed to format the loopdevice for the image " + image_name
     
-    # --------------- TC 20 ---------------
+    # --------------- TC 23 ---------------
     
-    tc_start(20)
+    tc_start(23)
     
     # Test release_loopdevice
     
