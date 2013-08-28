@@ -979,7 +979,7 @@ if __name__ == '__main__':
     device = '/dev/sdb'
     loop_device = '/dev/loop0'
     sd_installer.dryrun = False
-    sd_installer.interactive = True
+    sd_installer.interactive = False
     
 # ==========================================================================
 # Test cases - Unit tests

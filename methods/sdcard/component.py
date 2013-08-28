@@ -16,13 +16,6 @@
 #
 # ==========================================================================
 
-"""
-Components operations to support the installer. Current components are:
-  - Bootloader (includes pre-bootloader)
-  - Kernel
-  - Filesystem
-"""
-
 # ==========================================================================
 # Imports
 # ==========================================================================
@@ -41,14 +34,31 @@ class ComponentInstaller(object):
     Class to handle components-related operations.
     """
     
-    def __init__(self):
+    def __init__(self, uflash_bin=None, ubl_file=None, uboot_file=None,
+                 uboot_entry_addr=None, uboot_load_addr=None, bootargs=None,
+                 kernel_image=None, rootfs=None, workdir=None, dryrun=False):
         """
-        Constructor.
+        :param uflash_bin: Path to the uflash tool.
+        :param ubl_file: Path to the UBL file.
+        :param uboot_file: Path the Uboot file.
+        :param uboot_entry_addr: Uboot entry address, in decimal or hexadecimal
+            (`'0x'` prefix).
+        :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
+            (`'0x'` prefix).
+        :param bootargs: Uboot environment variable 'bootargs'.
+        :param kernel_image: Path to the kernel image.
+        :param rootfs: Path to the rootfs directory. Set to None if this
+            installation does not require a rootfs, i.e. NFS will be used.
+        :param workdir: Path to the workdir - a directory where this installer
+            can write files and perform other temporary operations.
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
         """
         
         self._logger = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
-        self._dryrun = False
+        self._executer.logger = self._logger
         self._workdir = None
         self._uflash_bin = None
         self._ubl_file = None
@@ -58,193 +68,133 @@ class ComponentInstaller(object):
         self._bootargs = None
         self._kernel_image = None
         self._rootfs = None
-        self._executer.logger = self._logger
+        self._dryrun = False
 
     def __set_dryrun(self, dryrun):
-        """
-        Sets on/off the dryrun mode. In dryrun mode any commands will
-        not be executed (just logged).
-        """
-        
         self._dryrun = dryrun
         self._executer.dryrun = dryrun
     
     def __get_dryrun(self):
-        """
-        Returns true if the dryrun mode is on; false otherwise.
-        """
-        
         return self._dryrun
     
     dryrun = property(__get_dryrun, __set_dryrun,
-                      doc="""Gets or sets the dryrun mode.""")
+                      doc="""Enable dryrun mode. Systems commands will be
+                     logged, but not executed.""")
         
     def __set_uflash_bin(self, uflash_bin):
-        """
-        Sets the path to the uflash tool.
-        """
-        
         self._uflash_bin = uflash_bin
         
     def __get_uflash_bin(self):
-        """
-        Gets the path to the uflash tool.
-        """
-        
         return self._uflash_bin
     
     uflash_bin = property(__get_uflash_bin, __set_uflash_bin,
-                          doc="""Gets or sets the path to the uflash tool""")
+                          doc="""Path to the uflash tool.""")
     
     def __set_ubl_file(self, ubl_file):
-        """
-        Sets the path to the ubl file.
-        """
-        
         self._ubl_file = ubl_file
         
     def __get_ubl_file(self):
-        """
-        Gets the path to the ubl file.
-        """
-        
         return self._ubl_file
     
     ubl_file = property(__get_ubl_file, __set_ubl_file,
-                        doc="""Gets or sets the path to the ubl file.""")
+                        doc="""Path to the UBL file.""")
     
     def __set_uboot_file(self, uboot_file):
-        """
-        Sets the path to the uboot file.
-        """
-        
         self._uboot_file = uboot_file
         
     def __get_uboot_file(self):
-        """
-        Gets the path to the uboot file.
-        """
-        
         return self._uboot_file
     
     uboot_file = property(__get_uboot_file, __set_uboot_file,
-                          doc="""Gets or sets the path to the uboot file.""")
+                          doc="""Path to the uboot file.""")
     
     def __set_uboot_entry_addr(self, uboot_entry_addr):
-        """
-        Sets the uboot entry address.
-        """
-        
-        self._uboot_entry_addr = uboot_entry_addr
+        if self._is_valid_addr(uboot_entry_addr):
+            self._uboot_entry_addr = uboot_entry_addr
+        else:
+            self._logger.error('Invalid u-boot entry address: %s' %
+                               uboot_entry_addr)
+            self._uboot_entry_addr = None
         
     def __get_uboot_entry_addr(self):
-        """
-        Gets the path to the uboot entry address.
-        """
-        
         return self._uboot_entry_addr
     
     uboot_entry_addr = property(__get_uboot_entry_addr, __set_uboot_entry_addr,
-                                doc="""Gets or sets the uboot entry
-                                address.""")
+                                doc="""Uboot entry address, in decimal or
+                                hexadecimal (`'0x'` prefix).""")
     
     def __set_uboot_load_addr(self, uboot_load_addr):
-        """
-        Sets the path to the ubootload address.
-        """
-        self._uboot_load_addr = uboot_load_addr
+        if self._is_valid_addr(uboot_load_addr):
+            self._uboot_load_addr = uboot_load_addr
+        else:
+            self._logger.error('Invalid u-boot load address: %s' %
+                               uboot_load_addr)
+            self._uboot_load_addr = None
+            
         
     def __get_uboot_load_addr(self):
-        """
-        Gets the path to the uboot load address.
-        """
-        
         return self._uboot_load_addr
     
     uboot_load_addr = property(__get_uboot_load_addr, __set_uboot_load_addr,
-                               doc="""Gets or sets the uboot load address.""")
+                               doc="""Uboot load address, in decimal or
+                                hexadecimal (`'0x'` prefix).""")
     
     def __set_bootargs(self,bootargs):
-        """
-        Sets the uboot environment variable "bootargs".
-        """
         self._bootargs = bootargs
     
     def __get_bootargs(self):
-        """
-        Gets the uboot environment variable "bootargs".
-        """
-        
         return self._bootargs
     
     bootargs = property(__get_bootargs, __set_bootargs,
-                        doc="""Gets or sets the uboot environment variable
-                        'bootargs'.""")
+                        doc="""Uboot environment variable 'bootargs'.""")
     
     def __set_kernel_image(self, kernel_image):
-        """
-        Sets the path to the kernel image.
-        """
-        
         self._kernel_image = kernel_image
         
     def __get_kernel_image(self):
-        """
-        Gets the path to the kernel image.
-        """
-        
         return self._kernel_image
     
     kernel_image = property(__get_kernel_image, __set_kernel_image,
-                            doc="""Gets or sets the path to the kernel
-                            image.""")
+                            doc="""Path to the kernel image.""")
     
     def __set_rootfs(self, rootfs):
-        """
-        Sets the path to rootfs. Set to None if this installation does not
-        require a rootfs, i.e. NFS will be used.
-        """
-        
         self._rootfs = rootfs
 
     def __get_rootfs(self):
-        """
-        Gets the path to rootfs. If None, a rootfs was not specified, more
-        likely because this installation does not require rootfs, i.e. NFS
-        will be used. 
-        """
-        
         return self._rootfs
     
     rootfs = property(__get_rootfs, __set_rootfs,
-                      doc="""Gets or sets the path to rootfs.""")
+                      doc="""Path to the rootfs directory. Set to None if this
+            installation does not require a rootfs, i.e. NFS will be used.""")
     
     def __set_workdir(self, workdir):
-        """
-        Sets the path to the workdir - a directory where this installer can 
-        write to files and perform other temporary operations.
-        """
-        
         self._workdir = workdir
         
     def __get_workdir(self):
-        """
-        Gets the path to the workdir - a directory where this installer can 
-        write to files and perform other temporary operations.
-        """
-        
         return self._workdir
     
     workdir = property(__get_workdir, __set_workdir,
-                       doc="""Gets or sets the path to the workdir.""")
+                       doc="""Path to the workdir - a directory where this
+                       installer can write files and perform other temporary
+                       operations.""")
+    
+    def _is_valid_addr(self, addr):
+        """
+        Returns true if the address is valid; false otherwise.
+        """
+        
+        return True if hexutils.str_to_hex(addr) else False
     
     def install_uboot(self, device):
         """
-        Flashes UBL and U-Boot to the given device, using the uflash tool.
-        This method needs that uflash_bin, ubl_file, uboot_file, 
-        uboot_entry_addr and uboot_load_addr to be already set.
+        Flashes UBL and uboot to the given device, using the uflash tool.
         
-        Returns true on success; false otherwise.
+        This method needs :attr:`uflash_bin`, :attr:`ubl_file`, 
+        :attr:`uboot_file`, :attr:`uboot_entry_addr`, and  
+        :attr:`uboot_load_addr` to be already set.
+        
+        :param device: Device where to flash UBL and uboot (i.e. '/dev/sdb').
+        :returns: Returns true on success; false otherwise.
         """
         
         if not self._uflash_bin:
@@ -267,17 +217,8 @@ class ComponentInstaller(object):
             self._logger.error('No uboot load address specified')
             return False
         
-        uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
-        if not uboot_entry_addr:
-            self._logger.error('Invalid value given to uboot entry address: %s'
-                               % self._uboot_entry_addr)
-            return False
-        
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
-        if not uboot_load_addr:
-            self._logger.error('Invalid value given to uboot load address: %s'
-                               % self._uboot_load_addr)
-            return False
+        uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
         
         cmd = 'sudo ' + self._uflash_bin + \
               ' -d ' + device + \
@@ -296,12 +237,17 @@ class ComponentInstaller(object):
     
     def install_uboot_env(self, mount_point):
         """
-        Installs the U-Boot environment to the given mount point. Assumes
-        a valid uboot load address and workdir.
+        Installs the uboot environment (uEnv.txt) to the given mount point.
+        
+        This methods needs :attr:`uboot_load_addr` and :attr:`workdir`
+        to be already set.
+        
+        :param mount_point: Path where to install the uboot environment.
+        :returns: Returns true on success; false otherwise.
         """
         
         if not os.path.isdir(mount_point) and not self._dryrun:
-            self._logger.error('Mount point %s does not exist.' %
+            self._logger.error('Mount point %s does not exist' %
                                mount_point)
             return False
         
@@ -313,15 +259,11 @@ class ComponentInstaller(object):
             self._logger.error('No workdir specified')
             return False
         
+        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
+        
         # Uboot env file preparation
         
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
-        
-        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
-        if not uboot_load_addr:
-            self._logger.error('Invalid u-boot load address: %s' %
-                               uboot_load_addr)
-            return False
         
         if not self._dryrun:
             uenv = open(uenv_file, "w")
@@ -343,9 +285,12 @@ class ComponentInstaller(object):
         
     def install_kernel(self, mount_point):
         """
-        Installs the Kernel on the given mount point.
+        Installs the kernel image on the given mount point.
         
-        Returns true on success, false otherwise.
+        This methods needs :attr:`kernel_image` to be already set.
+        
+        :param mount_point: Path to where install the kernel image.
+        :returns: Returns true on success, false otherwise.
         """
         
         if not self._kernel_image:
@@ -364,9 +309,10 @@ class ComponentInstaller(object):
     
     def install_rootfs(self, mount_point):
         """
-        If any, installs the rootfs to the given mount point.
+        If any, installs :attr:`rootfs` to the given mount point.
         
-        Returns true on success, false otherwise.
+        :param mount_point: Path to where install rootfs.
+        :returns: Returns true on success, false otherwise.
         """
         
         if self._rootfs:
@@ -433,7 +379,7 @@ if __name__ == '__main__':
     # you don't repartition or flash a device you don't want to.
     
     device = "/dev/sdb"
-    comp_installer.dryrun = True
+    comp_installer.dryrun = False
     
     uflash_bin = devdir + \
        '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash'
@@ -456,11 +402,11 @@ if __name__ == '__main__':
     uboot_entry_addr = '0x82000000' # 2181038080 
     uboot_load_addr = '2181038080' # 0x82000000
     
-    comp_installer.set_ubl_file = ubl_file
-    comp_installer.set_uboot_file = uboot_file
-    comp_installer.set_uboot_entry_addr = uboot_entry_addr
-    comp_installer.set_uboot_load_addr = uboot_load_addr
-    comp_installer.set_workdir = workdir
+    comp_installer.ubl_file = ubl_file
+    comp_installer.uboot_file = uboot_file
+    comp_installer.uboot_entry_addr = uboot_entry_addr
+    comp_installer.uboot_load_addr = uboot_load_addr
+    comp_installer.workdir = workdir
     comp_installer.bootargs = ("davinci_enc_mngr.ch0_output=COMPONENT "
                           "davinci_enc_mngr.ch0_mode=1080I-30  "
                           "davinci_display.cont2_bufsize=13631488 "
