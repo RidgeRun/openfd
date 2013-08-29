@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Installer documentation
-=====================
+=======================
 
 The installer objective is to provide several ways to deploy the
 firmware to the target board. Current methods are:
