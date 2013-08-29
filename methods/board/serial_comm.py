@@ -399,3 +399,6 @@ if __name__ == '__main__':
     else:
         print "Failed to obtain the NAND page size"
     
+    # The end
+    inst.close_comm()
+    
