@@ -121,7 +121,7 @@ class SerialInstaller(object):
         ret, line = self.expect('Device 0')
         if not ret:
             self._logger.error('Can\'t find Device 0')
-            return False
+            return self._nand_block_size
         
         self._logger.debug('NAND info: %s' % line)
         
@@ -259,7 +259,7 @@ class SerialInstaller(object):
             
             try:
                 line = self._port.readline().strip('\s\r\n')
-            except serial.SerialException as e:
+            except (serial.SerialException, OSError) as e:
                 self._logger.error(e)
                 return False, ''
             
@@ -284,7 +284,7 @@ class SerialInstaller(object):
         self._port.flush()
         self._port.write('echo resync\n')
         
-        ret = self.expect('resync')[0]
+        ret = self.expect('resync', timeout=1)[0]
         
         if not ret:
             msg = SerialInstaller.uboot_comm_error_msg(self._port.port)
@@ -292,113 +292,3 @@ class SerialInstaller(object):
             return False
         
         return True
-    
-# ==========================================================================
-# Test cases
-# ==========================================================================
-
-if __name__ == '__main__':
-
-# ==========================================================================
-# Test cases  - Support functions
-# ==========================================================================
-
-    import sys
-
-    def tc_start(tc_id, sleep_time=1):
-        """
-        Sleeps for 'sleep_time' and then prints the given test case header.
-        """
-        
-        tc_header  = '=' * 20
-        tc_header += 'TEST CASE ' + str(tc_id)
-        tc_header += '=' * 20
-        
-        time.sleep(sleep_time)
-        print tc_header
-
-# ==========================================================================
-# Test cases  - Initialization
-# ==========================================================================
-
-    # Initialize the logger
-    rrutils.logger.basic_config(verbose=True)
-    logger = rrutils.logger.get_global_logger('serial_com-test')
-    logger.setLevel(rrutils.logger.DEBUG)
-
-# ==========================================================================
-# Test cases - Unit tests
-# ==========================================================================
-    
-    # --------------- TC 1 ---------------
-    
-    tc_start(1, sleep_time=0) 
-    
-    # Open port (positive test case)
-
-    inst = None
-    port = '/dev/ttyUSB0'
-    try:
-        inst = SerialInstaller()
-        if inst.open_comm(port='/dev/ttyUSB0', baud=115200):
-            print 'Port %s opened' % port
-        else:
-            print 'Failed to open port %s' % port
-            sys.exit(-1)
-            
-    except:
-        print 'SerialException: Failed to open %s' % port
-        sys.exit(-1)
-    
-    # --------------- TC 2 ---------------
-    
-    tc_start(2)
-    
-    # Handshake with uboot
-    
-    if inst.uboot_sync():
-        print 'Synchronized with uboot'
-    else:
-        print 'Failed to sync with uboot'
-    
-    # --------------- TC 3 ---------------
-    
-    tc_start(3)
-    
-    # Get NAND dimensions
-
-    # NAND block size
-
-    inst.nand_block_size = 15
-    size = inst.nand_block_size
-    if size != 0:
-        print "NAND block size (manual): 0x%x" % size
-    else:
-        print "Failed to obtain the NAND block size"
-        
-    inst.nand_block_size = 0 # Force to query uboot
-    size = inst.nand_block_size
-    if size != 0:
-        print "NAND block size (uboot): 0x%x" % size
-    else:
-        print "Failed to obtain the NAND block size"
-    
-    # NAND page size
-    
-    inst.nand_page_size = 15
-    size = inst.nand_page_size
-    if size != 0:
-        print "NAND page size (manual): %d" % size
-    else:
-        print "Failed to obtain the NAND page size"
-        
-    inst.nand_page_size = 0 # Force to query uboot
-    size = inst.nand_page_size
-    if size != 0:
-        print "NAND page size (uboot): %d" % size
-    else:
-        print "Failed to obtain the NAND page size"
-    
-    # The end
-    inst.close_comm()
-    
