@@ -25,12 +25,13 @@ import serial_comm
 
 class SerialInstallerTestCase(unittest.TestCase):
     
-    def setUp(self):
-        
+    @classmethod
+    def setUpClass(cls):
         rrutils.logger.basic_config(verbose=True)
         logger = rrutils.logger.get_global_logger('serial_comm-test')
         logger.setLevel(rrutils.logger.DEBUG)
-        
+    
+    def setUp(self):
         self._inst = serial_comm.SerialInstaller()
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
