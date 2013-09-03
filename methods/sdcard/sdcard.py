@@ -49,7 +49,7 @@ class SDCardInstaller(object):
     #: Installs on a loopback file instead of a real SD-card.
     MODE_LOOPBACK = 'loopback'
     
-    def __init__(self, comp_installer, device=None, mode=None, dryrun=False,
+    def __init__(self, comp_installer, device='', mode=None, dryrun=False,
                  interactive=True):
         """
         :param comp_installer: :class:`ComponentInstaller` instance.
@@ -303,11 +303,12 @@ class SDCardInstaller(object):
         
         is_mounted = False
         
-        cmd1 = 'grep --quiet ' + self._device + ' /proc/mounts'
-        cmd2 = 'grep --quiet ' + self._device + ' /proc/mdstat'
-        
-        if self._executer.check_call(cmd1) == 0: is_mounted = True
-        if self._executer.check_call(cmd2) == 0: is_mounted = True
+        if self._device:
+            cmd1 = 'grep --quiet ' + self._device + ' /proc/mounts'
+            cmd2 = 'grep --quiet ' + self._device + ' /proc/mdstat'
+            
+            if self._executer.check_call(cmd1) == 0: is_mounted = True
+            if self._executer.check_call(cmd2) == 0: is_mounted = True
         
         return is_mounted
     
