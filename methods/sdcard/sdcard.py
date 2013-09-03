@@ -756,6 +756,8 @@ class SDCardInstaller(object):
             self._logger.error('File %s does not exist' % filename)
             return False
         
+        self._logger.debug('Reading file %s' % filename)
+        
         config = ConfigParser.RawConfigParser()
         config.readfp(open(filename))
         

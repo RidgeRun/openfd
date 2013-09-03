@@ -72,15 +72,17 @@ class SDCardInstallerTestCase(unittest.TestCase):
         
     def test_device(self):
         
-        # Change this booleans to enable/disable tests that assume some
+        # Change these booleans to enable/disable tests that assume some
         # preconditions (i.e. we know in advance the device is mounted,
         # we know the device size, etc.)
-        test_mounted = True
-        test_sizes = True
+        test_all = False         # Force all tests
+        test_mounted = False
+        test_sizes = False
         
         # Device information
         is_mounted = True
-        mounted_partitions = ['/media/rootfs_', '/media/boot'] # 'mount | grep /dev/sdb  | cut -f 3 -d " "
+        #mounted_partitions = ['/media/rootfs_', '/media/boot'] # 'mount | grep /dev/sdb  | cut -f 3 -d " "
+        mounted_partitions = ['/media/boot'] # 'mount | grep /dev/sdb  | cut -f 3 -d " "
         size_b = 2002780160 # sudo fdisk -l <device> | grep <device> | grep Disk | cut -f 5 -d " "
         size_gb = 1
         size_cyl = 243
@@ -98,18 +100,47 @@ class SDCardInstallerTestCase(unittest.TestCase):
         self.assertTrue(self._inst._device_exists())
         
         # Device mounted
-        if test_mounted:
+        if test_mounted or test_all:
             self.assertEqual(self._inst._device_is_mounted(), is_mounted)
             partitions = self._inst._get_device_mounted_partitions()
             self.assertEqual(partitions, mounted_partitions)
         
         # Device sizes
-        if test_sizes:
+        if test_sizes or test_all:
             self.assertEqual(self._inst._get_device_size_b(), size_b)
             self.assertEqual(self._inst._get_device_size_gb(), size_gb)
             self.assertEqual(self._inst._get_device_size_cyl(), size_cyl)
+        
+    def test_partitions(self):
+        
+        self._inst.mode = SDCardInstaller.MODE_SD
+        self._inst.dryrun = False
+        self._inst.interactive = False
+        self._inst.device = test_device
+        
+        # Auto-unmount_partitions
+        if self._inst._device_is_mounted():
+            ret = self._inst._auto_unmount_partitions()
+            self.assertTrue(ret, 'Can\'t unmount partitions on %s' 
+                            % self._inst.device)
             
-
+        # Read_partitions
+        sdcard_mmap_filename = '%s/images/sd-mmap.config' % devdir
+        ret = self._inst._read_partitions(sdcard_mmap_filename)
+        self.assertTrue(ret)
+        
+        # Create partitions
+        ret = self._inst._create_partitions()
+        self.assertTrue(ret, 'Failed to create partitions on %s'
+                        % self._inst.device)
+        
+    def test_interactive(self):
+        
+        self._inst.mode = SDCardInstaller.MODE_SD
+        self._inst.dryrun = False
+        self._inst.interactive = True
+        self._inst.device = test_device
+        
         
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SDCardInstallerTestCase)
