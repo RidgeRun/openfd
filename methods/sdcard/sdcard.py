@@ -50,7 +50,7 @@ class SDCardInstaller(object):
     MODE_LOOPBACK = 'loopback'
     
     def __init__(self, comp_installer, device='', mode=None, dryrun=False,
-                 interactive=True):
+                 interactive=True, enable_colors=True):
         """
         :param comp_installer: :class:`ComponentInstaller` instance.
         :param device: Device name (i.e. '/dev/sdb').
@@ -67,6 +67,7 @@ class SDCardInstaller(object):
         self._logger = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
         self._executer.logger = self._logger
+        self._executer.enable_colors = enable_colors
         self._comp_installer = comp_installer
         self._device = device
         self._mode = mode
@@ -114,6 +115,15 @@ class SDCardInstaller(object):
     interactive = property(__get_interactive, __set_interactive,
                            doc="""Enable interactive mode. The user will
                            be prompted before executing dangerous commands.""")
+    
+    def __set_enable_colors(self, enable):
+        self._executer.enable_colors = enable
+    
+    def __get_enable_colors(self):
+        return self._executer.enable_colors
+    
+    enable_colors = property(__get_enable_colors, __set_enable_colors,
+                           doc="""Enable colored messages.""")
     
     def _confirm_device_size(self):
         """
