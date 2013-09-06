@@ -35,6 +35,21 @@ import rrutils
 class SDCardInstaller(object):
     """
     Class to handle SD-card operations to support the installer.
+    
+    Typical flow - :const:`MODE_SD`:
+    ::
+        1. format_sd()
+        2. mount_partitions()
+        3. install_components()
+        4. check_filesystems()
+        
+    Typical flow - :const:`MODE_LOOPBACK`:
+    ::
+        1. format_loopdevice()
+        2. mount_partitions()
+        3. install_components()
+        4. release_loopdevice()
+    
     """
 
     #: Warn the user when partitioning a device above this size.
