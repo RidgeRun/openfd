@@ -168,9 +168,6 @@ class SDCardInstallerTestCase(unittest.TestCase):
         
         ret = self._inst.install_components()
         self.assertTrue(ret)
-        
-        ret = self._inst.check_filesystems()
-        self.assertTrue(ret)
     
     def test_install_dryrun_sd(self):
         self.test_install_sd(dryrun=True)
@@ -215,11 +212,11 @@ class SDCardInstallerTestCase(unittest.TestCase):
         image_name = '%s/images/test_image.img' % devdir
         
         ret = self._inst.format_loopdevice(sdcard_mmap_filename, image_name,
-                                           image_size=1)
+                                           image_size_mb=1)
         self.assertFalse(ret) # Fail with small image size
         
         ret = self._inst.format_loopdevice(sdcard_mmap_filename, image_name,
-                                           image_size=256)
+                                           image_size_mb=256)
         self.assertTrue(ret)
         
         ret = self._inst.mount_partitions('%s/images' % devdir)

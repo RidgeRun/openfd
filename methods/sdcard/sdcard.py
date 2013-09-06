@@ -41,7 +41,6 @@ class SDCardInstaller(object):
         1. format_sd()
         2. mount_partitions()
         3. install_components()
-        4. check_filesystems()
         
     Typical flow - :const:`MODE_LOOPBACK`:
     ::
@@ -49,7 +48,6 @@ class SDCardInstaller(object):
         2. mount_partitions()
         3. install_components()
         4. release_loopdevice()
-    
     """
 
     #: Warn the user when partitioning a device above this size.
@@ -274,7 +272,7 @@ class SDCardInstaller(object):
         suffix = ''
         
         if (self._device.find('mmcblk') != -1 or 
-            self._device.find('/dev/loop') != -1):
+            self._device.find('loop') != -1):
             suffix = 'p' + str(partition_index)
         else:
             suffix = str(partition_index)
@@ -514,21 +512,19 @@ class SDCardInstaller(object):
         
         return True
 
-    def format_sd(self, filename):
+    def format_sd(self, mmap_filename):
         """
         This function will create and format the partitions as specified
-        by 'mmap-config-file' to the sd-card referenced by 'device'.
+        by the 'mmap-config-file' referenced by mmap_filename.
         
         Returns true on success; false otherwise. 
         """
         
-        # Dummy check to try to verify with the user if the device is
-        # actually an SD card
+        # Check that the device is actually an SD card
         if self._interactive:
             if self._confirm_device_size() is False:
                 return False
         
-        # Check device existence
         if not self._device_exists() and not self._dryrun:
             self._logger.info('Try inserting the SD card again and '
                                'unmounting the partitions')
@@ -536,32 +532,29 @@ class SDCardInstaller(object):
                                self._device)
             return False
         
-        # Check device is not mounted
-        if self._device_is_mounted() and not self._dryrun:
-            
+        if self._device_is_mounted() and not self._dryrun:    
             if self._interactive:
                 if self._confirm_device_auto_unmount() is False:
                     return False
-                
-            # Auto-unmount
             if not self._auto_unmount_partitions():
                 self._logger.error('Failed auto-unmounting %s, refusing to '
                                    'install' % self._device)
                 return False
         
-        # Read the partitions
-        self._logger.info('Reading %s ...' % filename)
-        if not self._read_partitions(filename):    
+        self._logger.info('Reading %s ...' % mmap_filename)
+        if not self._read_partitions(mmap_filename):    
             return False
         
-        # Create partitions
         self._logger.info('Creating partitions on %s ...' % self._device)
         if not self._create_partitions():
             return False
         
-        # Format partitions
         self._logger.info('Formatting partitions on %s ...' % self._device)
         if not self._format_partitions():
+            return False
+        
+        self._logger.info('Checking filesystems on %s ...' % self._device)
+        if not self._check_filesystems():
             return False
         
         return True
@@ -589,8 +582,8 @@ class SDCardInstaller(object):
     
     def _create_image_file(self, image_name, image_size):
         """
-        Creates the image file with a valid format.
-        It associates the file with a loopdevice. 
+        Creates the image file with a valid format and associates the file
+        with a loopdevice. 
         
         Returns true on success; false otherwise.
         """
@@ -610,7 +603,6 @@ class SDCardInstaller(object):
             self.device = loopdevice
             cmd = 'sudo losetup %s %s' % (self._device,  image_name)
             ret = self._executer.check_call(cmd)
-            
             if ret != 0:
                 self._logger.error('Failed to associate image file %s to %s'
                                    % (image_name, self._device))
@@ -648,7 +640,7 @@ class SDCardInstaller(object):
             
             if ret != 0:
                 self._detach_loopdevice()
-                self._logger.error('Can not find a free loopdevice')
+                self._logger.error('Can\'t find a free loopdevice')
                 return False
             
             free_device = free_device.rstrip('\n')
@@ -667,41 +659,32 @@ class SDCardInstaller(object):
             partition_index += 1
         return True
     
-    def format_loopdevice(self, filename, image_name, image_size):
+    def format_loopdevice(self, filename, image_filename, image_size_mb):
         """
-        This method will create an image file, this file contains
-        the formatted the partitions as specified by 'mmap-config-file'.
-        This image can later be set on an sdcard.
-        
-        This method recieves:
-        filename -> the mmap-config-file
-        image_name -> the name(with path) of the image file to be created
-        image_size -> the size in MB for the image file
+        This function will create and format the partitions as specified
+        by the 'mmap-config-file' referenced by mmap_filename in the image
+        file referenced by image_filename. The size in megabytes of the
+        resulting image can be specified using image_size_mb.
         
         Returns true on success; false otherwise. 
         """
         
-        # Read the partitions
         self._logger.info('Reading %s ...' % filename)
         if not self._read_partitions(filename): return False
         
-        # test image file size
-        self._logger.info('Testing size of image file %s...' % image_name)
-        if not self._test_image_size(image_size): return False
+        if not self._test_image_size(image_size_mb): return False
         
-        # Create image file
-        self._logger.info('Creating image file %s' % image_name)
-        if not self._create_image_file(image_name, image_size): return False
+        self._logger.info('Creating image file %s' % image_filename)
+        if not self._create_image_file(image_filename, image_size_mb):
+            return False
         
-        # Create partitions
         self._logger.info('Creating partitions on %s ...' % self._device)
         if not self._create_partitions(): return False
         
-        # Create partitions
         self._logger.info('Associating partitions for loopdevice...')
-        if not self._associate_loopdevice_partitions(image_name): return False
+        if not self._associate_loopdevice_partitions(image_filename):
+            return False
         
-        # Format partitions
         self._logger.info('Formatting partitions on %s ...'
                           % self._device)
         if not self._format_partitions(): return False
@@ -710,8 +693,8 @@ class SDCardInstaller(object):
     
     def _detach_loopdevice(self):
         """
-        Detach all loopdevices associated with a partition, also it detaches
-        the image.
+        Detach all loopdevices associated with a partition and then detaches
+        the device itself.
         
         Returns true on success; false otherwise.
         """
@@ -735,8 +718,8 @@ class SDCardInstaller(object):
     
     def release_loopdevice(self):
         """
-        Releases all loopdevices used when creating an image file.
-        Should be run after finishing the process.
+        Releases all loopdevices used when creating an image file. Should be
+        run after finishing the process.
         
         Returns true on success; false otherwise.
         """
@@ -754,13 +737,11 @@ class SDCardInstaller(object):
                 self._logger.error('Failed unmounting loopdevice %s' %dev)
                 return False
         
-        # do a filesystem check
-        ret = self.check_filesystems()
+        ret = self._check_filesystems()
         if not ret:
             self._logger.error('Failed image filesystem check')
             return False
         
-        # detach loopdevice
         ret = self._detach_loopdevice()
         if not ret: return False
         
@@ -817,7 +798,7 @@ class SDCardInstaller(object):
                 self._partitions.append(part)
         return True
     
-    def check_filesystems(self):
+    def _check_filesystems(self):
         """
         Checks the integrity of the filesystems in the given device. Upon 
         error, tries to recover using the 'fsck' command.
@@ -863,7 +844,6 @@ class SDCardInstaller(object):
                         fs_ok = False
             self._logger.info('%s filesystem condition: %s' % (device_part,
                                                                fs_state))
-            
             if not fs_ok: break
             
         return fs_ok
