@@ -29,7 +29,7 @@ Help output:
 ::
     usage: installer.py [-h] -m <mode> -f <mmap> --kernel-file <kernel_file> [-y]
                         [-v] [-q] [--dryrun] [-d <device>] [--image <image>]
-                        [--image-size <imagesize>] [--uflash <uflash>]
+                        [--image-size <imagesize_mb>] [--uflash <uflash>]
                         [--ubl-file <ubl_file>] [--uboot-file <uboot_file>]
                         [--uboot-entry-addr <uboot_entry_addr>]
                         [--uboot-load-addr <uboot_load_addr>]
@@ -52,7 +52,7 @@ Help output:
       -d <device>, --device <device>
                             Device to install
       --image <image>       The filename of the image to create in workdir
-      --image-size <imagesize>
+      --image-size <imagesize_mb>
                             Size in MB of the image file to create (integer
                             number)
       --uflash <uflash>     Path to the uflash tool
@@ -221,8 +221,8 @@ def _parse_args():
     _parser.add_option('--image-size',
                        help="Size in MB of the image file to create (integer" \
                        " number)",
-                       metavar='<imagesize>',
-                       dest='imagesize')
+                       metavar='<imagesize_mb>',
+                       dest='imagesize_mb')
     
     # MODE_SD and MODE_LOOPBACK - Required arguments
     
@@ -305,11 +305,11 @@ def _parse_args():
         
         if not _options.image: _missing_arg_exit('--image')
         
-        if not _options.imagesize:
+        if not _options.imagesize_mb:
             _missing_arg_exit('--image-size')
         else:
             try:
-                int(_options.imagesize)
+                int(_options.imagesize_mb)
             except:
                 _missing_arg_exit('--image-size, must be an integer')
     
@@ -394,19 +394,21 @@ def main():
         sd_installer.interactive = _options.interactive
         sd_installer.dryrun = _options.dryrun
         
+        ret = sd_installer.read_partitions(_options.mmap_file)
+        if ret is False: _abort_install()
+        
         # Operations
         
         if _options.installation_mode == MODE_SD:
             sd_installer.device = _options.device
             sd_installer.mode = sd_installer.MODE_SD
-            ret = sd_installer.format_sd(_options.mmap_file)
+            ret = sd_installer.format_sd()
             if ret is False: _abort_install()
         else:
             sd_installer.mode = sd_installer.MODE_LOOPBACK
-            ret = sd_installer.format_loopdevice(_options.mmap_file, 
-                                                 _options.workdir + 
+            ret = sd_installer.format_loopdevice(_options.workdir +
                                                  _options.image, 
-                                                 _options.imagesize)
+                                                 _options.imagesize_mb)
             if ret is False: _abort_install()
         
         ret = sd_installer.mount_partitions(_options.workdir)
@@ -415,12 +417,8 @@ def main():
         ret = sd_installer.install_components()
         if ret is False: _abort_install()
         
-        if _options.installation_mode == MODE_SD:
-            ret = sd_installer.check_filesystems()
-            if ret is False: _abort_install()
-        else:
-            ret = sd_installer.release_loopdevice()
-            if ret is False: _abort_install()
+        ret = sd_installer.release_device()
+        if ret is False: _abort_install()
         
     if _options.installation_mode == MODE_SERIAL:
         pass
