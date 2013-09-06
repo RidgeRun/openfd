@@ -131,7 +131,7 @@ class SDCardInstallerTestCase(unittest.TestCase):
             
         # Read_partitions
         sdcard_mmap_filename = '%s/images/sd-mmap.config' % devdir
-        ret = self._inst._read_partitions(sdcard_mmap_filename)
+        ret = self._inst.read_partitions(sdcard_mmap_filename)
         self.assertTrue(ret)
         
         # Create partitions
@@ -160,7 +160,11 @@ class SDCardInstallerTestCase(unittest.TestCase):
         self._inst.device = test_device
         
         sdcard_mmap_filename = '%s/images/sd-mmap.config' % devdir
-        ret = self._inst.format_sd(sdcard_mmap_filename)
+        
+        ret = self._inst.read_partitions(sdcard_mmap_filename)
+        self.assertTrue(ret)
+        
+        ret = self._inst.format_sd()
         self.assertTrue(ret)
         
         ret = self._inst.mount_partitions('%s/images' % devdir)
@@ -214,12 +218,13 @@ class SDCardInstallerTestCase(unittest.TestCase):
         sdcard_mmap_filename = '%s/images/sd-mmap.config' % devdir
         image_name = '%s/images/test_image.img' % devdir
         
-        ret = self._inst.format_loopdevice(sdcard_mmap_filename, image_name,
-                                           image_size_mb=1)
+        ret = self._inst.read_partitions(sdcard_mmap_filename)
+        self.assertTrue(ret)
+        
+        ret = self._inst.format_loopdevice(image_name, image_size_mb=1)
         self.assertFalse(ret) # Fail with small image size
         
-        ret = self._inst.format_loopdevice(sdcard_mmap_filename, image_name,
-                                           image_size_mb=256)
+        ret = self._inst.format_loopdevice(image_name, image_size_mb=256)
         self.assertTrue(ret)
         
         ret = self._inst.mount_partitions('%s/images' % devdir)

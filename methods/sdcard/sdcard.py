@@ -38,10 +38,11 @@ class SDCardInstaller(object):
     
     Typical flow:
     ::
-        1. format_sd() / format_loopdevice()
-        2. mount_partitions()
-        3. install_components()
-        4. release_device()
+        1. read_partitions()
+        2. format_sd() / format_loopdevice()
+        3. mount_partitions()
+        4. install_components()
+        5. release_device()
     """
 
     #: Warn the user when partitioning a device above this size.
@@ -331,17 +332,19 @@ class SDCardInstaller(object):
     
     def mount_partitions(self, directory):
         """
-        Mounts the partitions of the given device in the specified directory.
-        To register partitions use read_partitions().
+        Mounts the partitions in the specified directory.
         
         I.e., if the partitions are called "boot" and "rootfs", and the given
-        dir is "/media", this function will mount:
+        directory is "/media", this function will mount:
         
-           /media/boot
-           /media/rootfs
+           - /media/boot
+           - /media/rootfs
         
-        Returns true on success; false otherwise.
+        :param directory: Directory where to mount the partitions.
+        :returns: Returns true on success; false otherwise.
         """
+        
+        if not self._partitions: return True
         
         directory = directory.rstrip('/')
         if not os.path.isdir(directory):
@@ -411,8 +414,7 @@ class SDCardInstaller(object):
     
     def _create_partitions(self):
         """
-        Create the partitions in the given device. To register
-        partitions use read_partitions().
+        Create the partitions in the given device.
         
         Returns true on success; false otherwise
         """
@@ -506,13 +508,17 @@ class SDCardInstaller(object):
         
         return True
 
-    def format_sd(self, mmap_filename):
+    def format_sd(self):
         """
-        This function will create and format the partitions as specified
-        by the 'mmap-config-file' referenced by mmap_filename.
+        Creates and formats the partitions in the SD card.
         
-        Returns true on success; false otherwise. 
+        :returns: Returns true on success; false otherwise. 
         """
+        
+        if not self._partitions: return True
+        if self._mode != SDCardInstaller.MODE_SD:
+            self._logger.error('Not in MODE_SD.')
+            return False
         
         # Check that the device is actually an SD card
         if self._interactive:
@@ -534,10 +540,6 @@ class SDCardInstaller(object):
                 self._logger.error('Failed auto-unmounting %s, refusing to '
                                    'install' % self._device)
                 return False
-        
-        self._logger.info('Reading %s ...' % mmap_filename)
-        if not self._read_partitions(mmap_filename):    
-            return False
         
         self._logger.info('Creating partitions on %s ...' % self._device)
         if not self._create_partitions():
@@ -578,8 +580,8 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise.
         """
         
-        cmd =  'dd if=/dev/zero of=%s bs=1M count=%s' % (image_name,
-                                                         image_size)
+        cmd = 'dd if=/dev/zero of=%s bs=1M count=%s' % (image_name,
+                                                        image_size)
         ret = self._executer.check_call(cmd)
         if ret != 0:
             self._logger.error('Failed to create file for the image %s'
@@ -649,18 +651,20 @@ class SDCardInstaller(object):
             partition_index += 1
         return True
     
-    def format_loopdevice(self, filename, image_filename, image_size_mb):
+    def format_loopdevice(self, image_filename, image_size_mb):
         """
-        This function will create and format the partitions as specified
-        by the 'mmap-config-file' referenced by mmap_filename in the image
-        file referenced by image_filename. The size in megabytes of the
-        resulting image can be specified using image_size_mb.
+        Creates and formats the partitions in the loopdevice.
         
-        Returns true on success; false otherwise. 
+        :param image_filename: Filename of the loopback image to create.
+        :param image_size_mb: Loopback image size, in megabytes.
+        :returns: Returns true on success; false otherwise. 
         """
         
-        self._logger.info('Reading %s ...' % filename)
-        if not self._read_partitions(filename): return False
+        if not self._partitions: return True
+        
+        if self._mode != SDCardInstaller.MODE_LOOPBACK:
+            self._logger.error('Not in MODE_LOOPBACK.')
+            return False
         
         if not self._test_image_size(image_size_mb): return False
         
@@ -754,19 +758,22 @@ class SDCardInstaller(object):
         """
         Unmounts all partitions and release the given device.
         
-        Returns true on success; false otherwise.
+        :returns: Returns true on success; false otherwise.
         """
+        
+        if not self._partitions: return True
         
         if self._mode == SDCardInstaller.MODE_SD:
             return self._release_sd()
         elif self.mode == SDCardInstaller.MODE_LOOPBACK:
             return self._release_loopdevice()
 
-    def _read_partitions(self, filename):
+    def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
         
-        Returns true on success; false otherwise.  
+        :param filename: Path to the file with the partitions information.
+        :returns: Returns true on success; false otherwise.  
         """
         
         # Reset the partitions list
@@ -867,7 +874,7 @@ class SDCardInstaller(object):
         """
         Installs the specified components for each partition.
         
-        Returns true on success, false otherwise.
+        :returns: Returns true on success, false otherwise.
         """
         
         partition_index = 1
