@@ -252,7 +252,8 @@ def _parse_args():
                        dest='uboot_load_addr')
     
     _parser.add_option('--uboot-bootargs',
-                       help='U-Boot bootargs environment variable (passed to the Linux kernel)',
+                       help='U-Boot bootargs environment variable (passed to" \
+                       " the Linux kernel)',
                        metavar='<uboot_bootargs>',
                        dest='uboot_bootargs')
     
@@ -373,7 +374,8 @@ def main():
     _init_logging()
     _parse_args()
 
-    if _options.installation_mode == MODE_SD or _options.installation_mode == MODE_LOOPBACK:
+    if (_options.installation_mode == MODE_SD or
+        _options.installation_mode == MODE_LOOPBACK):
         
         # Components installer
         
@@ -404,7 +406,7 @@ def main():
             sd_installer.mode = sd_installer.MODE_SD
             ret = sd_installer.format_sd()
             if ret is False: _abort_install()
-        else:
+        elif _options.installation_mode == MODE_LOOPBACK:
             sd_installer.mode = sd_installer.MODE_LOOPBACK
             ret = sd_installer.format_loopdevice(_options.workdir +
                                                  _options.image, 
