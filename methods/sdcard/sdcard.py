@@ -36,18 +36,12 @@ class SDCardInstaller(object):
     """
     Class to handle SD-card operations to support the installer.
     
-    Typical flow - :const:`MODE_SD`:
+    Typical flow:
     ::
-        1. format_sd()
+        1. format_sd() / format_loopdevice()
         2. mount_partitions()
         3. install_components()
-        
-    Typical flow - :const:`MODE_LOOPBACK`:
-    ::
-        1. format_loopdevice()
-        2. mount_partitions()
-        3. install_components()
-        4. release_loopdevice()
+        4. release_device()
     """
 
     #: Warn the user when partitioning a device above this size.
@@ -553,10 +547,6 @@ class SDCardInstaller(object):
         if not self._format_partitions():
             return False
         
-        self._logger.info('Checking filesystems on %s ...' % self._device)
-        if not self._check_filesystems():
-            return False
-        
         return True
     
     def _test_image_size(self, image_size):
@@ -716,7 +706,20 @@ class SDCardInstaller(object):
         
         return True
     
-    def release_loopdevice(self):
+    def _release_sd(self):
+        """
+        Unmounts all the partitions in the SD card.
+        
+        Returns true on success; false otherwise. 
+        """
+            
+        self._logger.info('Checking filesystems on %s ...' % self._device)
+        if not self._check_filesystems():
+            return False
+        
+        return True
+    
+    def _release_loopdevice(self):
         """
         Releases all loopdevices used when creating an image file. Should be
         run after finishing the process.
@@ -746,7 +749,19 @@ class SDCardInstaller(object):
         if not ret: return False
         
         return True
-    
+
+    def release_device(self):
+        """
+        Unmounts all partitions and release the given device.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        if self._mode == SDCardInstaller.MODE_SD:
+            return self._release_sd()
+        elif self.mode == SDCardInstaller.MODE_LOOPBACK:
+            return self._release_loopdevice()
+
     def _read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
@@ -899,7 +914,7 @@ class SDCardInstaller(object):
             partition_index += 1
         
         return True
-                
+    
     def __str__(self):
         _str  = ''
         _str += 'Interactive: ' + ('On' if self._interactive else "Off") + '\n'

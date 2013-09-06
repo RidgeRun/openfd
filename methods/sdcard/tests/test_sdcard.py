@@ -168,6 +168,9 @@ class SDCardInstallerTestCase(unittest.TestCase):
         
         ret = self._inst.install_components()
         self.assertTrue(ret)
+        
+        ret = self._inst.release_device()
+        self.assertTrue(ret)
     
     def test_install_dryrun_sd(self):
         self.test_install_sd(dryrun=True)
@@ -222,7 +225,7 @@ class SDCardInstallerTestCase(unittest.TestCase):
         ret = self._inst.mount_partitions('%s/images' % devdir)
         self.assertTrue(ret)
         
-        ret = self._inst.release_loopdevice()
+        ret = self._inst.release_device()
         self.assertTrue(ret)        
 
     def test_install_dryrun_loopback(self):
