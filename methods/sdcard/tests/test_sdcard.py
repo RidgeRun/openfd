@@ -204,6 +204,33 @@ class SDCardInstallerTestCase(unittest.TestCase):
                 else:
                     print "User declined auto-unmount"
 
+    def test_install_loopback(self, dryrun=False):
+        
+        self._inst.mode = SDCardInstaller.MODE_LOOPBACK
+        self._inst.dryrun = dryrun
+        self._inst.interactive = False
+        self._inst.device = test_device
+        
+        sdcard_mmap_filename = '%s/images/sd-mmap.config' % devdir
+        image_name = '%s/images/test_image.img' % devdir
+        
+        ret = self._inst.format_loopdevice(sdcard_mmap_filename, image_name,
+                                           image_size=1)
+        self.assertFalse(ret) # Fail with small image size
+        
+        ret = self._inst.format_loopdevice(sdcard_mmap_filename, image_name,
+                                           image_size=256)
+        self.assertTrue(ret)
+        
+        ret = self._inst.mount_partitions('%s/images' % devdir)
+        self.assertTrue(ret)
+        
+        ret = self._inst.release_loopdevice()
+        self.assertTrue(ret)        
+
+    def test_install_dryrun_loopback(self):
+        self.test_install_loopback(dryrun=True)
+
     def test_special(self):
         print self._inst.__str__()
 
