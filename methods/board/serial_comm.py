@@ -20,6 +20,7 @@
 # ==========================================================================
 
 import time
+import os
 import re
 import serial
 import rrutils
@@ -31,6 +32,8 @@ import rrutils
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUDRATE = 115200
 DEFAULT_READ_TIMEOUT = 2
+DEFAULT_TFTP_DIR = '/srv/tftp'
+DEFAULT_TFT_PORT = 69
 
 # ==========================================================================
 # Public Classes
@@ -42,12 +45,20 @@ class SerialInstaller(object):
     pySerial.
     """
         
-    def __init__(self, nand_block_size=0, nand_page_size=0):
+    def __init__(self, nand_block_size=0, nand_page_size=0,
+                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
+                 dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
+        :param tftp_dir: TFTP root directory.
+        :param tftp_port: TFTP server port.
+        :type tftp_port: integer
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
         """
         
         self._logger = rrutils.logger.get_global_logger()
@@ -56,7 +67,9 @@ class SerialInstaller(object):
         self._port = None
         self._nand_block_size = nand_block_size
         self._page_page_size = nand_page_size
-        self._dryrun = False
+        self._tftp_dir = tftp_dir
+        self._tftp_port = tftp_port
+        self._dryrun = dryrun
 
     @classmethod
     def uboot_comm_error_msg(cls, port):
@@ -81,16 +94,23 @@ class SerialInstaller(object):
         
         return self._port
     
-    def check_open_port(self):
-        """
-        Returns true if the port is opened; false otherwise.
-        """
-        
-        if self._port is None:
-            self._logger.error('No opened port (try open_comm() first)')
-            return False
-        else:
-            return True
+    def __set_tftp_port(self, port):
+        self._tftp_port = port
+    
+    def __get_tftp_port(self):
+        return self._tftp_port
+    
+    dryrun = property(__get_tftp_port, __set_tftp_port,
+                     doc="""TFTP server port.""")
+    
+    def __set_tftp_dir(self, directory):
+        self._tftp_dir = directory
+    
+    def __get_tftp_dir(self):
+        return self._tftp_dir
+    
+    dryrun = property(__get_tftp_dir, __set_tftp_dir,
+                     doc="""TFTP root directory.""")
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
@@ -115,7 +135,7 @@ class SerialInstaller(object):
         
         # Ask uboot
         
-        if self.check_open_port() is False: return 0
+        if self._check_open_port() is False: return 0
         
         self._port.write('nand info\n')
         ret, line = self.expect('Device 0')
@@ -134,9 +154,7 @@ class SerialInstaller(object):
             size_kb = int(m.group('size_kb'))
         else:
             self._logger.error('Unable to determine the NAND block size')
-        
         self._nand_block_size = size_kb << 10
-        
         return self._nand_block_size
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
@@ -156,7 +174,7 @@ class SerialInstaller(object):
         
         # Ask uboot
         
-        if self.check_open_port() is False: return 0
+        if self._check_open_port() is False: return 0
         
         page_size = 0
         possible_sizes=['0200', '0400', '0800', '1000']
@@ -185,7 +203,18 @@ class SerialInstaller(object):
                           doc="""NAND page size (bytes). The value will be
                            obtained from uboot (once), unless manually
                            specified.""")
-    
+
+    def _check_open_port(self):
+        """
+        Checks if the port is opened.
+        """
+        
+        if self._port is None:
+            self._logger.error('No opened port (try open_comm() first)')
+            return False
+        else:
+            return True
+
     def open_comm(self, port=DEFAULT_PORT,
                   baud=DEFAULT_BAUDRATE,
                   timeout=DEFAULT_READ_TIMEOUT):
@@ -237,15 +266,15 @@ class SerialInstaller(object):
         Expects a response from the serial port for no more than timeout
         seconds.
         
-        The lines read from the serial port will be stripped before
-        being compared with response.
+        The lines read from the serial port will be stripped before being
+        compared with response.
         
         :param response: A string to expect in the serial port.
         :param timeout: Timeout in seconds to wait for the response.
         :return: Returns a tuple with two items. The first item is true if the
-            response was found; false otherwise. The second tem is the complete
-            line where the response was found, or the last line read if the
-            response wasn't found and the timeout reached. The line is
+            response was found; false otherwise. The second item is the
+            complete line where the response was found, or the last line read
+            if the response wasn't found and the timeout reached. The line is
             returned stripped.
         """
         
@@ -253,7 +282,7 @@ class SerialInstaller(object):
         line = ''
         start_time = time.time()
         
-        if self.check_open_port() is False: return False, ''
+        if self._check_open_port() is False: return False, ''
         
         while not found:
             
@@ -276,10 +305,10 @@ class SerialInstaller(object):
         Synchronizes with uboot. If successful, uboot's prompt will 
         be ready to receive commands after this call.
             
-        Returns true on success; false otherwise.
+        :return: Returns true on success; false otherwise.
         """
     
-        if self.check_open_port() is False: return False
+        if self._check_open_port() is False: return False
     
         self._port.flush()
         self._port.write('echo resync\n')
@@ -289,6 +318,31 @@ class SerialInstaller(object):
         if not ret:
             msg = SerialInstaller.uboot_comm_error_msg(self._port.port)
             self._logger.error(msg)
+            return False
+        
+        return True
+    
+    def _check_tftp_settings(self):
+        """
+        Checks TFTP settings (dir and port).
+        """
+        
+        if not os.path.isdir(self._tftp_dir):
+            self._logger.error("Can't deploy firmware to '%s', the directory "
+                               "doesn't exist" % self._tftp_dir)
+            return False
+        
+        if not os.access(self._tftp_dir, os.W_OK):
+            self._logger.error("Can't deploy firmware to '%s', the directory "
+                               "is not writable" % self._tftp_dir)
+            return False
+        
+        cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
+        ret = self._executer.check_call(cmd)
+        if ret != 0:
+            self._logger.error("Seems like you aren't running tftp udp server "
+                               "on port %d, please check your server settings"
+                               % self._tftp_port)
             return False
         
         return True

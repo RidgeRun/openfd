@@ -63,6 +63,13 @@ class SerialInstallerTestCase(unittest.TestCase):
         self._inst.nand_page_size = 0
         self.assertEqual(self._inst.nand_page_size, 2048)
 
+    def test_tftp_settings(self):
+
+        self._inst.tftp_dir = '/srv/tftp'
+        self._inst.tftp_port = 69        
+        ret = self._inst._check_tftp_settings()
+        self.assertTrue(ret)
+
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SerialInstallerTestCase)
     unittest.TextTestRunner(verbosity=2).run(suite)
