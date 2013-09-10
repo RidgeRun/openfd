@@ -22,6 +22,7 @@ sys.path.insert(1, os.path.abspath('..'))
 
 import rrutils
 import serial_comm
+import time
 
 class SerialInstallerTestCase(unittest.TestCase):
     
@@ -38,6 +39,7 @@ class SerialInstallerTestCase(unittest.TestCase):
         
     def tearDown(self):
         self._inst.close_comm()
+        time.sleep(2)
         
     def test_uboot_sync(self):
         ret = self._inst.uboot_sync()
@@ -66,9 +68,17 @@ class SerialInstallerTestCase(unittest.TestCase):
     def test_tftp_settings(self):
 
         self._inst.tftp_dir = '/srv/tftp'
-        self._inst.tftp_port = 69        
+        self._inst.tftp_port = 69
         ret = self._inst._check_tftp_settings()
         self.assertTrue(ret)
+
+    def test_uboot_env(self):
+        
+        value = self._inst._uboot_env('kerneloffset')
+        self.assertEqual(value, '0x400000')
+        
+        value = self._inst._uboot_env('importbootenv')
+        self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SerialInstallerTestCase)

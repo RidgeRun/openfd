@@ -47,7 +47,7 @@ class SerialInstaller(object):
         
     def __init__(self, nand_block_size=0, nand_page_size=0,
                  tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
-                 dryrun=False):
+                 force_install=False, dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
@@ -56,6 +56,8 @@ class SerialInstaller(object):
         :param tftp_dir: TFTP root directory.
         :param tftp_port: TFTP server port.
         :type tftp_port: integer
+        :param force_install: Forces the requested installation.
+        :type force_install: boolean
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
             but not executed.
         :type dryrun: boolean
@@ -69,6 +71,7 @@ class SerialInstaller(object):
         self._page_page_size = nand_page_size
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
+        self._force_install = force_install
         self._dryrun = dryrun
 
     @classmethod
@@ -111,6 +114,15 @@ class SerialInstaller(object):
     
     dryrun = property(__get_tftp_dir, __set_tftp_dir,
                      doc="""TFTP root directory.""")
+    
+    def __set_force_install(self, force_install):
+        self._force_install = force_install
+        
+    def __get_force_install(self):
+        return self._force_install
+    
+    force_install = property(__get_force_install, __set_force_install,
+                     doc="""Forces the requested installation.""")
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
@@ -344,5 +356,46 @@ class SerialInstaller(object):
                                "on port %d, please check your server settings"
                                % self._tftp_port)
             return False
+        
+        return True
+
+    def _check_icache(self):
+        """
+        Checks availability of the 'icache' uboot command.
+        """
+        
+        self._port.write('icache\n')
+        ret = self.expect('Instruction Cache is')[0]
+        if ret is False:
+            self._logger.error("Your uboot doesn't have icache command, "
+               "refusing to continue due risk of hanging.\nYou can update "
+               "your bootloader by other means like SD card or use"
+               " --force_install=yes")
+            return False
+        return True
+
+    def _uboot_env(self, variable):
+        """
+        Reads the value of the u-boot env variable.
+        """
+        
+        value=''
+        self._port.write('printenv\n')
+        ret, line = self.expect('%s=' % variable)
+        if ret:
+            m = re.match('.*=(?P<value>.*)', line)
+            if m:
+                value = m.group('value').strip()
+        return value
+
+    def install_bootloader(self):
+                
+        ret = self._uboot_sync()
+        if ret is False: return False
+        
+        ret = self._check_icache()
+        if ret is False and not self._force_install: return False
+        
+        
         
         return True
