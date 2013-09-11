@@ -47,7 +47,7 @@ class SerialInstaller(object):
         
     def __init__(self, nand_block_size=0, nand_page_size=0,
                  tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
-                 force_install=False, dryrun=False):
+                 force_install=False, uboot_dryrun=False, dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
@@ -58,7 +58,10 @@ class SerialInstaller(object):
         :type tftp_port: integer
         :param force_install: Forces the requested installation.
         :type force_install: boolean
-        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be logged,
+            but not executed.
+        :type uboot_dryrun: boolean
+        :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
         """
@@ -72,6 +75,8 @@ class SerialInstaller(object):
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._force_install = force_install
+        self._uboot_prompt = ''
+        self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
 
     @classmethod
@@ -124,6 +129,16 @@ class SerialInstaller(object):
     force_install = property(__get_force_install, __set_force_install,
                      doc="""Forces the requested installation.""")
     
+    def __set_uboot_dryrun(self, dryrun):
+        self._uboot_dryrun = dryrun
+    
+    def __get_uboot_dryrun(self):
+        return self._uboot_dryrun
+    
+    uboot_dryrun = property(__get_uboot_dryrun, __set_uboot_dryrun,
+                     doc="""Enable uboot dryrun mode. Uboot commands will be
+                     logged, but not executed.""")
+    
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
         self._executer.dryrun = dryrun
@@ -132,7 +147,7 @@ class SerialInstaller(object):
         return self._dryrun
     
     dryrun = property(__get_dryrun, __set_dryrun,
-                     doc="""Enable dryrun mode. Systems commands will be
+                     doc="""Enable dryrun mode. System commands will be
                      logged, but not executed.""")
 
     def __set_nand_block_size(self, size):
@@ -149,7 +164,9 @@ class SerialInstaller(object):
         
         if self._check_open_port() is False: return 0
         
-        self._port.write('nand info\n')
+        ret = self.uboot_cmd('nand info')
+        if ret is False: return False
+            
         ret, line = self.expect('Device 0')
         if not ret:
             self._logger.error('Can\'t find Device 0')
@@ -167,6 +184,7 @@ class SerialInstaller(object):
         else:
             self._logger.error('Unable to determine the NAND block size')
         self._nand_block_size = size_kb << 10
+        self._logger.debug('NAND block size: %d bytes' % self._nand_block_size)
         return self._nand_block_size
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
@@ -193,7 +211,9 @@ class SerialInstaller(object):
         
         for size in possible_sizes:
             
-            self._port.write('nand dump.oob %s\n' % size)
+            ret = self.uboot_cmd('nand dump.oob %s' % size)
+            if ret is False: return False
+            
             ret, line = self.expect('Page 0000')
             if not ret: continue
             
@@ -208,7 +228,8 @@ class SerialInstaller(object):
             self._logger.error('Unable to determine the NAND page size')
         else:
             self._nand_page_size = page_size
-
+            self._logger.debug('NAND page size: %d bytes' %
+                               self._nand_page_size)
         return self._nand_page_size
     
     nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
@@ -248,9 +269,9 @@ class SerialInstaller(object):
                '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
                '-parenb -parodd -inpck' % (port, baud))
         
-        ret = self._executer.call(cmd)
+        ret, output = self._executer.check_output(cmd)
         if ret != 0:
-            self._logger.error('Couldn\'t change terminal line settings')
+            self._logger.error(output)
             return False
         
         # Open the serial port
@@ -304,7 +325,7 @@ class SerialInstaller(object):
                 self._logger.error(e)
                 return False, ''
             
-            if line.find(response) != -1:
+            if response in line:
                 found = True
             
             if (time.time() - start_time) > timeout:
@@ -324,16 +345,59 @@ class SerialInstaller(object):
     
         self._port.flush()
         self._port.write('echo resync\n')
-        
+        self.expect('echo resync') # Ignore the echo
         ret = self.expect('resync', timeout=1)[0]
-        
         if not ret:
             msg = SerialInstaller.uboot_comm_error_msg(self._port.port)
             self._logger.error(msg)
             return False
         
+        # Identify the prompt in the following line
+        try:
+            line = self._port.readline().strip('\s\r\n')
+        except (serial.SerialException, OSError) as e:
+            self._logger.error(e)
+            return False, ''
+        
+        m = re.match('(?P<prompt>.*) $', line)
+        if m:
+            self._uboot_prompt = m.group('prompt').strip()
+            self._logger.debug('Uboot prompt: %s' % self._uboot_prompt)
+
         return True
     
+    def uboot_cmd(self, cmd):
+        """
+        Sends a command to uboot.
+        
+        :param cmd: Command.
+        :returns: Returns true on sucess; false otherwise.
+        """
+        
+        self._logger.info("Uboot: '%s'" % cmd)
+        
+        if not self._uboot_dryrun and self._port:
+        
+            # Send the command and expect it echoed back
+            self._port.write('%s\n' % cmd)
+            time.sleep(0.1)
+            ret, line = self.expect(cmd)
+            if ret is False:
+                self._logger.error("Uboot didn't echo the command, maybe "
+                    "it froze. This is the log of the last command: %s" % line)
+                return False
+        
+            # Wait for the prompt
+            if self._uboot_prompt:
+                ret = self.expect(self._uboot_prompt)
+                if ret is False:
+                    self._logger.error("Didn't get the uboot prompt back. "
+                       "This is the log of the last command: %s" % line)
+                    return False
+        
+        return True
+            
+        
     def _check_tftp_settings(self):
         """
         Checks TFTP settings (dir and port).
@@ -364,7 +428,9 @@ class SerialInstaller(object):
         Checks availability of the 'icache' uboot command.
         """
         
-        self._port.write('icache\n')
+        ret = self.uboot_cmd('icache')
+        if ret is False: return False 
+        
         ret = self.expect('Instruction Cache is')[0]
         if ret is False:
             self._logger.error("Your uboot doesn't have icache command, "
@@ -373,14 +439,17 @@ class SerialInstaller(object):
                " --force_install=yes")
             return False
         return True
-
+    
     def _uboot_env(self, variable):
         """
         Reads the value of the u-boot env variable.
         """
         
         value=''
-        self._port.write('printenv\n')
+        
+        ret = self.uboot_cmd('printenv')
+        if ret is False: return ''
+        
         ret, line = self.expect('%s=' % variable)
         if ret:
             m = re.match('.*=(?P<value>.*)', line)
@@ -396,6 +465,7 @@ class SerialInstaller(object):
         ret = self._check_icache()
         if ret is False and not self._force_install: return False
         
-        
+        prev_bootcmd = self._uboot_env('bootcmd')
+        self._logger.info('Loading bootloader')
         
         return True

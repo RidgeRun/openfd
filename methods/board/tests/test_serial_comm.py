@@ -39,7 +39,6 @@ class SerialInstallerTestCase(unittest.TestCase):
         
     def tearDown(self):
         self._inst.close_comm()
-        time.sleep(2)
         
     def test_uboot_sync(self):
         ret = self._inst.uboot_sync()
@@ -74,11 +73,22 @@ class SerialInstallerTestCase(unittest.TestCase):
 
     def test_uboot_env(self):
         
-        value = self._inst._uboot_env('kerneloffset')
-        self.assertEqual(value, '0x400000')
+        test_env = False
+        if test_env:
+            
+            value = self._inst._uboot_env('kerneloffset')
+            self.assertEqual(value, '0x400000')
+            
+            value = self._inst._uboot_env('importbootenv')
+            self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
+
+    def test_uboot_cmd(self):
         
-        value = self._inst._uboot_env('importbootenv')
-        self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
+        test_cmd = False
+        if test_cmd:
+            
+            ret = self._inst.uboot_cmd('nand info')
+            self.assertTrue(ret)
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SerialInstallerTestCase)
