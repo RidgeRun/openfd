@@ -29,7 +29,7 @@ class SerialInstallerTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         rrutils.logger.basic_config(verbose=True)
-        logger = rrutils.logger.get_global_logger('serial_comm-test')
+        logger = rrutils.logger.get_global_logger('SerialInstaller')
         logger.setLevel(rrutils.logger.DEBUG)
     
     def setUp(self):
@@ -64,13 +64,6 @@ class SerialInstallerTestCase(unittest.TestCase):
         self._inst.nand_page_size = 0
         self.assertEqual(self._inst.nand_page_size, 2048)
 
-    def test_tftp_settings(self):
-
-        self._inst.tftp_dir = '/srv/tftp'
-        self._inst.tftp_port = 69
-        ret = self._inst._check_tftp_settings()
-        self.assertTrue(ret)
-
     def test_uboot_env(self):
         
         test_env = False
@@ -90,6 +83,30 @@ class SerialInstallerTestCase(unittest.TestCase):
             ret = self._inst.uboot_cmd('nand info')
             self.assertTrue(ret)
 
+class SerialInstallerTFTPTestCase(unittest.TestCase):
+    
+    @classmethod
+    def setUpClass(cls):
+        rrutils.logger.basic_config(verbose=True)
+        logger = rrutils.logger.get_global_logger('SerialInstallerTFTP')
+        logger.setLevel(rrutils.logger.DEBUG)
+    
+    def setUp(self):
+        self._inst = serial_comm.SerialInstallerTFTP()
+        ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
+        self.assertTrue(ret)
+
+    def tearDown(self):
+        self._inst.close_comm()
+        
+    def test_tftp_settings(self):
+        self._inst.tftp_dir = '/srv/tftp'
+        self._inst.tftp_port = 69
+        ret = self._inst._check_tftp_settings()
+        self.assertTrue(ret)
+
 if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(SerialInstallerTestCase)
+    loader = unittest.TestLoader() 
+    suite = loader.loadTestsFromTestCase(SerialInstallerTestCase)
+    suite.addTests(loader.loadTestsFromTestCase(SerialInstallerTFTPTestCase))
     unittest.TextTestRunner(verbosity=2).run(suite)

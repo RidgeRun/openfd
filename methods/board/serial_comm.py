@@ -44,20 +44,14 @@ class SerialInstaller(object):
     Serial communication operations to support the installer. Based on
     pySerial.
     """
-        
+    
     def __init__(self, nand_block_size=0, nand_page_size=0,
-                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
                  force_install=False, uboot_dryrun=False, dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
-        :param tftp_dir: TFTP root directory.
-        :param tftp_port: TFTP server port.
-        :type tftp_port: integer
-        :param force_install: Forces the requested installation.
-        :type force_install: boolean
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be logged,
             but not executed.
         :type uboot_dryrun: boolean
@@ -72,8 +66,6 @@ class SerialInstaller(object):
         self._port = None
         self._nand_block_size = nand_block_size
         self._page_page_size = nand_page_size
-        self._tftp_dir = tftp_dir
-        self._tftp_port = tftp_port
         self._force_install = force_install
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
@@ -101,24 +93,6 @@ class SerialInstaller(object):
         """
         
         return self._port
-    
-    def __set_tftp_port(self, port):
-        self._tftp_port = port
-    
-    def __get_tftp_port(self):
-        return self._tftp_port
-    
-    dryrun = property(__get_tftp_port, __set_tftp_port,
-                     doc="""TFTP server port.""")
-    
-    def __set_tftp_dir(self, directory):
-        self._tftp_dir = directory
-    
-    def __get_tftp_dir(self):
-        return self._tftp_dir
-    
-    dryrun = property(__get_tftp_dir, __set_tftp_dir,
-                     doc="""TFTP root directory.""")
     
     def __set_force_install(self, force_install):
         self._force_install = force_install
@@ -396,32 +370,6 @@ class SerialInstaller(object):
                     return False
         
         return True
-            
-        
-    def _check_tftp_settings(self):
-        """
-        Checks TFTP settings (dir and port).
-        """
-        
-        if not os.path.isdir(self._tftp_dir):
-            self._logger.error("Can't deploy firmware to '%s', the directory "
-                               "doesn't exist" % self._tftp_dir)
-            return False
-        
-        if not os.access(self._tftp_dir, os.W_OK):
-            self._logger.error("Can't deploy firmware to '%s', the directory "
-                               "is not writable" % self._tftp_dir)
-            return False
-        
-        cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
-        ret = self._executer.check_call(cmd)
-        if ret != 0:
-            self._logger.error("Seems like you aren't running tftp udp server "
-                               "on port %d, please check your server settings"
-                               % self._tftp_port)
-            return False
-        
-        return True
 
     def _check_icache(self):
         """
@@ -447,8 +395,7 @@ class SerialInstaller(object):
         
         value=''
         
-        ret = self.uboot_cmd('printenv')
-        if ret is False: return ''
+        if not self.uboot_cmd('printenv'): return ''
         
         ret, line = self.expect('%s=' % variable)
         if ret:
@@ -457,8 +404,11 @@ class SerialInstaller(object):
                 value = m.group('value').strip()
         return value
 
+    def _load_file_to_ram(self, filename):
+        raise NotImplementedError
+
     def install_bootloader(self):
-                
+        
         ret = self._uboot_sync()
         if ret is False: return False
         
@@ -466,6 +416,85 @@ class SerialInstaller(object):
         if ret is False and not self._force_install: return False
         
         prev_bootcmd = self._uboot_env('bootcmd')
-        self._logger.info('Loading bootloader')
+        
+        ret = self.uboot_cmd('setenv bootcmd')
+        if ret is False: return False
+        
+        ret = self.uboot_cmd('saveenv')
+        if ret is False: return False
+        
+        self._load_file_to_ram()
         
         return True
+
+class SerialInstallerTFTP(SerialInstaller):
+    
+    def __init__(self, nand_block_size=0, nand_page_size=0,
+                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
+                 force_install=False, uboot_dryrun=False, dryrun=False):
+        """
+        :param nand_block_size: NAND block size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param nand_page_size: NAND page size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param tftp_dir: TFTP root directory.
+        :param tftp_port: TFTP server port.
+        :type tftp_port: integer
+        :param force_install: Forces the requested installation.
+        :type force_install: boolean
+        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be logged,
+            but not executed.
+        :type uboot_dryrun: boolean
+        :param dryrun: Enable dryrun mode. System commands will be logged,
+            but not executed.
+        :type dryrun: boolean
+        """    
+        SerialInstaller.__init__(self, nand_block_size, nand_page_size,
+                                 force_install, uboot_dryrun, dryrun)
+        self._tftp_dir = tftp_dir
+        self._tftp_port = tftp_port
+
+    def __set_tftp_port(self, port):
+        self._tftp_port = port
+    
+    def __get_tftp_port(self):
+        return self._tftp_port
+    
+    tftp_port = property(__get_tftp_port, __set_tftp_port,
+                     doc="""TFTP server port.""")
+    
+    def __set_tftp_dir(self, directory):
+        self._tftp_dir = directory
+    
+    def __get_tftp_dir(self):
+        return self._tftp_dir
+    
+    tftp_dir = property(__get_tftp_dir, __set_tftp_dir,
+                     doc="""TFTP root directory.""")
+
+    def _check_tftp_settings(self):
+        """
+        Checks TFTP settings (dir and port).
+        """
+        
+        if not os.path.isdir(self._tftp_dir):
+            self._logger.error("Can't deploy firmware to '%s', the directory "
+                               "doesn't exist" % self._tftp_dir)
+            return False
+        
+        if not os.access(self._tftp_dir, os.W_OK):
+            self._logger.error("Can't deploy firmware to '%s', the directory "
+                               "is not writable" % self._tftp_dir)
+            return False
+        
+        cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
+        ret = self._executer.check_call(cmd)
+        if ret != 0:
+            self._logger.error("Seems like you aren't running tftp udp server "
+                               "on port %d, please check your server settings"
+                               % self._tftp_port)
+            return False
+        
+        return True
+
+    
