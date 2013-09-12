@@ -29,6 +29,8 @@ import rrutils.hexutils as hexutils
 # Constants
 # ==========================================================================
 
+CTRL_C = '\x03'
+
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUDRATE = 115200
 DEFAULT_READ_TIMEOUT = 2
@@ -387,17 +389,18 @@ class SerialInstaller(object):
             if echo_timeout:
                 ret, line = self.expect(cmd, echo_timeout)
                 if ret is False:
-                    self._logger.error("Uboot didn't echo the command, maybe "
-                        "it froze. This is the log of the last command: %s" %
-                        line)
+                    self._logger.error("Uboot didn't echo the '%s' command, "
+                       "maybe it froze. This is the log of the last "
+                       "command: %s" % (cmd.strip(), line))
                     return False
         
             # Wait for the prompt
             if self._uboot_prompt and prompt_timeout:
                 ret = self.expect(self._uboot_prompt, timeout=prompt_timeout)
                 if ret is False:
-                    self._logger.error("Didn't get the uboot prompt back. "
-                       "This is the log of the last command: %s" % line)
+                    self._logger.error("Didn't get the uboot prompt back "
+                       "after executing the '%s' command. This is the log of "
+                       "the last command: %s" % (cmd.strip(), line))
                     return False
         
         return True
@@ -414,8 +417,8 @@ class SerialInstaller(object):
         if ret is False:
             self._logger.error("Your uboot doesn't have icache command, "
                "refusing to continue due risk of hanging.\nYou can update "
-               "your bootloader by other means like SD card or use"
-               " --force_install=yes")
+               "your bootloader by other means like SD card or use "
+               "--force_install=yes")
             return False
         return True
     
@@ -634,7 +637,18 @@ class SerialInstallerTFTP(SerialInstaller):
             if ret is False: return False
             ret = self._uboot_set_env('autostart', 'no')
             if ret is False: return False
-        
+            ret = self.uboot_cmd('dhcp', prompt_timeout=None)
+            if ret is False: return False
+            # If dhcp failed at retry 3, stop and report the error
+            dhcp_error_line = 'BOOTP broadcast 3'
+            found_error, line = self.expect(dhcp_error_line, timeout=6)
+            if found_error:
+                self.uboot_cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
+                self._logger.error("Looks like your network doesn't have "
+                       "dhcp enabled or you don't have an ethernet link. "
+                       "Output from the bootloader: '%s'" % line)
+                return False
+
         ret = self._uboot_set_env('serverip', self._host_ipaddr)
         if ret is False: return False
         
