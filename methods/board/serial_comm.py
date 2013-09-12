@@ -21,6 +21,7 @@
 import time
 import os
 import re
+import math
 import serial
 import rrutils
 import rrutils.hexutils as hexutils
@@ -162,7 +163,7 @@ class SerialInstaller(object):
         
         if self._check_open_port() is False: return 0
         
-        ret = self.uboot_cmd('nand info')
+        ret = self.uboot_cmd('nand info', prompt_timeout=None)
         if ret is False: return False
             
         ret, line = self.expect('Device 0')
@@ -209,7 +210,8 @@ class SerialInstaller(object):
         
         for size in possible_sizes:
             
-            ret = self.uboot_cmd('nand dump.oob %s' % size)
+            ret = self.uboot_cmd('nand dump.oob %s' % size,
+                                 prompt_timeout=None)
             if ret is False: return False
             
             ret, line = self.expect('Page 0000')
@@ -352,15 +354,18 @@ class SerialInstaller(object):
         
         # Identify the prompt in the following line
         try:
-            line = self._port.readline().strip(' \r\n')
+            line = self._port.readline().strip('\r\n')
         except (serial.SerialException, OSError) as e:
             self._logger.error(e)
-            return False, ''
+            return False
         
         m = re.match('(?P<prompt>.*) $', line)
         if m:
             self._uboot_prompt = m.group('prompt').strip()
             self._logger.debug('Uboot prompt: %s' % self._uboot_prompt)
+        else:
+            self._logger.error("Couldn't identify the uboot prompt.")
+            return False
 
         return True
     
@@ -451,7 +456,7 @@ class SerialInstaller(object):
 
         return value
 
-    def _load_file_to_ram(self, filename):
+    def _load_file_to_ram(self, filename, load_addr):
         raise NotImplementedError
 
     def install_bootloader(self, image_filename):
@@ -463,8 +468,12 @@ class SerialInstaller(object):
         """
 
         if not os.path.isfile(image_filename):
-            self._logger.error("Bootloader image '%s' doesn't exist" %
+            self._logger.error("Uboot image '%s' doesn't exist" %
                                image_filename)
+            return False
+        
+        if not self._uboot_load_addr:
+            self._logger.error('Uboot load address not specified.')
             return False
         
         ret = self._uboot_sync()
@@ -481,7 +490,7 @@ class SerialInstaller(object):
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
-        self._load_file_to_ram(image_filename)
+        self._load_file_to_ram(image_filename, self._uboot_load_addr)
         
         return True
 
@@ -606,17 +615,34 @@ class SerialInstallerTFTP(SerialInstaller):
         
         return True
 
-    def _load_file_to_ram(self, filename):
+    def _load_file_to_ram(self, filename, load_addr):
+        """
+        Loads the given file through TFTP to the given load address in RAM.
+        """
         
         ret = self._setup_uboot_network()
         if ret is False: return False
         
+        # Copy the file to the host's TFTP directory
         basename = os.path.basename(filename)
         cmd = 'cp %s %s/%s' % (filename, self._tftp_dir, basename)
         ret, output = self._executer.check_output(cmd)
         if ret != 0:
             self._logger.error(output)
             return False
+        
+        # Estimate a transfer timeout - 10 seconds per MB
+        size_b = os.path.getsize(filename)
+        one_mb = 1 << 20
+        transfer_timeout = ((size_b/one_mb) + 1) * 10
+        
+        # Transfer
+        hex_load_addr = hexutils.str_to_hex(load_addr)
+        cmd = 'tftp %s %s' % (hex_load_addr, basename)
+        ret = self.uboot_cmd(cmd, prompt_timeout=transfer_timeout)
+        if ret is False: return False
+            
+        return True
         
     def _setup_uboot_network(self):
         """

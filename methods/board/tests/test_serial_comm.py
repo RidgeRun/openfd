@@ -17,6 +17,7 @@
 
 import os, sys
 import unittest
+import check_env
 
 sys.path.insert(1, os.path.abspath('..'))
 
@@ -24,6 +25,13 @@ import rrutils
 import time
 from serial_comm import SerialInstaller
 from serial_comm import SerialInstallerTFTP
+
+# DEVDIR environment variable
+devdir = check_env.get_devdir()
+if not devdir: sys.exit(-1)
+
+test_host_ip_addr = '10.251.101.24'
+test_uboot_load_addr = '0x82000000'
 
 class SerialInstallerTestCase(unittest.TestCase):
     
@@ -37,14 +45,12 @@ class SerialInstallerTestCase(unittest.TestCase):
         self._inst = SerialInstaller()
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
+        ret = self._inst.uboot_sync()
+        self.assertTrue(ret)
         
     def tearDown(self):
         self._inst.close_comm()
         
-    def test_uboot_sync(self):
-        ret = self._inst.uboot_sync()
-        self.assertTrue(ret)
-    
     def test_nand_block_size(self):
         
         # Set a value manually
@@ -96,6 +102,10 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         self._inst = SerialInstallerTFTP()
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
+        ret = self._inst.uboot_sync()
+        self.assertTrue(ret)
+        self._inst.host_ipaddr = test_host_ip_addr
+        self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
 
     def tearDown(self):
         self._inst.close_comm()
@@ -108,20 +118,18 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
     def test_tftp_dhcp(self):
         
-        test_dhcp = True
+        test_dhcp = False
         if test_dhcp:
-            self._inst.host_ipaddr = '10.251.101.24'
-            self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
-            ret = self._inst.uboot_sync()
-            self.assertTrue(ret)
             ret = self._inst._setup_uboot_network()
             self.assertTrue(ret)
-            value = self._inst._uboot_get_env('autoload')
-            self.assertEqual(value, 'no')
-            value = self._inst._uboot_get_env('autostart')
-            self.assertEqual(value, 'no')
-            value = self._inst._uboot_get_env('serverip')
-            self.assertEqual(value, '10.251.101.24')
+
+    def test_load_file_to_ram(self):
+        
+        test_load_to_ram = True
+        if test_load_to_ram:
+            boot_img = "%s/images/bootloader" % devdir
+            ret = self._inst._load_file_to_ram(boot_img, test_uboot_load_addr)
+            self.assertTrue(ret)
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
