@@ -24,6 +24,7 @@ import os
 import re
 import serial
 import rrutils
+from test.test_threading_local import target
 
 # ==========================================================================
 # Constants
@@ -301,7 +302,6 @@ class SerialInstaller(object):
             
             if response in line:
                 found = True
-                break
             
             if (time.time() - start_time) > timeout:
                 break
@@ -398,14 +398,26 @@ class SerialInstaller(object):
             return False
         return True
     
-    def _uboot_env(self, variable):
+    def _uboot_set_env(self, variable, value):
         """
-        Reads the value of the u-boot env variable.
+        Sets an uboot env variable.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        ret = self.uboot_cmd('setenv %s %s' % (variable, value))
+        if ret is False: return False
+    
+    def _uboot_get_env(self, variable):
+        """
+        Returns a string with the value of the uboot env variable if found;
+        empty otherwise. 
         """
         
         value=''
         
-        if not self.uboot_cmd('printenv', prompt_timeout=None): return ''
+        ret = self.uboot_cmd('printenv', prompt_timeout=None)
+        if ret is False: return ''
         
         ret, line = self.expect('%s=' % variable)
         if ret:
@@ -426,7 +438,7 @@ class SerialInstaller(object):
         ret = self._check_icache()
         if ret is False and not self._force_install: return False
         
-        prev_bootcmd = self._uboot_env('bootcmd')
+        prev_bootcmd = self._uboot_get_env('bootcmd')
         
         ret = self.uboot_cmd('setenv bootcmd')
         if ret is False: return False
@@ -556,7 +568,7 @@ class SerialInstallerTFTP(SerialInstaller):
         
         return True
 
-    def _load_file_to_ram(self):
+    def _load_file_to_ram(self, filename):
         pass
     
     def _setup_uboot_network(self):
@@ -571,13 +583,15 @@ class SerialInstallerTFTP(SerialInstaller):
             if not self._target_ipaddr:
                 self._logger.error('No IP address specified for the target')
                 return False
-            ret = self.uboot_cmd('setenv ipaddr %s' % self._target_ipaddr)
+            ret = self._uboot_set_env('ipaddr', self._target_ipaddr)
             if ret is False: return False
         elif self._net_mode == SerialInstallerTFTP.MODE_DHCP:
-            ret = self.uboot_cmd('setenv autoload no')
+            ret = self._uboot_set_env('autoload', 'no')
+            if ret is False: return False
+            ret = self.uboot_set_env('autostart', 'no')
             if ret is False: return False
     
-        ret = self.uboot_cmd('setenv serverip %s' % self._host_ipaddr)
+        ret = self._uboot_set_env('serverip', self._host_ipaddr)
         if ret is False: return False
         
         return True

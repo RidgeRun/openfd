@@ -70,10 +70,10 @@ class SerialInstallerTestCase(unittest.TestCase):
         test_env = False
         if test_env:
             
-            value = self._inst._uboot_env('kerneloffset')
+            value = self._inst._uboot_get_env('kerneloffset')
             self.assertEqual(value, '0x400000')
             
-            value = self._inst._uboot_env('importbootenv')
+            value = self._inst._uboot_get_env('importbootenv')
             self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
 
     def test_uboot_cmd(self):
@@ -116,9 +116,11 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
             self.assertTrue(ret)
             ret = self._inst._setup_uboot_network()
             self.assertTrue(ret)
-            value = self._inst._uboot_env('autoload')
+            value = self._inst._uboot_get_env('autoload')
             self.assertEqual(value, 'no')
-            value = self._inst._uboot_env('serverip')
+            value = self._inst._uboot_get_env('autostart')
+            self.assertEqual(value, 'no')
+            value = self._inst._uboot_get_env('serverip')
             self.assertEqual(value, '10.251.101.24')
             
 
