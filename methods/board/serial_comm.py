@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # ==========================================================================
 #
 # Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
@@ -24,6 +23,7 @@ import os
 import re
 import serial
 import rrutils
+import rrutils.hexutils as hexutils
 
 # ==========================================================================
 # Constants
@@ -46,12 +46,15 @@ class SerialInstaller(object):
     """
     
     def __init__(self, nand_block_size=0, nand_page_size=0,
-                 force_install=False, uboot_dryrun=False, dryrun=False):
+                 force_install=False, uboot_load_addr=None, uboot_dryrun=False,
+                 dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
+        :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
+            (`'0x'` prefix).
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
@@ -67,6 +70,7 @@ class SerialInstaller(object):
         self._nand_block_size = nand_block_size
         self._page_page_size = nand_page_size
         self._force_install = force_install
+        self._uboot_load_addr = uboot_load_addr
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
@@ -102,6 +106,24 @@ class SerialInstaller(object):
     
     force_install = property(__get_force_install, __set_force_install,
                      doc="""Forces the requested installation.""")
+    
+    def _is_valid_addr(self, addr):
+        return True if hexutils.str_to_hex(addr) else False
+    
+    def __set_uboot_load_addr(self, uboot_load_addr):
+        if self._is_valid_addr(uboot_load_addr):
+            self._uboot_load_addr = uboot_load_addr
+        else:
+            self._logger.error('Invalid u-boot load address: %s' %
+                               uboot_load_addr)
+            self._uboot_load_addr = None
+        
+    def __get_uboot_load_addr(self):
+        return self._uboot_load_addr
+    
+    uboot_load_addr = property(__get_uboot_load_addr, __set_uboot_load_addr,
+                               doc="""Uboot load address, in decimal or
+                                hexadecimal (`'0x'` prefix).""")
     
     def __set_uboot_dryrun(self, dryrun):
         self._uboot_dryrun = dryrun
@@ -410,7 +432,7 @@ class SerialInstaller(object):
     def _uboot_get_env(self, variable):
         """
         Returns a string with the value of the uboot env variable if found;
-        empty otherwise. 
+        empty otherwise.
         """
         
         value=''
@@ -429,7 +451,18 @@ class SerialInstaller(object):
     def _load_file_to_ram(self, filename):
         raise NotImplementedError
 
-    def install_bootloader(self):
+    def install_bootloader(self, image_filename):
+        """
+        Installs the bootloader image.
+        
+        :param image_filename: Bootloader's image filename.
+        :returns: Returns true on success; false otherwise.
+        """
+
+        if not os.path.isfile(image_filename):
+            self._logger.error("Bootloader image '%s' doesn't exist" %
+                               image_filename)
+            return False
         
         ret = self._uboot_sync()
         if ret is False: return False
@@ -439,18 +472,17 @@ class SerialInstaller(object):
         
         prev_bootcmd = self._uboot_get_env('bootcmd')
         
-        ret = self.uboot_cmd('setenv bootcmd')
+        ret = self._uboot_set_env('bootcmd', '')
         if ret is False: return False
         
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
-        self._load_file_to_ram()
+        self._load_file_to_ram(image_filename)
         
         return True
 
 class SerialInstallerTFTP(SerialInstaller):
-    
     """
     Serial communication operations to support the installer using TFTP.
     """
@@ -464,7 +496,8 @@ class SerialInstallerTFTP(SerialInstaller):
     def __init__(self, nand_block_size=0, nand_page_size=0, host_ipaddr='',
                  target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
                  tftp_port=DEFAULT_TFT_PORT, net_mode=MODE_DHCP,
-                 force_install=False, uboot_dryrun=False, dryrun=False):
+                 force_install=False, uboot_load_addr=None, uboot_dryrun=False,
+                 dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
@@ -480,6 +513,8 @@ class SerialInstallerTFTP(SerialInstaller):
             :const:`MODE_STATIC`, :const:`MODE_DHCP`. 
         :param force_install: Forces the requested installation.
         :type force_install: boolean
+        :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
+            (`'0x'` prefix).
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
@@ -488,7 +523,8 @@ class SerialInstallerTFTP(SerialInstaller):
         :type dryrun: boolean
         """    
         SerialInstaller.__init__(self, nand_block_size, nand_page_size,
-                                 force_install, uboot_dryrun, dryrun)
+                                 force_install, uboot_load_addr, uboot_dryrun,
+                                 dryrun)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode
@@ -568,8 +604,17 @@ class SerialInstallerTFTP(SerialInstaller):
         return True
 
     def _load_file_to_ram(self, filename):
-        pass
-    
+        
+        ret = self._setup_uboot_network()
+        if ret is False: return False
+        
+        basename = os.path.basename(filename)
+        cmd = 'cp %s %s/%s' % (filename, self._tftp_dir, basename)
+        ret, output = self._executer.check_output(cmd)
+        if ret != 0:
+            self._logger.error(output)
+            return False
+        
     def _setup_uboot_network(self):
         """
         Setup networking for uboot.
@@ -587,9 +632,9 @@ class SerialInstallerTFTP(SerialInstaller):
         elif self._net_mode == SerialInstallerTFTP.MODE_DHCP:
             ret = self._uboot_set_env('autoload', 'no')
             if ret is False: return False
-            ret = self.uboot_set_env('autostart', 'no')
+            ret = self._uboot_set_env('autostart', 'no')
             if ret is False: return False
-    
+        
         ret = self._uboot_set_env('serverip', self._host_ipaddr)
         if ret is False: return False
         

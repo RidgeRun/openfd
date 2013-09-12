@@ -108,7 +108,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
     def test_tftp_dhcp(self):
         
-        test_dhcp = False
+        test_dhcp = True
         if test_dhcp:
             self._inst.host_ipaddr = '10.251.101.24'
             self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
@@ -122,7 +122,6 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
             self.assertEqual(value, 'no')
             value = self._inst._uboot_get_env('serverip')
             self.assertEqual(value, '10.251.101.24')
-            
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
