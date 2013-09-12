@@ -52,8 +52,8 @@ class SerialInstaller(object):
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
-        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be logged,
-            but not executed.
+        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
+            logged, but not executed.
         :type uboot_dryrun: boolean
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
@@ -294,13 +294,14 @@ class SerialInstaller(object):
         while not found:
             
             try:
-                line = self._port.readline().strip('\s\r\n')
+                line = self._port.readline().strip(' \r\n')
             except (serial.SerialException, OSError) as e:
                 self._logger.error(e)
                 return False, ''
             
             if response in line:
                 found = True
+                break
             
             if (time.time() - start_time) > timeout:
                 break
@@ -328,7 +329,7 @@ class SerialInstaller(object):
         
         # Identify the prompt in the following line
         try:
-            line = self._port.readline().strip('\s\r\n')
+            line = self._port.readline().strip(' \r\n')
         except (serial.SerialException, OSError) as e:
             self._logger.error(e)
             return False, ''
@@ -340,30 +341,39 @@ class SerialInstaller(object):
 
         return True
     
-    def uboot_cmd(self, cmd):
+    def uboot_cmd(self, cmd, echo_timeout=5, prompt_timeout=5):
         """
         Sends a command to uboot.
         
         :param cmd: Command.
+        :param echo_timeout: Timeout to wait for the command to be echoed. Set
+            to None to avoid waiting for the echo.
+        :type echo_timeout: integer or none
+        :param prompt_timeout: Timeout to wait for the prompt after sending
+            the command. Set to None to avoid waiting for the prompt.
+        :type prompt_timeout: integer or none
         :returns: Returns true on sucess; false otherwise.
         """
         
-        self._logger.info("Uboot: '%s'" % cmd)
+        self._logger.info("Uboot: '%s'" % cmd.strip())
         
         if not self._uboot_dryrun and self._port:
         
-            # Send the command and expect it echoed back
             self._port.write('%s\n' % cmd)
             time.sleep(0.1)
-            ret, line = self.expect(cmd)
-            if ret is False:
-                self._logger.error("Uboot didn't echo the command, maybe "
-                    "it froze. This is the log of the last command: %s" % line)
-                return False
+            
+            # Wait for the echo
+            if echo_timeout:
+                ret, line = self.expect(cmd, echo_timeout)
+                if ret is False:
+                    self._logger.error("Uboot didn't echo the command, maybe "
+                        "it froze. This is the log of the last command: %s" %
+                        line)
+                    return False
         
             # Wait for the prompt
-            if self._uboot_prompt:
-                ret = self.expect(self._uboot_prompt)
+            if self._uboot_prompt and prompt_timeout:
+                ret = self.expect(self._uboot_prompt, timeout=prompt_timeout)
                 if ret is False:
                     self._logger.error("Didn't get the uboot prompt back. "
                        "This is the log of the last command: %s" % line)
@@ -395,13 +405,14 @@ class SerialInstaller(object):
         
         value=''
         
-        if not self.uboot_cmd('printenv'): return ''
+        if not self.uboot_cmd('printenv', prompt_timeout=None): return ''
         
         ret, line = self.expect('%s=' % variable)
         if ret:
             m = re.match('.*=(?P<value>.*)', line)
             if m:
                 value = m.group('value').strip()
+
         return value
 
     def _load_file_to_ram(self, filename):
@@ -429,21 +440,37 @@ class SerialInstaller(object):
 
 class SerialInstallerTFTP(SerialInstaller):
     
-    def __init__(self, nand_block_size=0, nand_page_size=0,
-                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
+    """
+    Serial communication operations to support the installer using TFTP.
+    """
+    
+    #: Static networking mode.
+    MODE_STATIC = 'static'
+    
+    #: DHCP networking mode.
+    MODE_DHCP = 'dhcp'
+    
+    def __init__(self, nand_block_size=0, nand_page_size=0, host_ipaddr='',
+                 target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
+                 tftp_port=DEFAULT_TFT_PORT, net_mode=MODE_DHCP,
                  force_install=False, uboot_dryrun=False, dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
+        :param host_ipaddr: Host IP address.
+        :param target_ipaddr: Target IP address, only necessary
+            in :const:`MODE_STATIC`.
         :param tftp_dir: TFTP root directory.
         :param tftp_port: TFTP server port.
         :type tftp_port: integer
+        :param net_mode: Networking mode. Possible values:
+            :const:`MODE_STATIC`, :const:`MODE_DHCP`. 
         :param force_install: Forces the requested installation.
         :type force_install: boolean
-        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be logged,
-            but not executed.
+        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
+            logged, but not executed.
         :type uboot_dryrun: boolean
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
@@ -453,7 +480,10 @@ class SerialInstallerTFTP(SerialInstaller):
                                  force_install, uboot_dryrun, dryrun)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
-
+        self._net_mode = net_mode
+        self._host_ipaddr = host_ipaddr
+        self._target_ipaddr = target_ipaddr
+        
     def __set_tftp_port(self, port):
         self._tftp_port = port
     
@@ -471,6 +501,35 @@ class SerialInstallerTFTP(SerialInstaller):
     
     tftp_dir = property(__get_tftp_dir, __set_tftp_dir,
                      doc="""TFTP root directory.""")
+
+    def __set_net_mode(self, mode):
+        self._net_mode = mode
+    
+    def __get_net_mode(self):
+        return self._net_mode
+    
+    net_mode = property(__get_net_mode, __set_net_mode,
+                     doc="""Networking mode. Possible values:
+                     :const:`MODE_STATIC`, :const:`MODE_DHCP`.""")
+
+    def __set_target_ipaddr(self, ipaddr):
+        self._target_ipaddr = ipaddr
+    
+    def __get_target_ipaddr(self):
+        return self._target_ipaddr
+    
+    target_ipaddr = property(__get_target_ipaddr, __set_target_ipaddr,
+                     doc="""Target IP address, only necessary in
+                     :const:`MODE_STATIC`.""")
+
+    def __set_host_ipaddr(self, ipaddr):
+        self._host_ipaddr = ipaddr
+    
+    def __get_host_ipaddr(self):
+        return self._host_ipaddr
+    
+    host_ipaddr = property(__get_host_ipaddr, __set_host_ipaddr,
+                     doc="""Host IP address.""")
 
     def _check_tftp_settings(self):
         """
@@ -497,4 +556,28 @@ class SerialInstallerTFTP(SerialInstaller):
         
         return True
 
+    def _load_file_to_ram(self):
+        pass
     
+    def _setup_uboot_network(self):
+        """
+        Setup networking for uboot.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        self._logger.info('Configuring uboot network')
+        if self._net_mode == SerialInstallerTFTP.MODE_STATIC:
+            if not self._target_ipaddr:
+                self._logger.error('No IP address specified for the target')
+                return False
+            ret = self.uboot_cmd('setenv ipaddr %s' % self._target_ipaddr)
+            if ret is False: return False
+        elif self._net_mode == SerialInstallerTFTP.MODE_DHCP:
+            ret = self.uboot_cmd('setenv autoload no')
+            if ret is False: return False
+    
+        ret = self.uboot_cmd('setenv serverip %s' % self._host_ipaddr)
+        if ret is False: return False
+        
+        return True

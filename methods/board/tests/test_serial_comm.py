@@ -21,8 +21,9 @@ import unittest
 sys.path.insert(1, os.path.abspath('..'))
 
 import rrutils
-import serial_comm
 import time
+from serial_comm import SerialInstaller
+from serial_comm import SerialInstallerTFTP
 
 class SerialInstallerTestCase(unittest.TestCase):
     
@@ -33,7 +34,7 @@ class SerialInstallerTestCase(unittest.TestCase):
         logger.setLevel(rrutils.logger.DEBUG)
     
     def setUp(self):
-        self._inst = serial_comm.SerialInstaller()
+        self._inst = SerialInstaller()
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
         
@@ -92,7 +93,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         logger.setLevel(rrutils.logger.DEBUG)
     
     def setUp(self):
-        self._inst = serial_comm.SerialInstallerTFTP()
+        self._inst = SerialInstallerTFTP()
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
 
@@ -104,6 +105,22 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         self._inst.tftp_port = 69
         ret = self._inst._check_tftp_settings()
         self.assertTrue(ret)
+        
+    def test_tftp_dhcp(self):
+        
+        test_dhcp = False
+        if test_dhcp:
+            self._inst.host_ipaddr = '10.251.101.24'
+            self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
+            ret = self._inst.uboot_sync()
+            self.assertTrue(ret)
+            ret = self._inst._setup_uboot_network()
+            self.assertTrue(ret)
+            value = self._inst._uboot_env('autoload')
+            self.assertEqual(value, 'no')
+            value = self._inst._uboot_env('serverip')
+            self.assertEqual(value, '10.251.101.24')
+            
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
