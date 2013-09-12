@@ -21,7 +21,6 @@
 import time
 import os
 import re
-import math
 import serial
 import rrutils
 import rrutils.hexutils as hexutils
@@ -73,7 +72,9 @@ class SerialInstaller(object):
         self._nand_block_size = nand_block_size
         self._page_page_size = nand_page_size
         self._force_install = force_install
-        self._uboot_load_addr = uboot_load_addr
+        self._uboot_load_addr = None
+        if self._is_valid_addr(uboot_load_addr):
+            self._uboot_load_addr = uboot_load_addr 
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
