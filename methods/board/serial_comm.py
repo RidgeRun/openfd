@@ -24,7 +24,6 @@ import os
 import re
 import serial
 import rrutils
-from test.test_threading_local import target
 
 # ==========================================================================
 # Constants
