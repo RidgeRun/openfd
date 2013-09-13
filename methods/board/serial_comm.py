@@ -491,7 +491,8 @@ class SerialInstaller(object):
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
-        self._load_file_to_ram(image_filename, self._uboot_load_addr)
+        ret = self._load_file_to_ram(image_filename, self._uboot_load_addr)
+        if ret is False: return False
         
         return True
 
@@ -639,10 +640,23 @@ class SerialInstallerTFTP(SerialInstaller):
         
         # Transfer
         hex_load_addr = hexutils.str_to_hex(load_addr)
+        self._logger.info("Loading file '%s' into address '%s'" % (filename,
+                                                               hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         ret = self.uboot_cmd(cmd, prompt_timeout=transfer_timeout)
         if ret is False: return False
-            
+        
+        filesize = self._uboot_get_env('filesize')
+        if filesize:
+            filesize = int(filesize, base=16)
+        else:
+            filesize = 0
+        if size_b != filesize:
+            self._logger.error("Something went wrong during the transfer, the "
+                "size of file '%s' (%s) differs from the transferred "
+                "bytes (%s)" % (filename, size_b, filesize))
+            return False
+        
         return True
         
     def _setup_uboot_network(self):
