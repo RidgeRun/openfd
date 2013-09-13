@@ -394,7 +394,7 @@ class SerialInstaller(object):
             
             # Wait for the echo
             if echo_timeout:
-                ret, line = self.expect(cmd, echo_timeout)
+                ret, line = self.expect(cmd.strip(), echo_timeout)
                 if ret is False:
                     self._logger.error("Uboot didn't echo the '%s' command, "
                        "maybe it froze. This is the log of the last "
@@ -418,7 +418,7 @@ class SerialInstaller(object):
         Checks availability of the 'icache' uboot command.
         """
         
-        ret = self.uboot_cmd('icache')
+        ret = self.uboot_cmd('icache', prompt_timeout=None)
         if ret is False: return False 
         
         ret = self.expect('Instruction Cache is')[0]
@@ -479,7 +479,7 @@ class SerialInstaller(object):
             self._logger.error('Uboot load address not specified.')
             return False
         
-        ret = self._uboot_sync()
+        ret = self.uboot_sync()
         if ret is False: return False
         
         ret = self._check_icache()
@@ -501,13 +501,17 @@ class SerialInstaller(object):
         if ret is False: return False
         ret = self.uboot_cmd('go %s' % self._uboot_load_addr)
         if ret is False: return False
-        time.sleep(3) # Give time to uboot to restart
-        ret = self.uboot_cmd('echo sync')
-        if ret is False: return False
-        ret = self.expect('sync', timeout=10)[0]
-        if not ret:
+        time.sleep(2) # Give time to uboot to restart
+        ret = self.uboot_sync()
+        if ret is False:
             self._logger.error('Failed to detect uboot restarting.')
             return False
+        
+        self._logger.info('Restoring previous bootcmd')
+        ret = self._uboot_set_env('bootcmd', prev_bootcmd)
+        if ret is False: return False
+        ret = self.uboot_cmd('saveenv')
+        if ret is False: return False
         
         return True
 

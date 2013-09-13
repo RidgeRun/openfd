@@ -107,6 +107,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         self.assertTrue(ret)
         self._inst.host_ipaddr = test_host_ip_addr
         self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
+        self._inst.uboot_load_addr = test_uboot_load_addr
 
     def tearDown(self):
         self._inst.close_comm()
@@ -126,10 +127,18 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
 
     def test_load_file_to_ram(self):
         
-        test_load_to_ram = True
+        test_load_to_ram = False
         if test_load_to_ram:
             boot_img = "%s/images/bootloader" % devdir
             ret = self._inst._load_file_to_ram(boot_img, test_uboot_load_addr)
+            self.assertTrue(ret)
+    
+    def test_install_bootloader(self):
+        
+        test_install_boot = True
+        if test_install_boot:
+            boot_img = "%s/images/bootloader" % devdir
+            ret = self._inst.install_bootloader(boot_img)
             self.assertTrue(ret)
 
 if __name__ == '__main__':
