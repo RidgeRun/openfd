@@ -30,7 +30,8 @@ from serial_comm import SerialInstallerTFTP
 devdir = check_env.get_devdir()
 if not devdir: sys.exit(-1)
 
-test_host_ip_addr = '10.251.101.24'
+#test_host_ip_addr = '10.251.101.24'
+test_host_ip_addr = '192.168.1.108'
 test_uboot_load_addr = '0x82000000'
 
 class SerialInstallerTestCase(unittest.TestCase):

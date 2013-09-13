@@ -326,6 +326,7 @@ class SerialInstaller(object):
                 self._logger.error(e)
                 return False, ''
             
+            self._logger.debug("Searching '%s' in '%s'" % (response, line))
             if response in line:
                 found = True
             
@@ -402,7 +403,8 @@ class SerialInstaller(object):
         
             # Wait for the prompt
             if self._uboot_prompt and prompt_timeout:
-                ret = self.expect(self._uboot_prompt, timeout=prompt_timeout)
+                ret, line = self.expect(self._uboot_prompt,
+                                        timeout=prompt_timeout)
                 if ret is False:
                     self._logger.error("Didn't get the uboot prompt back "
                        "after executing the '%s' command. This is the log of "
@@ -483,11 +485,10 @@ class SerialInstaller(object):
         ret = self._check_icache()
         if ret is False and not self._force_install: return False
         
+        # Reset bootcmd to prevent automatic boot
         prev_bootcmd = self._uboot_get_env('bootcmd')
-        
         ret = self._uboot_set_env('bootcmd', '')
         if ret is False: return False
-        
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
@@ -644,7 +645,11 @@ class SerialInstallerTFTP(SerialInstaller):
                                                                hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         ret = self.uboot_cmd(cmd, prompt_timeout=transfer_timeout)
-        if ret is False: return False
+        if ret is False:
+            self.uboot_cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
+            self._logger.error("TFTP transfer failed from '%s:%s'." %
+                               (self._host_ipaddr, self._tftp_port))
+            return False
         
         filesize = self._uboot_get_env('filesize')
         if filesize:
