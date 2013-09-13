@@ -492,8 +492,22 @@ class SerialInstaller(object):
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
+        self._logger.info('Loading new bootloader')
         ret = self._load_file_to_ram(image_filename, self._uboot_load_addr)
         if ret is False: return False
+        
+        self._logger.info('Running new bootloader')
+        ret = self.uboot_cmd('icache off')
+        if ret is False: return False
+        ret = self.uboot_cmd('go %s' % self._uboot_load_addr)
+        if ret is False: return False
+        time.sleep(3) # Give time to uboot to restart
+        ret = self.uboot_cmd('echo sync')
+        if ret is False: return False
+        ret = self.expect('sync', timeout=10)[0]
+        if not ret:
+            self._logger.error('Failed to detect uboot restarting.')
+            return False
         
         return True
 
@@ -628,21 +642,22 @@ class SerialInstallerTFTP(SerialInstaller):
         
         # Copy the file to the host's TFTP directory
         basename = os.path.basename(filename)
-        cmd = 'cp %s %s/%s' % (filename, self._tftp_dir, basename)
+        tftp_filename = '%s/%s' % (self._tftp_dir, basename)
+        cmd = 'cp %s %s' % (filename, tftp_filename)
         ret, output = self._executer.check_output(cmd)
         if ret != 0:
             self._logger.error(output)
             return False
         
         # Estimate a transfer timeout - 10 seconds per MB
-        size_b = os.path.getsize(filename)
+        size_b = os.path.getsize(tftp_filename)
         one_mb = 1 << 20
         transfer_timeout = ((size_b/one_mb) + 1) * 10
         
         # Transfer
         hex_load_addr = hexutils.str_to_hex(load_addr)
-        self._logger.info("Loading file '%s' into address '%s'" % (filename,
-                                                               hex_load_addr))
+        self._logger.info("Starting TFTP transfer from file '%s' to "
+                          "address '%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         ret = self.uboot_cmd(cmd, prompt_timeout=transfer_timeout)
         if ret is False:
@@ -659,7 +674,7 @@ class SerialInstallerTFTP(SerialInstaller):
         if size_b != filesize:
             self._logger.error("Something went wrong during the transfer, the "
                 "size of file '%s' (%s) differs from the transferred "
-                "bytes (%s)" % (filename, size_b, filesize))
+                "bytes (%s)" % (tftp_filename, size_b, filesize))
             return False
         
         return True
