@@ -318,21 +318,15 @@ class SerialInstaller(object):
         
         if self._check_open_port() is False: return False, ''
         
-        while not found:
-            
+        while not found and (time.time() - start_time) < timeout:
             try:
                 line = self._port.readline().strip(' \r\n')
             except (serial.SerialException, OSError) as e:
                 self._logger.error(e)
                 return False, ''
-            
-            self._logger.debug("Searching '%s' in '%s'" % (response, line))
             if response in line:
                 found = True
             
-            if (time.time() - start_time) > timeout:
-                break
-
         return found, line
 
     def uboot_sync(self):
