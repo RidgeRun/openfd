@@ -47,22 +47,26 @@ class SerialInstaller(object):
     pySerial.
     """
     
-    def __init__(self, nand_block_size=0, nand_page_size=0,
-                 force_install=False, uboot_load_addr=None, uboot_dryrun=False,
-                 dryrun=False):
+    def __init__(self, nand_block_size=0, nand_page_size=0, ubl_file=None,
+                 ubl_start_block=None, uboot_load_addr=None,
+                 uboot_dryrun=False, dryrun=False, force_install=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
-        :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
-            (`'0x'` prefix).
+        :param ubl_file: Path to the UBL file.
+        :param ubl_start_block: Start block in NAND for UBL.  
+        :param uboot_load_addr: Uboot RAM load address, in decimal or
+            hexadecimal (`'0x'` prefix).
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
+        :param force_install: Forces the requested installation.
+        :type force_install: boolean
         """
         
         self._logger = rrutils.logger.get_global_logger()
@@ -71,13 +75,15 @@ class SerialInstaller(object):
         self._port = None
         self._nand_block_size = nand_block_size
         self._page_page_size = nand_page_size
-        self._force_install = force_install
+        self._ubl_file = ubl_file
+        self._ubl_start_block = ubl_start_block
         self._uboot_load_addr = None
         if self._is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr 
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
+        self._force_install = force_install
 
     @classmethod
     def uboot_comm_error_msg(cls, port):
@@ -101,6 +107,25 @@ class SerialInstaller(object):
         """
         
         return self._port
+    
+    
+    def __set_ubl_file(self, ubl_file):
+        self._ubl_file = ubl_file
+    
+    def __get_ubl_file(self):
+        return self._ubl_file
+    
+    ubl_file = property(__get_ubl_file, __set_ubl_file,
+                     doc="""Path to the UBL file.""")
+
+    def __set_ubl_start_block(self, ubl_start_block):
+        self._ubl_file = ubl_start_block
+    
+    def __get_ubl_start_block(self):
+        return self._ubl_start_block
+    
+    ubl_start_block = property(__get_ubl_start_block, __set_ubl_start_block,
+                     doc="""Start block in NAND for UBL.""")
     
     def __set_force_install(self, force_install):
         self._force_install = force_install
@@ -126,7 +151,7 @@ class SerialInstaller(object):
         return self._uboot_load_addr
     
     uboot_load_addr = property(__get_uboot_load_addr, __set_uboot_load_addr,
-                               doc="""Uboot load address, in decimal or
+                               doc="""Uboot RAM load address, in decimal or
                                 hexadecimal (`'0x'` prefix).""")
     
     def __set_uboot_dryrun(self, dryrun):
@@ -456,14 +481,11 @@ class SerialInstaller(object):
     def _load_file_to_ram(self, filename, load_addr):
         raise NotImplementedError
 
-    def install_bootloader(self, image_filename):
+    def _load_bootloader(self, image_filename):
         """
-        Installs the bootloader image.
+        Loads the bootloader image in RAM and executes it.
+        """
         
-        :param image_filename: Bootloader's image filename.
-        :returns: Returns true on success; false otherwise.
-        """
-
         if not os.path.isfile(image_filename):
             self._logger.error("Uboot image '%s' doesn't exist" %
                                image_filename)
@@ -486,7 +508,7 @@ class SerialInstaller(object):
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
-        self._logger.info('Loading new bootloader')
+        self._logger.info('Loadinghome new bootloader')
         ret = self._load_file_to_ram(image_filename, self._uboot_load_addr)
         if ret is False: return False
         
@@ -509,6 +531,19 @@ class SerialInstaller(object):
         
         return True
 
+    def install_bootloader(self, image_filename):
+        """
+        Installs the bootloader image.
+        
+        :param image_filename: Bootloader's image filename.
+        :returns: Returns true on success; false otherwise.
+        """
+
+        ret = self._load_bootloader(image_filename)
+        if ret is False: return False
+        
+        return True
+
 class SerialInstallerTFTP(SerialInstaller):
     """
     Serial communication operations to support the installer using TFTP.
@@ -522,9 +557,9 @@ class SerialInstallerTFTP(SerialInstaller):
     
     def __init__(self, nand_block_size=0, nand_page_size=0, host_ipaddr='',
                  target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
-                 tftp_port=DEFAULT_TFT_PORT, net_mode=MODE_DHCP,
-                 force_install=False, uboot_load_addr=None, uboot_dryrun=False,
-                 dryrun=False):
+                 tftp_port=DEFAULT_TFT_PORT, net_mode=MODE_DHCP, ubl_file=None,
+                 ubl_start_block=None, uboot_load_addr=None,
+                 uboot_dryrun=False, dryrun=False, force_install=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
@@ -537,9 +572,9 @@ class SerialInstallerTFTP(SerialInstaller):
         :param tftp_port: TFTP server port.
         :type tftp_port: integer
         :param net_mode: Networking mode. Possible values:
-            :const:`MODE_STATIC`, :const:`MODE_DHCP`. 
-        :param force_install: Forces the requested installation.
-        :type force_install: boolean
+            :const:`MODE_STATIC`, :const:`MODE_DHCP`.
+        :param ubl_file: Path to the UBL file.
+        :param ubl_start_block: Start block in NAND for UBL.
         :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
             (`'0x'` prefix).
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
@@ -548,10 +583,12 @@ class SerialInstallerTFTP(SerialInstaller):
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
+        :param force_install: Forces the requested installation.
+        :type force_install: boolean
         """    
         SerialInstaller.__init__(self, nand_block_size, nand_page_size,
-                                 force_install, uboot_load_addr, uboot_dryrun,
-                                 dryrun)
+                                 ubl_file, ubl_start_block, uboot_load_addr,
+                                 uboot_dryrun, dryrun, force_install)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode
