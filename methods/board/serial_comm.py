@@ -478,7 +478,7 @@ class SerialInstaller(object):
 
         return value
 
-    def _load_file_to_ram(self, filename, load_addr):
+    def _load_file_to_ram(self, filename):
         raise NotImplementedError
 
     def _load_bootloader(self, image_filename):
@@ -489,10 +489,6 @@ class SerialInstaller(object):
         if not os.path.isfile(image_filename):
             self._logger.error("Uboot image '%s' doesn't exist" %
                                image_filename)
-            return False
-        
-        if not self._ram_load_addr:
-            self._logger.error('RAM load address not specified.')
             return False
         
         ret = self.uboot_sync()
@@ -509,7 +505,7 @@ class SerialInstaller(object):
         if ret is False: return False
         
         self._logger.info('Loading new bootloader')
-        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
+        ret = self._load_file_to_ram(image_filename)
         if ret is False: return False
         
         self._logger.info('Running new bootloader')
@@ -667,10 +663,14 @@ class SerialInstallerTFTP(SerialInstaller):
         
         return True
 
-    def _load_file_to_ram(self, filename, load_addr):
+    def _load_file_to_ram(self, filename):
         """
         Loads the given file through TFTP to the given load address in RAM.
         """
+        
+        if not self._ram_load_addr:
+            self._logger.error('RAM load address not specified.')
+            return False
         
         ret = self._setup_uboot_network()
         if ret is False: return False
@@ -690,7 +690,7 @@ class SerialInstallerTFTP(SerialInstaller):
         transfer_timeout = ((size_b/one_mb) + 1) * 10
         
         # Transfer
-        hex_load_addr = hexutils.str_to_hex(load_addr)
+        hex_load_addr = hexutils.str_to_hex(self._ram_load_addr)
         self._logger.info("Starting TFTP transfer from file '%s' to "
                           "address '%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)

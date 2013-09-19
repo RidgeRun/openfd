@@ -130,7 +130,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         test_load_to_ram = False
         if test_load_to_ram:
             boot_img = "%s/images/bootloader" % devdir
-            ret = self._inst._load_file_to_ram(boot_img, test_ram_load_addr)
+            ret = self._inst._load_file_to_ram(boot_img)
             self.assertTrue(ret)
     
     def test_install_bootloader(self):
