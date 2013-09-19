@@ -32,7 +32,7 @@ if not devdir: sys.exit(-1)
 
 test_host_ip_addr = '10.251.101.24'
 #test_host_ip_addr = '192.168.1.108'
-test_uboot_load_addr = '0x82000000'
+test_ram_load_addr = '0x82000000'
 
 class SerialInstallerTestCase(unittest.TestCase):
     
@@ -107,7 +107,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         self.assertTrue(ret)
         self._inst.host_ipaddr = test_host_ip_addr
         self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
-        self._inst.uboot_load_addr = test_uboot_load_addr
+        self._inst.ram_load_addr = test_ram_load_addr
 
     def tearDown(self):
         self._inst.close_comm()
@@ -130,7 +130,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         test_load_to_ram = False
         if test_load_to_ram:
             boot_img = "%s/images/bootloader" % devdir
-            ret = self._inst._load_file_to_ram(boot_img, test_uboot_load_addr)
+            ret = self._inst._load_file_to_ram(boot_img, test_ram_load_addr)
             self.assertTrue(ret)
     
     def test_install_bootloader(self):

@@ -47,18 +47,18 @@ class SerialInstaller(object):
     pySerial.
     """
     
-    def __init__(self, nand_block_size=0, nand_page_size=0, ubl_file=None,
-                 ubl_start_block=None, uboot_load_addr=None,
-                 uboot_dryrun=False, dryrun=False, force_install=False):
+    def __init__(self, nand_block_size=0, nand_page_size=0, ram_load_addr=None,
+                 ubl_file=None, ubl_start_block=None, uboot_dryrun=False,
+                 dryrun=False, force_install=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
+        :param ram_load_addr: RAM address to load components, in decimal or
+            hexadecimal (`'0x'` prefix).
         :param ubl_file: Path to the UBL file.
         :param ubl_start_block: Start block in NAND for UBL.  
-        :param uboot_load_addr: Uboot RAM load address, in decimal or
-            hexadecimal (`'0x'` prefix).
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
@@ -75,11 +75,11 @@ class SerialInstaller(object):
         self._port = None
         self._nand_block_size = nand_block_size
         self._page_page_size = nand_page_size
+        if self._is_valid_addr(ram_load_addr):
+            self._ram_load_addr = ram_load_addr
         self._ubl_file = ubl_file
         self._ubl_start_block = ubl_start_block
-        self._uboot_load_addr = None
-        if self._is_valid_addr(uboot_load_addr):
-            self._uboot_load_addr = uboot_load_addr 
+        self._ram_load_addr = None
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
@@ -139,18 +139,18 @@ class SerialInstaller(object):
     def _is_valid_addr(self, addr):
         return True if hexutils.str_to_hex(addr) else False
     
-    def __set_uboot_load_addr(self, uboot_load_addr):
-        if self._is_valid_addr(uboot_load_addr):
-            self._uboot_load_addr = uboot_load_addr
+    def __set_ram_load_addr(self, ram_load_addr):
+        if self._is_valid_addr(ram_load_addr):
+            self._ram_load_addr = ram_load_addr
         else:
-            self._logger.error('Invalid u-boot load address: %s' %
-                               uboot_load_addr)
-            self._uboot_load_addr = None
+            self._logger.error('Invalid RAM load address: %s' %
+                               ram_load_addr)
+            self._ram_load_addr = None
         
-    def __get_uboot_load_addr(self):
-        return self._uboot_load_addr
+    def __get_ram_load_addr(self):
+        return self._ram_load_addr
     
-    uboot_load_addr = property(__get_uboot_load_addr, __set_uboot_load_addr,
+    ram_load_addr = property(__get_ram_load_addr, __set_ram_load_addr,
                                doc="""Uboot RAM load address, in decimal or
                                 hexadecimal (`'0x'` prefix).""")
     
@@ -491,8 +491,8 @@ class SerialInstaller(object):
                                image_filename)
             return False
         
-        if not self._uboot_load_addr:
-            self._logger.error('Uboot load address not specified.')
+        if not self._ram_load_addr:
+            self._logger.error('RAM load address not specified.')
             return False
         
         ret = self.uboot_sync()
@@ -508,14 +508,14 @@ class SerialInstaller(object):
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
-        self._logger.info('Loadinghome new bootloader')
-        ret = self._load_file_to_ram(image_filename, self._uboot_load_addr)
+        self._logger.info('Loading new bootloader')
+        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
         if ret is False: return False
         
         self._logger.info('Running new bootloader')
         ret = self.uboot_cmd('icache off')
         if ret is False: return False
-        ret = self.uboot_cmd('go %s' % self._uboot_load_addr)
+        ret = self.uboot_cmd('go %s' % self._ram_load_addr)
         if ret is False: return False
         time.sleep(2) # Give time to uboot to restart
         ret = self.uboot_sync()
@@ -555,16 +555,12 @@ class SerialInstallerTFTP(SerialInstaller):
     #: DHCP networking mode.
     MODE_DHCP = 'dhcp'
     
-    def __init__(self, nand_block_size=0, nand_page_size=0, host_ipaddr='',
-                 target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
-                 tftp_port=DEFAULT_TFT_PORT, net_mode=MODE_DHCP, ubl_file=None,
-                 ubl_start_block=None, uboot_load_addr=None,
+    def __init__(self, host_ipaddr='', target_ipaddr='',
+                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
+                 net_mode=MODE_DHCP, nand_block_size=0, nand_page_size=0,
+                 ram_load_addr=None, ubl_file=None, ubl_start_block=None,
                  uboot_dryrun=False, dryrun=False, force_install=False):
         """
-        :param nand_block_size: NAND block size (bytes). If not given, the
-            value will be obtained from uboot (once).
-        :param nand_page_size: NAND page size (bytes). If not given, the
-            value will be obtained from uboot (once).
         :param host_ipaddr: Host IP address.
         :param target_ipaddr: Target IP address, only necessary
             in :const:`MODE_STATIC`.
@@ -573,10 +569,14 @@ class SerialInstallerTFTP(SerialInstaller):
         :type tftp_port: integer
         :param net_mode: Networking mode. Possible values:
             :const:`MODE_STATIC`, :const:`MODE_DHCP`.
+        :param nand_block_size: NAND block size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param nand_page_size: NAND page size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param ram_load_addr: RAM address to load components, in decimal or
+            hexadecimal (`'0x'` prefix).
         :param ubl_file: Path to the UBL file.
         :param ubl_start_block: Start block in NAND for UBL.
-        :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
-            (`'0x'` prefix).
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
@@ -587,7 +587,7 @@ class SerialInstallerTFTP(SerialInstaller):
         :type force_install: boolean
         """    
         SerialInstaller.__init__(self, nand_block_size, nand_page_size,
-                                 ubl_file, ubl_start_block, uboot_load_addr,
+                                 ram_load_addr, ubl_file, ubl_start_block,
                                  uboot_dryrun, dryrun, force_install)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
