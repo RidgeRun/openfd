@@ -32,6 +32,7 @@ if not devdir: sys.exit(-1)
 
 test_host_ip_addr = '10.251.101.24'
 #test_host_ip_addr = '192.168.1.108'
+test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 
 class SerialInstallerTestCase(unittest.TestCase):
@@ -105,13 +106,13 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
     
     def setUp(self):
         self._inst = SerialInstallerTFTP()
+        self._inst.host_ipaddr = test_host_ip_addr
+        self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
+        self._inst.ram_load_addr = test_ram_load_addr
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
         ret = self._inst.uboot_sync()
         self.assertTrue(ret)
-        self._inst.host_ipaddr = test_host_ip_addr
-        self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
-        self._inst.ram_load_addr = test_ram_load_addr
 
     def tearDown(self):
         self._inst.close_comm()
@@ -144,11 +145,16 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
         test_install_boot = True
         if test_install_boot:
+            
+            # Load to RAM the uboot that will make the installation
             uboot_img = "%s/images/bootloader" % devdir
-            self._inst.ubl_file = "%s/images/ubl_nand.nandbin" % devdir
-            self._inst.ubl_start_block = 1
-            self._inst.uboot_file = "%s/images/bootloader" % devdir
-            ret = self._inst.install_bootloader(uboot_img)
+            ret = self._inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
+            self.assertTrue(ret)
+            
+            # Install the Initial Program Loader (UBL) 
+            ubl_nand_img = "%s/images/ubl_nand.nandbin" % devdir
+            ubl_nand_start_block = 1
+            ret = self._inst.install_ubl(ubl_nand_img, ubl_nand_start_block)
             self.assertTrue(ret)
 
 if __name__ == '__main__':
