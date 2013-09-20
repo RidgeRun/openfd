@@ -54,23 +54,27 @@ class SerialInstallerTestCase(unittest.TestCase):
         
     def test_nand_block_size(self):
         
-        # Set a value manually
-        self._inst.nand_block_size = 15
-        self.assertEqual(self._inst.nand_block_size, 15)
-        
-        # Force to query uboot - block size = 128 KB for a leo dm368
-        self._inst.nand_block_size = 0
-        self.assertEqual(self._inst.nand_block_size, 131072)
+        test_nbs = False
+        if test_nbs:
+            # Set a value manually
+            self._inst.nand_block_size = 15
+            self.assertEqual(self._inst.nand_block_size, 15)
+            
+            # Force to query uboot - block size = 128 KB for a leo dm368
+            self._inst.nand_block_size = 0
+            self.assertEqual(self._inst.nand_block_size, 131072)
         
     def test_nand_page_size(self):
         
         # Set a value manually
-        self._inst.nand_page_size = 15
-        self.assertEqual(self._inst.nand_page_size, 15)
-        
-        # Force to query uboot - page size = 0x800 (2048) for a leo dm368
-        self._inst.nand_page_size = 0
-        self.assertEqual(self._inst.nand_page_size, 2048)
+        test_nps = False
+        if test_nps:
+            self._inst.nand_page_size = 15
+            self.assertEqual(self._inst.nand_page_size, 15)
+            
+            # Force to query uboot - page size = 0x800 (2048) for a leo dm368
+            self._inst.nand_page_size = 0
+            self.assertEqual(self._inst.nand_page_size, 2048)
 
     def test_uboot_env(self):
         
@@ -113,10 +117,13 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         self._inst.close_comm()
         
     def test_tftp_settings(self):
-        self._inst.tftp_dir = '/srv/tftp'
-        self._inst.tftp_port = 69
-        ret = self._inst._check_tftp_settings()
-        self.assertTrue(ret)
+        
+        test_tftp = False
+        if test_tftp:
+            self._inst.tftp_dir = '/srv/tftp'
+            self._inst.tftp_port = 69
+            ret = self._inst._check_tftp_settings()
+            self.assertTrue(ret)
         
     def test_tftp_dhcp(self):
         
@@ -137,8 +144,11 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
         test_install_boot = True
         if test_install_boot:
-            boot_img = "%s/images/bootloader" % devdir
-            ret = self._inst.install_bootloader(boot_img)
+            uboot_img = "%s/images/bootloader" % devdir
+            self._inst.ubl_file = "%s/images/ubl_nand.nandbin" % devdir
+            self._inst.ubl_start_block = 1
+            self._inst.uboot_file = "%s/images/bootloader" % devdir
+            ret = self._inst.install_bootloader(uboot_img)
             self.assertTrue(ret)
 
 if __name__ == '__main__':
