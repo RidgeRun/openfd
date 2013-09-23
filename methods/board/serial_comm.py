@@ -55,7 +55,7 @@ class SerialInstaller(object):
     """
     
     def __init__(self, nand_block_size=0, nand_page_size=0, ram_load_addr=None,
-                 uboot_file=None, uboot_dryrun=False, dryrun=False,
+                 uboot_dryrun=False, dryrun=False,
                  force_install=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
@@ -64,7 +64,6 @@ class SerialInstaller(object):
             value will be obtained from uboot (once).
         :param ram_load_addr: RAM address to load components, in decimal or
             hexadecimal (`'0x'` prefix).
-        :param uboot_file: Path to the uboot image file.
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
@@ -84,7 +83,6 @@ class SerialInstaller(object):
         self._ram_load_addr = None
         if self._is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
-        self._uboot_file = uboot_file
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
@@ -112,15 +110,6 @@ class SerialInstaller(object):
         """
         
         return self._port
-    
-    def __set_uboot_file(self, uboot_file):
-        self._uboot_file = uboot_file
-    
-    def __get_uboot_file(self):
-        return self._uboot_file
-    
-    uboot_file = property(__get_uboot_file, __set_uboot_file,
-                     doc="""Path to the uboot image file.""")
     
     def __set_force_install(self, force_install):
         self._force_install = force_install
@@ -592,8 +581,8 @@ class SerialInstallerTFTP(SerialInstaller):
     def __init__(self, host_ipaddr='', target_ipaddr='',
                  tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
                  net_mode=MODE_DHCP, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, uboot_file=None, uboot_dryrun=False,
-                 dryrun=False, force_install=False):
+                 ram_load_addr=None, uboot_dryrun=False, dryrun=False,
+                 force_install=False):
         """
         :param host_ipaddr: Host IP address.
         :param target_ipaddr: Target IP address, only necessary
@@ -609,7 +598,6 @@ class SerialInstallerTFTP(SerialInstaller):
             value will be obtained from uboot (once).
         :param ram_load_addr: RAM address to load components, in decimal or
             hexadecimal (`'0x'` prefix).
-        :param uboot_file: Path to the uboot image file.
         :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
             logged, but not executed.
         :type uboot_dryrun: boolean
@@ -620,8 +608,8 @@ class SerialInstallerTFTP(SerialInstaller):
         :type force_install: boolean
         """    
         SerialInstaller.__init__(self, nand_block_size, nand_page_size,
-                                 ram_load_addr, uboot_file, uboot_dryrun,
-                                 dryrun, force_install)
+                                 ram_load_addr,uboot_dryrun, dryrun,
+                                 force_install)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode
