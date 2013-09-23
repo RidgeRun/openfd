@@ -55,8 +55,7 @@ class SerialInstaller(object):
     """
     
     def __init__(self, nand_block_size=0, nand_page_size=0, ram_load_addr=None,
-                 uboot_dryrun=False, dryrun=False,
-                 force_install=False):
+                 uboot_dryrun=False, dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
@@ -70,8 +69,6 @@ class SerialInstaller(object):
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
-        :param force_install: Forces the requested installation.
-        :type force_install: boolean
         """
         
         self._logger = rrutils.logger.get_global_logger()
@@ -86,7 +83,6 @@ class SerialInstaller(object):
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
-        self._force_install = force_install
 
     @classmethod
     def uboot_comm_error_msg(cls, port):
@@ -110,15 +106,6 @@ class SerialInstaller(object):
         """
         
         return self._port
-    
-    def __set_force_install(self, force_install):
-        self._force_install = force_install
-        
-    def __get_force_install(self):
-        return self._force_install
-    
-    force_install = property(__get_force_install, __set_force_install,
-                     doc="""Forces the requested installation.""")
     
     def _is_valid_addr(self, addr):
         return True if hexutils.str_to_hex(addr) else False
@@ -428,9 +415,8 @@ class SerialInstaller(object):
         ret = self.expect('Instruction Cache is')[0]
         if ret is False:
             self._logger.error("Your uboot doesn't have icache command, "
-               "refusing to continue due risk of hanging.\nYou can update "
-               "your bootloader by other means like SD card or use "
-               "--force_install=yes")
+               "refusing to continue due to the risk of hanging, you can "
+               "update your bootloader by other means like an SD card.")
             return False
         return True
     
@@ -486,7 +472,7 @@ class SerialInstaller(object):
         if ret is False: return False
         
         ret = self._check_icache()
-        if ret is False and not self._force_install: return False
+        if ret is False: return False
         
         self._logger.info("Storing the current uboot's bootcmd")
         prev_bootcmd = self._uboot_get_env('bootcmd')
@@ -632,8 +618,7 @@ class SerialInstallerTFTP(SerialInstaller):
     def __init__(self, host_ipaddr='', target_ipaddr='',
                  tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
                  net_mode=None, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, uboot_dryrun=False, dryrun=False,
-                 force_install=False):
+                 ram_load_addr=None, uboot_dryrun=False, dryrun=False):
         """
         :param host_ipaddr: Host IP address.
         :param target_ipaddr: Target IP address, only necessary
@@ -655,12 +640,9 @@ class SerialInstallerTFTP(SerialInstaller):
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
-        :param force_install: Forces the requested installation.
-        :type force_install: boolean
         """    
         SerialInstaller.__init__(self, nand_block_size, nand_page_size,
-                                 ram_load_addr,uboot_dryrun, dryrun,
-                                 force_install)
+                                 ram_load_addr, uboot_dryrun, dryrun)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode
