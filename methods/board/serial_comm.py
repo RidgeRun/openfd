@@ -460,7 +460,8 @@ class SerialInstaller(object):
         installed to NAND.
         
         :param image_filename: Path to the uboot image file.
-        :param load_addr: Load address in RAM where to load the uboot image.
+        :param load_addr: Load address in RAM where to load the uboot image,
+            typically a hex address (i.e. '0x82000000').
         """
         
         if not os.path.isfile(image_filename):
@@ -510,16 +511,9 @@ class SerialInstaller(object):
         
         :param image_filename: Path to the UBL image file.
         :param start_block: Start block in NAND for the UBL image.
+        :type start_block: integer
         :returns: Returns true on success; false otherwise.
         """
-        
-        if not start_block:
-            self._logger.error('UBL start block not specified')
-            return False
-        
-        if not image_filename:
-            self._logger.error('UBL image not specified')
-            return False
         
         if not os.path.isfile(image_filename):
             self._logger.error("UBL image '%s' doesn't exist" % image_filename)
@@ -559,17 +553,10 @@ class SerialInstaller(object):
         
         :param image_filename: Path to the uboot image file.
         :param start_block: Start block in NAND for the uboot image.
+        :type start_block: integer
         :returns: Returns true on success; false otherwise.
         """
     
-        if not start_block:
-            self._logger.error('Uboot start block not specified')
-            return False
-        
-        if not image_filename:
-            self._logger.error('Uboot image not specified')
-            return False
-        
         if not os.path.isfile(image_filename):
             self._logger.error("Uboot image '%s' doesn't exist" %
                                image_filename)
