@@ -631,7 +631,7 @@ class SerialInstallerTFTP(SerialInstaller):
     
     def __init__(self, host_ipaddr='', target_ipaddr='',
                  tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
-                 net_mode=MODE_DHCP, nand_block_size=0, nand_page_size=0,
+                 net_mode=None, nand_block_size=0, nand_page_size=0,
                  ram_load_addr=None, uboot_dryrun=False, dryrun=False,
                  force_install=False):
         """
@@ -795,10 +795,14 @@ class SerialInstallerTFTP(SerialInstaller):
         
     def setup_uboot_network(self):
         """
-        Setup networking for uboot.
+        Setup networking for uboot, based on the specified :func:`net_mode`.
         
         Returns true on success; false otherwise.
         """
+        
+        if not self._net_mode:
+            self._logger.error('Please provide a networking mode')
+            return False
         
         self._logger.info('Checking TFTP settings')
         ret = self._check_tftp_settings()
