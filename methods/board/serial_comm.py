@@ -666,6 +666,7 @@ class SerialInstallerTFTP(SerialInstaller):
         self._net_mode = net_mode
         self._host_ipaddr = host_ipaddr
         self._target_ipaddr = target_ipaddr
+        self._is_network_setup = False
         
     def __set_tftp_port(self, port):
         self._tftp_port = port
@@ -748,8 +749,10 @@ class SerialInstallerTFTP(SerialInstaller):
             self._logger.error("Invalid address '%s'" % load_addr)
             return False
         
-        ret = self._setup_uboot_network()
-        if ret is False: return False
+        if not self._is_network_setup:
+            self._logger.error("Please setup uboot's network prior to any "
+                               "TFTP transfer")
+            return False
         
         # Copy the file to the host's TFTP directory
         basename = os.path.basename(filename)
@@ -790,12 +793,16 @@ class SerialInstallerTFTP(SerialInstaller):
         
         return True
         
-    def _setup_uboot_network(self):
+    def setup_uboot_network(self):
         """
         Setup networking for uboot.
         
         Returns true on success; false otherwise.
         """
+        
+        self._logger.info('Checking TFTP settings')
+        ret = self._check_tftp_settings()
+        if ret is False: return False
         
         self._logger.info('Configuring uboot network')
         if self._net_mode == SerialInstallerTFTP.MODE_STATIC:
@@ -823,5 +830,7 @@ class SerialInstallerTFTP(SerialInstaller):
 
         ret = self._uboot_set_env('serverip', self._host_ipaddr)
         if ret is False: return False
+        
+        self._is_network_setup = True
         
         return True

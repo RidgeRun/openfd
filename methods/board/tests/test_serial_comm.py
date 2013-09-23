@@ -106,8 +106,10 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
     
     def setUp(self):
         self._inst = SerialInstallerTFTP()
-        self._inst.host_ipaddr = test_host_ip_addr
         self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
+        self._inst.host_ipaddr = test_host_ip_addr
+        self._inst.tftp_dir = '/srv/tftp'
+        self._inst.tftp_port = 69
         self._inst.ram_load_addr = test_ram_load_addr
         ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
@@ -121,8 +123,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
         test_tftp = False
         if test_tftp:
-            self._inst.tftp_dir = '/srv/tftp'
-            self._inst.tftp_port = 69
+            
             ret = self._inst._check_tftp_settings()
             self.assertTrue(ret)
         
@@ -130,7 +131,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
         test_dhcp = False
         if test_dhcp:
-            ret = self._inst._setup_uboot_network()
+            ret = self._inst.setup_uboot_network()
             self.assertTrue(ret)
 
     def test_load_file_to_ram(self):
@@ -145,6 +146,10 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
         
         test_install_boot = True
         if test_install_boot:
+            
+            # Setup networking
+            ret = self._inst.setup_uboot_network()
+            self.assertTrue(ret)
             
             # Load to RAM the uboot that will make the installation
             uboot_img = "%s/images/bootloader" % devdir
