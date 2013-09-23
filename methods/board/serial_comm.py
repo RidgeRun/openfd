@@ -499,7 +499,7 @@ class SerialInstaller(object):
         ret = self._load_file_to_ram(image_filename, load_addr)
         if ret is False: return False
         
-        self._logger.info('Running new bootloader')
+        self._logger.info('Running the new uboot')
         ret = self.uboot_cmd('icache off')
         if ret is False: return False
         ret = self.uboot_cmd('go %s' % load_addr)
@@ -520,7 +520,7 @@ class SerialInstaller(object):
 
     def install_ubl(self, image_filename, start_block):
         """
-        Installs the ubl image to NAND.
+        Installs the UBL (initial program loader) image to NAND.
         
         :param image_filename: Path to the UBL image file.
         :param start_block: Start block in NAND for the UBL image.
@@ -539,6 +539,10 @@ class SerialInstaller(object):
             self._logger.error("UBL image '%s' doesn't exist" % image_filename)
             return False
         
+        self._logger.info("Loading UBL to RAM")
+        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
+        if ret is False: return False
+        
         # Offset in blocks
         ubl_offset_addr = start_block * self.nand_block_size
         
@@ -547,20 +551,67 @@ class SerialInstaller(object):
         ubl_size_blk = (ubl_size_b / self.nand_block_size) + 1
         ubl_size_aligned = ubl_size_blk * self.nand_block_size
         
-        self._logger.info("Loading ubl to RAM")
-        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
-        if ret is False: return False
-        
-        self._logger.info("Erasing ubl NAND space")
+        self._logger.info("Erasing UBL NAND space")
         cmd = 'nand erase %s %s' % (hex(ubl_offset_addr),
                                     hex(ubl_size_aligned))
         ret = self.uboot_cmd(cmd, echo_timeout=None,
                              prompt_timeout=DEFAULT_FLASH_TIMEOUT)
         if ret is False: return False
         
-        self._logger.info("Writing ubl from RAM to NAND")
+        self._logger.info("Writing UBL from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                    hex(ubl_offset_addr), hex(ubl_size_aligned))
+        ret = self.uboot_cmd(cmd, echo_timeout=DEFAULT_FLASH_TIMEOUT,
+                             prompt_timeout=None)
+        if ret is False: return False
+        
+        return True
+    
+    def install_uboot(self, image_filename, start_block):
+        """
+        Installs the uboot image to NAND.
+        
+        :param image_filename: Path to the uboot image file.
+        :param start_block: Start block in NAND for the uboot image.
+        :returns: Returns true on success; false otherwise.
+        """
+    
+        if not start_block:
+            self._logger.error('Uboot start block not specified')
+            return False
+        
+        if not image_filename:
+            self._logger.error('Uboot image not specified')
+            return False
+        
+        if not os.path.isfile(image_filename):
+            self._logger.error("Uboot image '%s' doesn't exist" %
+                               image_filename)
+            return False
+        
+        self._logger.info("Loading uboot to RAM")
+        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
+        if ret is False: return False
+
+        # Offset in blocks
+        uboot_offset_addr = start_block * self.nand_block_size
+        
+        # Size in blocks
+        uboot_size_b = os.path.getsize(image_filename)
+        uboot_size_blk = (uboot_size_b / self.nand_block_size) + 1
+        uboot_size_aligned = uboot_size_blk * self.nand_block_size
+
+        self._logger.info("Erasing uboot NAND space")
+        cmd = 'nand erase %s %s' % (hex(uboot_offset_addr),
+                                    hex(uboot_size_aligned))
+        ret = self.uboot_cmd(cmd, echo_timeout=None,
+                             prompt_timeout=DEFAULT_FLASH_TIMEOUT)
+        if ret is False: return False
+        
+        self._logger.info("Writing uboot from RAM to NAND")
+        cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
+                                           hex(uboot_offset_addr),
+                                           hex(uboot_size_aligned))
         ret = self.uboot_cmd(cmd, echo_timeout=DEFAULT_FLASH_TIMEOUT,
                              prompt_timeout=None)
         if ret is False: return False

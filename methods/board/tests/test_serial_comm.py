@@ -157,6 +157,13 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
             ret = self._inst.install_ubl(ubl_nand_img, ubl_nand_start_block)
             self.assertTrue(ret)
 
+            # Install the Bootloader (uboot) 
+            uboot_nand_img = "%s/images/bootloader.nandbin" % devdir
+            uboot_nand_start_block = 25
+            ret = self._inst.install_uboot(uboot_nand_img,
+                                           uboot_nand_start_block)
+            self.assertTrue(ret)
+
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
     suite = loader.loadTestsFromTestCase(SerialInstallerTestCase)
