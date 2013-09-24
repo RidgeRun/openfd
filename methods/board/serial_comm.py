@@ -373,7 +373,7 @@ class SerialInstaller(object):
         :param prompt_timeout: Timeout to wait for the prompt after sending
             the command. Set to None to avoid waiting for the prompt.
         :type prompt_timeout: integer or none
-        :returns: Returns true on sucess; false otherwise.
+        :returns: Returns true on success; false otherwise.
         """
         
         self._logger.info("Uboot: '%s'" % cmd.strip())
@@ -399,7 +399,7 @@ class SerialInstaller(object):
                 if ret is False:
                     self._logger.error("Didn't get the uboot prompt back "
                        "after executing the '%s' command. This is the log of "
-                       "the last command: %s" % (cmd.strip(), line))
+                       "the last line: %s" % (cmd.strip(), line))
                     return False
         
         return True
@@ -589,6 +589,19 @@ class SerialInstaller(object):
                              prompt_timeout=None)
         if ret is False: return False
         
+        self._logger.info("Restarting to use uboot in NAND")
+        ret= self.uboot_cmd('reset', prompt_timeout=None)
+        uboot_reset_str = 'U-Boot'
+        found_reset_str = self.expect(uboot_reset_str, timeout=10)[0]
+        if not found_reset_str:
+            self._logger.error("Failed to detect the uboot in NAND restarting")
+            return False
+        time.sleep(4) # Give uboot time to initialize
+        ret = self.uboot_sync()
+        if ret is False:
+            self._logger.error("Failed synchronizing with the uboot in NAND.")
+            return False
+                
         return True
 
 class SerialInstallerTFTP(SerialInstaller):
@@ -798,7 +811,7 @@ class SerialInstallerTFTP(SerialInstaller):
                 self.uboot_cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
                 self._logger.error("Looks like your network doesn't have "
                        "dhcp enabled or you don't have an ethernet link. "
-                       "Output from the bootloader: '%s'" % line)
+                       "Last line read from the bootloader: '%s'" % line)
                 return False
 
         ret = self._uboot_set_env('serverip', self._host_ipaddr)
