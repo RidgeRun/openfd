@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # ==========================================================================
 #
 # Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
@@ -497,9 +498,11 @@ class SerialInstaller(object):
             self._logger.error('Failed to detect the new uboot starting')
             return False
         
-        self._logger.info('Restoring the previous uboot bootcmd')
-        ret = self._uboot_set_env('bootcmd', prev_bootcmd)
-        if ret is False: return False
+        if prev_bootcmd:
+            self._logger.info('Restoring the previous uboot bootcmd')
+            ret = self._uboot_set_env('bootcmd', prev_bootcmd)
+            if ret is False: return False
+        
         ret = self.uboot_cmd('saveenv')
         if ret is False: return False
         
@@ -590,7 +593,7 @@ class SerialInstaller(object):
         if ret is False: return False
         
         self._logger.info("Restarting to use uboot in NAND")
-        ret= self.uboot_cmd('reset', prompt_timeout=None)
+        ret = self.uboot_cmd('reset', prompt_timeout=None)
         uboot_reset_str = 'U-Boot'
         found_reset_str = self.expect(uboot_reset_str, timeout=10)[0]
         if not found_reset_str:
@@ -599,7 +602,7 @@ class SerialInstaller(object):
         time.sleep(4) # Give uboot time to initialize
         ret = self.uboot_sync()
         if ret is False:
-            self._logger.error("Failed synchronizing with the uboot in NAND.")
+            self._logger.error("Failed synchronizing with the uboot in NAND")
             return False
                 
         return True
