@@ -43,10 +43,29 @@ class NandImageGeneratorTestCase(unittest.TestCase):
         self._gen.bc_bin = ('%s/bootloader/u-boot-2010.12-rc2-psp03.01.01.39'
                     '/ti-flash-utils/src/DM36x/GNU/bc_DM36x.exe' % devdir)
         self._gen.image_dir = '%s/images' % devdir
+        self._gen.verbose = True
         self._gen.dryrun = False
-        
+ 
     def tearDown(self):
         pass
+ 
+    def test_gen_uboot_img(self):
+        
+        # BC info for uboot image:
+        #   Intended NAND device has 2048 byte pages.
+        #   Image intended for block 25.
+        #   Image entry point is 0x82000000.
+        #   Image load address is 0x82000000.
+
+        page_size = 2048
+        start_block = 25
+        entry_addr = '0x82000000'
+        load_addr = '0x82000000'
+        input_img = '%s/images/bootloader' % devdir
+        output_img = '%s/images/bootloader.nandbin' % devdir
+        ret = self._gen.gen_uboot_img(page_size, start_block, entry_addr, load_addr,
+                                input_img, output_img)
+        self.assertTrue(ret)
         
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
