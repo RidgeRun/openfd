@@ -18,11 +18,17 @@
 
 import os, sys
 import unittest
+import rrutils
+import check_env
 
 sys.path.insert(1, os.path.abspath('..'))
 
-import rrutils
 from image_gen import NandImageGenerator
+
+
+# DEVDIR environment variable
+devdir = check_env.get_devdir()
+if not devdir: sys.exit(-1)
 
 class NandImageGeneratorTestCase(unittest.TestCase):
     
@@ -34,6 +40,10 @@ class NandImageGeneratorTestCase(unittest.TestCase):
     
     def setUp(self):
         self._gen = NandImageGenerator()
+        self._gen.bc_bin = ('%s/bootloader/u-boot-2010.12-rc2-psp03.01.01.39'
+                    '/ti-flash-utils/src/DM36x/GNU/bc_DM36x.exe' % devdir)
+        self._gen.image_dir = '%s/images' % devdir
+        self._gen.dryrun = False
         
     def tearDown(self):
         pass
