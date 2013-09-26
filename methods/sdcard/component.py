@@ -63,8 +63,12 @@ class ComponentInstaller(object):
         self._uflash_bin = uflash_bin
         self._ubl_file = ubl_file
         self._uboot_file = uboot_file
-        self._uboot_entry_addr = uboot_entry_addr
-        self._uboot_load_addr = uboot_load_addr
+        self._uboot_entry_addr = None
+        if hexutils.is_valid_addr(uboot_entry_addr):
+            self._uboot_entry_addr = uboot_entry_addr
+        self._uboot_load_addr = None
+        if hexutils.is_valid_addr(uboot_load_addr):
+            self._uboot_load_addr = uboot_load_addr
         self._bootargs = bootargs
         self._kernel_image = kernel_image
         self._rootfs = rootfs
@@ -109,7 +113,7 @@ class ComponentInstaller(object):
                           doc="""Path to the uboot file.""")
     
     def __set_uboot_entry_addr(self, uboot_entry_addr):
-        if self._is_valid_addr(uboot_entry_addr):
+        if hexutils.is_valid_addr(uboot_entry_addr):
             self._uboot_entry_addr = uboot_entry_addr
         else:
             self._logger.error('Invalid u-boot entry address: %s' %
@@ -124,7 +128,7 @@ class ComponentInstaller(object):
                                 hexadecimal (`'0x'` prefix).""")
     
     def __set_uboot_load_addr(self, uboot_load_addr):
-        if self._is_valid_addr(uboot_load_addr):
+        if hexutils.is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr
         else:
             self._logger.error('Invalid u-boot load address: %s' %
@@ -177,13 +181,6 @@ class ComponentInstaller(object):
                        doc="""Path to the workdir - a directory where this
                        installer can write files and perform other temporary
                        operations.""")
-    
-    def _is_valid_addr(self, addr):
-        """
-        Returns true if the address is valid; false otherwise.
-        """
-        
-        return True if hexutils.str_to_hex(addr) else False
     
     def install_uboot(self, device):
         """

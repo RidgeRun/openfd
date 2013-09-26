@@ -85,9 +85,6 @@ class NandImageGenerator(object):
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
     
-    def _is_valid_addr(self, addr):
-        return True if hexutils.str_to_hex(addr) else False
-    
     def _check_args(self, input_img, output_img, entry_addr='', load_addr=''):
         """
         Helper to check the validity of the received arguments for image
@@ -108,11 +105,11 @@ class NandImageGenerator(object):
             self._logger.error("Can't write to '%s'." % output_dir)
             return False
         
-        if entry_addr and not self._is_valid_addr(entry_addr):
+        if entry_addr and not hexutils.is_valid_addr(entry_addr):
             self._logger.error("Invalid uboot entry address '%s'" % entry_addr)
             return False
         
-        if load_addr and not self._is_valid_addr(load_addr):
+        if load_addr and not hexutils.is_valid_addr(load_addr):
             self._logger.error("Invalid uboot load address '%s'" % load_addr)
             return False
         

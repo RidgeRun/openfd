@@ -79,7 +79,7 @@ class SerialInstaller(object):
         self._nand_block_size = nand_block_size
         self._nand_page_size = nand_page_size
         self._ram_load_addr = None
-        if self._is_valid_addr(ram_load_addr):
+        if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
         self._uboot_prompt = ''
         self._uboot_dryrun = uboot_dryrun
@@ -108,11 +108,8 @@ class SerialInstaller(object):
         
         return self._port
     
-    def _is_valid_addr(self, addr):
-        return True if hexutils.str_to_hex(addr) else False
-    
     def __set_ram_load_addr(self, ram_load_addr):
-        if self._is_valid_addr(ram_load_addr):
+        if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
         else:
             self._logger.error('Invalid RAM load address: %s' %
@@ -730,7 +727,7 @@ class SerialInstallerTFTP(SerialInstaller):
         Loads the given file through TFTP to the given load address in RAM.
         """
         
-        if not self._is_valid_addr(load_addr):
+        if not hexutils.is_valid_addr(load_addr):
             self._logger.error("Invalid address '%s'" % load_addr)
             return False
         
