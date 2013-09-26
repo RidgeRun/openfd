@@ -25,6 +25,7 @@ import rrutils
 import time
 from serial_comm import SerialInstaller
 from serial_comm import SerialInstallerTFTP
+from image_gen import NandImageGenerator
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
@@ -156,15 +157,42 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
             ret = self._inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
             self.assertTrue(ret)
             
-            # Install the Initial Program Loader (UBL) 
+            # Image generator
+            gen = NandImageGenerator()
+            gen.bc_bin = ('%s/bootloader/u-boot-2010.12-rc2-psp03.01.01.39'
+                      '/ti-flash-utils/src/DM36x/GNU/bc_DM36x.exe' % devdir)
+            gen.image_dir = '%s/images' % devdir
+            gen.dryrun = self._inst.dryrun
+            
+            # Generate the UBL nand image
+            ubl_img = '%s/images/ubl_DM36x_nand.bin' % devdir
             ubl_nand_img = "%s/images/ubl_nand.nandbin" % devdir
             ubl_nand_start_block = 1
+            ret = gen.gen_ubl_img(page_size=self._inst.nand_page_size,
+                                        start_block=ubl_nand_start_block,
+                                        input_img=ubl_img,
+                                        output_img=ubl_nand_img)
+            self.assertTrue(ret)
+            
+            # Install UBL to NAND 
             ret = self._inst.install_ubl(ubl_nand_img, ubl_nand_start_block)
             self.assertTrue(ret)
-
-            # Install the Bootloader (uboot) 
+            
+            # Generate the uboot nand image
+            uboot_img = "%s/images/bootloader" % devdir
             uboot_nand_img = "%s/images/bootloader.nandbin" % devdir
             uboot_nand_start_block = 25
+            uboot_entry_addr = '0x82000000'
+            uboot_load_addr = '0x82000000'
+            ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
+                                    start_block=uboot_nand_start_block,
+                                    entry_addr=uboot_entry_addr,
+                                    load_addr=uboot_load_addr,
+                                    input_img=uboot_img,
+                                    output_img=uboot_nand_img)
+            self.assertTrue(ret)
+            
+            # Install uboot 
             ret = self._inst.install_uboot(uboot_nand_img,
                                            uboot_nand_start_block)
             self.assertTrue(ret)

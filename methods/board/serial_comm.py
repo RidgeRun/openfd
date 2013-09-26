@@ -77,7 +77,7 @@ class SerialInstaller(object):
         self._executer.logger = self._logger
         self._port = None
         self._nand_block_size = nand_block_size
-        self._page_page_size = nand_page_size
+        self._nand_page_size = nand_page_size
         self._ram_load_addr = None
         if self._is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
@@ -522,7 +522,7 @@ class SerialInstaller(object):
             self._logger.error("UBL image '%s' doesn't exist" % image_filename)
             return False
         
-        self._logger.info("Loading UBL to RAM")
+        self._logger.info("Loading UBL image to RAM")
         ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
         if ret is False: return False
         
@@ -541,7 +541,7 @@ class SerialInstaller(object):
                              prompt_timeout=DEFAULT_FLASH_TIMEOUT)
         if ret is False: return False
         
-        self._logger.info("Writing UBL from RAM to NAND")
+        self._logger.info("Writing UBL image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                    hex(ubl_offset_addr), hex(ubl_size_aligned))
         ret = self.uboot_cmd(cmd, echo_timeout=DEFAULT_FLASH_TIMEOUT,
@@ -565,7 +565,7 @@ class SerialInstaller(object):
                                image_filename)
             return False
         
-        self._logger.info("Loading uboot to RAM")
+        self._logger.info("Loading uboot image to RAM")
         ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
         if ret is False: return False
 
@@ -584,7 +584,7 @@ class SerialInstaller(object):
                              prompt_timeout=DEFAULT_FLASH_TIMEOUT)
         if ret is False: return False
         
-        self._logger.info("Writing uboot from RAM to NAND")
+        self._logger.info("Writing uboot image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                            hex(uboot_offset_addr),
                                            hex(uboot_size_aligned))
@@ -592,7 +592,7 @@ class SerialInstaller(object):
                              prompt_timeout=None)
         if ret is False: return False
         
-        self._logger.info("Restarting to use uboot in NAND")
+        self._logger.info("Restarting to use the uboot in NAND")
         ret = self.uboot_cmd('reset', prompt_timeout=None)
         uboot_reset_str = 'U-Boot'
         found_reset_str = self.expect(uboot_reset_str, timeout=10)[0]
