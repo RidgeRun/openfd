@@ -49,6 +49,22 @@ class NandImageGeneratorTestCase(unittest.TestCase):
     def tearDown(self):
         pass
  
+    def test_gen_ubl_img(self):
+        
+        # BC info for UBL image:
+        #   Intended NAND device has 2048 byte pages.
+        #   Image intended for block 1.
+        #   Image entry point is 0x00000100. (ignore)
+        #   Image load address is 0x00000020. (ignore)
+        
+        page_size = 2048
+        start_block = 1
+        input_img = '%s/images/ubl_DM36x_nand.bin' % devdir
+        output_img = '%s/images/ubl_nand.nandbin' % devdir
+        ret = self._gen.gen_ubl_img(page_size, start_block, input_img,
+                                    output_img)
+        self.assertTrue(ret)
+ 
     def test_gen_uboot_img(self):
         
         # BC info for uboot image:

@@ -40,8 +40,6 @@ class NandImageGenerator(object):
                  dryrun=False):
         """
         :param bc_bin: Path to the TI DM36x Binary Creator tool.
-        :param image_dir: Path to the directory where to place the generated
-            images.
         :param verbose: Enable verbose mode to display the BC tool output.
         :type verbose: boolean
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
@@ -87,23 +85,12 @@ class NandImageGenerator(object):
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
     
-    def gen_uboot_img(self, page_size, start_block, entry_addr, load_addr,
-                      input_img, output_img):
+    def _check_args(self, input_img, output_img):
         """
-        Generates a uboot binary image for NAND.
-        
-        :param page_size: NAND page size (bytes).
-        :param start_block: Start block in NAND for the uboot image (decimal).
-        :param entry_addr: Uboot entry address, in decimal or hexadecimal
-            (`'0x'` prefix).
-        :param load_addr: Uboot load address, in decimal or hexadecimal
-            (`'0x'` prefix).
-        :param input_img: Path to the uboot binary input image.
-        :param output_img: Path where to place the generated NAND uboot
-            binary image.
-        :returns: Returns true on success; false otherwise.
+        Helper to check the validity of the received arguments for image
+        generation methods.
         """
-        
+    
         if not self._bc_bin:
             self._logger.error("Please provide the path to the TI Binary "
                                "Creator tool.")
@@ -118,6 +105,28 @@ class NandImageGenerator(object):
             self._logger.error("Can't write to '%s'." % output_dir)
             return False
         
+        return True
+    
+    def gen_uboot_img(self, page_size, start_block, entry_addr, load_addr,
+                      input_img, output_img):
+        """
+        Generates an uboot binary image for NAND.
+        
+        :param page_size: NAND page size (bytes).
+        :param start_block: Start block in NAND for the uboot image (decimal).
+        :param entry_addr: Uboot entry address, in decimal or hexadecimal
+            (`'0x'` prefix).
+        :param load_addr: Uboot load address, in decimal or hexadecimal
+            (`'0x'` prefix).
+        :param input_img: Path to the uboot binary input image.
+        :param output_img: Path where to place the generated NAND uboot
+            binary image.
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        ret = self._check_args(input_img, output_img)
+        if ret is False: return False
+        
         entry_addr_hex = hexutils.to_hex(str(entry_addr))
         load_addr_hex = hexutils.to_hex(str(load_addr))
         
@@ -125,13 +134,40 @@ class NandImageGenerator(object):
                '-loadAddr %s %s -o %s' % (self._bc_bin, page_size,
                   start_block, entry_addr_hex, load_addr_hex, input_img,
                   output_img))
-        ret = 0
         if self._verbose:
             ret = self._executer.call(cmd)
         else:
             ret = self._executer.check_call(cmd)
         if ret != 0:
             self._logger.error('Failed generating the uboot binary image '
+                               'for NAND')
+            return False
+        
+        return True
+
+    def gen_ubl_img(self, page_size, start_block, input_img, output_img):
+        """
+        Generates an UBL binary image for NAND.
+        
+        :param page_size: NAND page size (bytes).
+        :param start_block: Start block in NAND for the UBL image (decimal).
+        :param input_img: Path to the UBL binary input image.
+        :param output_img: Path where to place the generated NAND UBL
+            binary image.
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        ret = self._check_args(input_img, output_img)
+        if ret is False: return False
+        
+        cmd = ('mono %s -pageSize %s -blockNum %s %s -o %s' % (self._bc_bin,
+                page_size, start_block, input_img, output_img))
+        if self._verbose:
+            ret = self._executer.call(cmd)
+        else:
+            ret = self._executer.check_call(cmd)
+        if ret != 0:
+            self._logger.error('Failed generating the UBL binary image '
                                'for NAND')
             return False
         
