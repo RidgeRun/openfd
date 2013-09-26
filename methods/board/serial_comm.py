@@ -439,7 +439,7 @@ class SerialInstaller(object):
         
         value=''
         
-        ret = self.uboot_cmd('printenv', prompt_timeout=None)
+        ret = self.uboot_cmd('printenv %s' % variable, prompt_timeout=None)
         if ret is False: return ''
         
         ret, line = self.expect('%s=' % variable)
@@ -755,7 +755,7 @@ class SerialInstallerTFTP(SerialInstaller):
         
         # Transfer
         hex_load_addr = hexutils.to_hex(load_addr)
-        self._logger.info("Starting TFTP transfer from file '%s' to "
+        self._logger.debug("Starting TFTP transfer from file '%s' to "
                           "address '%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         ret = self.uboot_cmd(cmd, prompt_timeout=transfer_timeout)
