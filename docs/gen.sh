@@ -20,7 +20,7 @@ SRC_DIR=$DEVDIR/installer/new/installer/
 sphinx-apidoc -o $DOCS_DIR $SRC_DIR
 
 # Build the html docs
-make html
+make clean html
 
 # Open it up
 if [ -z "$BROWSER"  ] ; then
