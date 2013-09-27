@@ -48,18 +48,14 @@ class Uboot(object):
     pySerial.
     """
     
-    def __init__(self, nand_block_size=0, nand_page_size=0,
-                 uboot_dryrun=False, dryrun=False):
+    def __init__(self, nand_block_size=0, nand_page_size=0, dryrun=False):
         """
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
             value will be obtained from uboot (once).
-        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
+        :param dryrun: Enable dryrun mode. System and uboot commands will be
             logged, but not executed.
-        :type uboot_dryrun: boolean
-        :param dryrun: Enable dryrun mode. System commands will be logged,
-            but not executed.
         :type dryrun: boolean
         """
         
@@ -70,7 +66,6 @@ class Uboot(object):
         self._nand_block_size = nand_block_size
         self._nand_page_size = nand_page_size
         self._prompt = ''
-        self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
 
     @classmethod
@@ -88,16 +83,6 @@ class Uboot(object):
                'Be sure uboot is active on port %s and you have terminal '
                'programs like minicom closed.' % port)
     
-    def __set_uboot_dryrun(self, dryrun):
-        self._uboot_dryrun = dryrun
-    
-    def __get_uboot_dryrun(self):
-        return self._uboot_dryrun
-    
-    uboot_dryrun = property(__get_uboot_dryrun, __set_uboot_dryrun,
-                     doc="""Enable uboot dryrun mode. Uboot commands will be
-                     logged, but not executed.""")
-    
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
         self._executer.dryrun = dryrun
@@ -106,8 +91,8 @@ class Uboot(object):
         return self._dryrun
     
     dryrun = property(__get_dryrun, __set_dryrun,
-                     doc="""Enable dryrun mode. System commands will be
-                     logged, but not executed.""")
+                     doc="""Enable dryrun mode. System and uboot commands will
+                     be logged, but not executed.""")
 
     def __set_nand_block_size(self, size):
         self._nand_block_size = int(size)
@@ -124,7 +109,7 @@ class Uboot(object):
         ret = self.cmd('nand info', prompt_timeout=None)
         if ret is False: return 0
         
-        if self._uboot_dryrun: # no need to go further in this mode
+        if self._dryrun: # no need to go further in this mode
             return self._nand_block_size
         
         ret, line = self.expect('Device 0')
@@ -162,7 +147,7 @@ class Uboot(object):
         page_size = 0
         possible_sizes=['0200', '0400', '0800', '1000']
         
-        if self._uboot_dryrun:
+        if self._dryrun:
             for size in possible_sizes:
                 ret = self.cmd('nand dump.oob %s' % size,
                                  prompt_timeout=None)
@@ -196,7 +181,7 @@ class Uboot(object):
                            specified.""")
 
     def _check_open_port(self):
-        if self._port is None and not self._uboot_dryrun:
+        if self._port is None and not self._dryrun:
             self._logger.error('No opened port (try open_comm() first)')
             return False
         else:
@@ -217,7 +202,7 @@ class Uboot(object):
         :exception SerialException: On error while opening the serial port.
         """
         
-        if self._uboot_dryrun: return True
+        if self._dryrun: return True
         
         # Terminal line settings
         cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
@@ -265,7 +250,7 @@ class Uboot(object):
         """
         
         if self._check_open_port() is False: return False, ''
-        if self._uboot_dryrun: return True, ''
+        if self._dryrun: return True, ''
         
         found = False
         line = ''
@@ -303,7 +288,7 @@ class Uboot(object):
         
         if self._check_open_port() is False: return False
         
-        if not self._uboot_dryrun:
+        if not self._dryrun:
             self._port.flush()
         
         if (not self.cmd('echo resync', prompt_timeout=False) or
@@ -313,7 +298,7 @@ class Uboot(object):
             return False
         
         # Identify the prompt in the following line
-        if not self._uboot_dryrun:
+        if not self._dryrun:
             try:
                 line = self._port.readline().strip('\r\n')
             except (serial.SerialException, OSError) as e:
@@ -344,7 +329,7 @@ class Uboot(object):
         
         self._logger.info("Uboot: '%s'" % cmd.strip())
         
-        if not self._uboot_dryrun:
+        if not self._dryrun:
         
             self._port.write('%s\n' % cmd)
             time.sleep(0.1)
@@ -364,9 +349,11 @@ class Uboot(object):
             if self._prompt and prompt_timeout:
                 ret, line = self.expect(self._prompt, timeout=prompt_timeout)
                 if ret is False:
-                    self._logger.error("Didn't get the uboot prompt back "
-                       "after executing the '%s' command. This is the log of "
-                       "the last line: %s" % (cmd.strip(), line))
+                    msg = ("Didn't get the uboot prompt back  after "
+                           "executing the '%s' command. " % cmd.strip())
+                    if line:
+                        msg += "This is the log of the last line: %s" % line
+                    self._logger.error(msg)
                     return False
         
         return True

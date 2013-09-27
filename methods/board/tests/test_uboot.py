@@ -33,7 +33,6 @@ class UbootTestCase(unittest.TestCase):
     
     def setUp(self):
         self._uboot = Uboot()
-        self._uboot.uboot_dryrun = False
         self._uboot.dryrun = False
         ret = self._uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
@@ -44,7 +43,7 @@ class UbootTestCase(unittest.TestCase):
         self._uboot.close_comm()
  
     def test_nand_block_size(self):
-        if self._uboot.uboot_dryrun:
+        if self._uboot.dryrun:
             self.assertEqual(self._uboot.nand_block_size, 0)
             self._uboot.nand_block_size = 131072
             self.assertEqual(self._uboot.nand_block_size, 131072)
@@ -57,7 +56,7 @@ class UbootTestCase(unittest.TestCase):
             self.assertEqual(self._uboot.nand_block_size, 131072)
  
     def test_nand_page_size(self):
-        if self._uboot.uboot_dryrun:
+        if self._uboot.dryrun:
             self.assertEqual(self._uboot.nand_page_size, 0)
             self._uboot.nand_page_size = 2048
             self.assertEqual(self._uboot.nand_page_size, 2048)
@@ -70,11 +69,11 @@ class UbootTestCase(unittest.TestCase):
             self.assertEqual(self._uboot.nand_page_size, 2048)
  
     def test_uboot_env(self):
-        if self._uboot.uboot_dryrun:
+        if self._uboot.dryrun:
             ret = self._uboot.set_env('test_env','yes')
             self.assertTrue(ret)
             value = self._uboot.get_env('test_env')
-            self.assertEqual(value, '') # empty because of uboot_dryrun
+            self.assertEqual(value, '') # empty because of dryrun
         else:
             # Get
             value = self._uboot.get_env('kerneloffset')
