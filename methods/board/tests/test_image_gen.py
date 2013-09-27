@@ -35,7 +35,7 @@ class NandImageGeneratorTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         rrutils.logger.basic_config(verbose=True)
-        logger = rrutils.logger.get_global_logger('SerialInstaller')
+        logger = rrutils.logger.get_global_logger('NandImageGenerator')
         logger.setLevel(rrutils.logger.DEBUG)
     
     def setUp(self):
