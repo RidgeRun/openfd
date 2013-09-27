@@ -123,7 +123,10 @@ class Uboot(object):
         
         ret = self.cmd('nand info', prompt_timeout=None)
         if ret is False: return 0
-            
+        
+        if self._uboot_dryrun: # no need to go further in this mode
+            return self._nand_block_size
+        
         ret, line = self.expect('Device 0')
         if not ret:
             self._logger.error('Can\'t find Device 0')
@@ -159,6 +162,12 @@ class Uboot(object):
         page_size = 0
         possible_sizes=['0200', '0400', '0800', '1000']
         
+        if self._uboot_dryrun:
+            for size in possible_sizes:
+                ret = self.cmd('nand dump.oob %s' % size,
+                                 prompt_timeout=None)
+            return self._nand_page_size
+        
         for size in possible_sizes:
             
             ret = self.cmd('nand dump.oob %s' % size,
@@ -179,8 +188,6 @@ class Uboot(object):
             self._logger.error('Unable to determine the NAND page size')
         else:
             self._nand_page_size = page_size
-            self._logger.debug('NAND page size: %d bytes' %
-                               self._nand_page_size)
         return self._nand_page_size
     
     nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
@@ -189,7 +196,7 @@ class Uboot(object):
                            specified.""")
 
     def _check_open_port(self):
-        if self._port is None:
+        if self._port is None and not self._uboot_dryrun:
             self._logger.error('No opened port (try open_comm() first)')
             return False
         else:
@@ -210,6 +217,8 @@ class Uboot(object):
         :exception SerialException: On error while opening the serial port.
         """
         
+        if self._uboot_dryrun: return True
+        
         # Terminal line settings
         cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
                'eol ^J start ^Q stop ^S -echo echoe echok -echonl echoke '
@@ -221,7 +230,6 @@ class Uboot(object):
             self._logger.error(output)
             return False
         
-        # Open the serial port
         try:
             self._port = serial.Serial(port=port,
                                        baudrate=baud,
@@ -256,11 +264,12 @@ class Uboot(object):
             returned stripped.
         """
         
+        if self._check_open_port() is False: return False, ''
+        if self._uboot_dryrun: return True, ''
+        
         found = False
         line = ''
         start_time = time.time()
-        
-        if self._check_open_port() is False: return False, ''
         
         while not found and (time.time() - start_time) < timeout:
             try:
@@ -273,32 +282,7 @@ class Uboot(object):
             
         return found, line
 
-    def sync(self):
-        """
-        Synchronizes with uboot. If successful, uboot's prompt will be ready 
-        to receive commands after this call.
-            
-        :return: Returns true on success; false otherwise.
-        """
-    
-        if self._check_open_port() is False: return False
-    
-        self._port.flush()
-        self._port.write('echo resync\n')
-        self.expect('echo resync') # Ignore the echo
-        ret = self.expect('resync', timeout=1)[0]
-        if not ret:
-            msg = Uboot.comm_error_msg(self._port.port)
-            self._logger.error(msg)
-            return False
-        
-        # Identify the prompt in the following line
-        try:
-            line = self._port.readline().strip('\r\n')
-        except (serial.SerialException, OSError) as e:
-            self._logger.error(e)
-            return False
-        
+    def _identify_prompt(self, line):
         m = re.match('(?P<prompt>.*) $', line)
         if m:
             self._prompt = m.group('prompt').strip()
@@ -306,6 +290,38 @@ class Uboot(object):
         else:
             self._logger.error("Couldn't identify the uboot prompt.")
             return False
+        
+        return True
+
+    def sync(self):
+        """
+        Synchronizes with uboot. If successful, uboot's prompt will be ready 
+        to receive commands after this call.
+            False
+        :return: Returns true on success; false otherwise.
+        """
+        
+        if self._check_open_port() is False: return False
+        
+        if not self._uboot_dryrun:
+            self._port.flush()
+        
+        if (not self.cmd('echo resync', prompt_timeout=False) or
+            not self.expect('resync', timeout=1)[0]):
+            msg = Uboot.comm_error_msg(self._port.port)
+            self._logger.error(msg)
+            return False
+        
+        # Identify the prompt in the following line
+        if not self._uboot_dryrun:
+            try:
+                line = self._port.readline().strip('\r\n')
+            except (serial.SerialException, OSError) as e:
+                self._logger.error(e)
+                return False
+            
+            ret = self._identify_prompt(line)
+            if ret is False: return False
 
         return True
     
@@ -324,9 +340,11 @@ class Uboot(object):
         :returns: Returns true on success; false otherwise.
         """
         
+        if self._check_open_port() is False: return False
+        
         self._logger.info("Uboot: '%s'" % cmd.strip())
         
-        if not self._uboot_dryrun and self._port:
+        if not self._uboot_dryrun:
         
             self._port.write('%s\n' % cmd)
             time.sleep(0.1)
@@ -335,9 +353,11 @@ class Uboot(object):
             if echo_timeout:
                 ret, line = self.expect(cmd.strip(), echo_timeout)
                 if ret is False:
-                    self._logger.error("Uboot didn't echo the '%s' command, "
-                       "maybe it froze. This is the log of the last "
-                       "command: %s" % (cmd.strip(), line))
+                    msg = ("Uboot didn't echo the '%s' command, maybe it "
+                        "froze. " % cmd.strip())
+                    if line:
+                        msg += "This is the log of the last line: %s" % line
+                    self._logger.error(msg)
                     return False
         
             # Wait for the prompt
@@ -358,7 +378,7 @@ class Uboot(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        return self.uboot_cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
+        return self.cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
     
     def set_env(self, variable, value):
         """

@@ -44,29 +44,53 @@ class UbootTestCase(unittest.TestCase):
         self._uboot.close_comm()
  
     def test_nand_block_size(self):
-        # Set a value manually
-        self._uboot.nand_block_size = 15
-        self.assertEqual(self._uboot.nand_block_size, 15)
-        # Force to query uboot - block size = 128 KB for a leo dm368
-        self._uboot.nand_block_size = 0
-        self.assertEqual(self._uboot.nand_block_size, 131072)
+        if self._uboot.uboot_dryrun:
+            self.assertEqual(self._uboot.nand_block_size, 0)
+            self._uboot.nand_block_size = 131072
+            self.assertEqual(self._uboot.nand_block_size, 131072)
+        else:
+            # Set a value manually
+            self._uboot.nand_block_size = 15
+            self.assertEqual(self._uboot.nand_block_size, 15)
+            # Force to query uboot - block size = 128 KB for a leo dm368
+            self._uboot.nand_block_size = 0
+            self.assertEqual(self._uboot.nand_block_size, 131072)
  
     def test_nand_page_size(self):
-        # Set a value manually
-        self._uboot.nand_page_size = 15
-        self.assertEqual(self._uboot.nand_page_size, 15)
-        # Force to query uboot - page size = 0x800 (2048) for a leo dm368
-        self._uboot.nand_page_size = 0
-        self.assertEqual(self._uboot.nand_page_size, 2048)
+        if self._uboot.uboot_dryrun:
+            self.assertEqual(self._uboot.nand_page_size, 0)
+            self._uboot.nand_page_size = 2048
+            self.assertEqual(self._uboot.nand_page_size, 2048)
+        else:
+            # Set a value manually
+            self._uboot.nand_page_size = 15
+            self.assertEqual(self._uboot.nand_page_size, 15)
+            # Force to query uboot - page size = 0x800 (2048) for a leo dm368
+            self._uboot.nand_page_size = 0
+            self.assertEqual(self._uboot.nand_page_size, 2048)
  
     def test_uboot_env(self):
-        value = self._uboot.get_env('kerneloffset')
-        self.assertEqual(value, '0x400000')
-        value = self._uboot.get_env('importbootenv')
-        self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
+        if self._uboot.uboot_dryrun:
+            ret = self._uboot.set_env('test_env','yes')
+            self.assertTrue(ret)
+            value = self._uboot.get_env('test_env')
+            self.assertEqual(value, '') # empty because of uboot_dryrun
+        else:
+            # Get
+            value = self._uboot.get_env('kerneloffset')
+            self.assertEqual(value, '0x400000')
+            value = self._uboot.get_env('importbootenv')
+            self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
+            # Set
+            ret = self._uboot.set_env('test_env','yes')
+            self.assertTrue(ret)
+            value = self._uboot.get_env('test_env')
+            self.assertEqual(value, 'yes')
 
     def test_uboot_cmd(self):
         ret = self._uboot.cmd('nand info')
+        self.assertTrue(ret)
+        ret = self._uboot.cancel_cmd()
         self.assertTrue(ret)
  
 if __name__ == '__main__':
