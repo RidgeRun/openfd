@@ -44,8 +44,8 @@ DEFAULT_UBOOT_TIMEOUT = 5
 
 class Uboot(object):
     """
-    Serial communication operations to support the installer. Based on
-    pySerial.
+    Class that abstracts the communication with uboot over a serial port.
+    Based on pySerial.
     """
     
     def __init__(self, nand_block_size=0, nand_page_size=0, dryrun=False):
@@ -236,9 +236,9 @@ class Uboot(object):
 
     def expect(self, response, timeout=DEFAULT_UBOOT_TIMEOUT):
         """
-        Expects a response from the serial port for no more than timeout
-        seconds. The lines read from the serial port will be stripped before
-        being compared with response.
+        Expects a response from Uboot for no more than timeout seconds.
+        The lines read from the serial port will be stripped before being
+        compared with response.
         
         :param response: A string to expect in the serial port.
         :param timeout: Timeout in seconds to wait for the response.
@@ -291,8 +291,9 @@ class Uboot(object):
         if not self._dryrun:
             self._port.flush()
         
-        if (not self.cmd('echo resync', prompt_timeout=False) or
-            not self.expect('resync', timeout=1)[0]):
+        # Use an echo command to sync
+        if (not self.cmd('echo sync', prompt_timeout=False) or
+            not self.expect('sync', timeout=1)[0]):
             msg = Uboot.comm_error_msg(self._port.port)
             self._logger.error(msg)
             return False
