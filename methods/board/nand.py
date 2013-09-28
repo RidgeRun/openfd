@@ -20,6 +20,7 @@
 # ==========================================================================
 
 import os
+import re
 import time
 import rrutils
 import rrutils.hexutils as hexutils
@@ -41,9 +42,14 @@ DEFAULT_NAND_TIMEOUT = 60
 
 class NandInstaller(object):
     
-    def __init__(self, uboot, ram_load_addr=None, dryrun=False):
+    def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
+                 ram_load_addr=None, dryrun=False):
         """
         :param uboot: :class:`Uboot` instance.
+        :param nand_block_size: NAND block size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param nand_page_size: NAND page size (bytes). If not given, the
+            value will be obtained from uboot (once).
         :param ram_load_addr: RAM address to load components, in decimal or
             hexadecimal (`'0x'` prefix).
         :param dryrun: Enable dryrun mode. System commands will be logged,
@@ -55,11 +61,93 @@ class NandInstaller(object):
         self._executer = rrutils.executer.Executer()
         self._executer.logger = self._logger
         self._uboot = uboot
+        self._nand_block_size = nand_block_size
+        self._nand_page_size = nand_page_size
         self._ram_load_addr = None
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
         self._dryrun = dryrun
+
+    def __set_nand_block_size(self, size):
+        self._nand_block_size = int(size)
+
+    def __get_nand_block_size(self):
         
+        # Don't query uboot if already set
+        if self._nand_block_size != 0:
+            return self._nand_block_size
+        
+        ret = self._uboot.cmd('nand info', prompt_timeout=None)
+        if ret is False: return 0
+        
+        if self._dryrun: # no need to go further in this mode
+            return self._nand_block_size
+        
+        ret, line = self._uboot.expect('Device 0')
+        if not ret:
+            self._logger.error('Can\'t find Device 0')
+            return 0
+        
+        # Two versions of uboot output:
+        # old: Device 0: Samsung K9K1208Q0C at 0x2000000 (64 MB, 16 kB sector)
+        # new: Device 0: NAND 256MiB 1,8V 16-bit, sector size 128 KiB
+        m = re.match('.* (?P<size_kb>\d+) (kb|kib).*', line, re.IGNORECASE)
+        if m:
+            self._nand_block_size = int(m.group('size_kb')) << 10 # to bytes
+        else:
+            self._logger.error('Unable to determine the NAND block size')
+        return self._nand_block_size
+    
+    nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
+                           doc="""NAND block size (bytes). The value will be
+                           obtained from uboot (once), unless manually
+                           specified.""")
+    
+    def __set_nand_page_size(self, size):
+        self._nand_page_size = int(size)
+    
+    def __get_nand_page_size(self):
+        
+        # Don't query uboot if already set
+        if self._nand_page_size != 0:
+            return self._nand_page_size
+        
+        page_size = 0
+        possible_sizes=['0200', '0400', '0800', '1000']
+        
+        if self._dryrun:
+            for size in possible_sizes:
+                ret = self._uboot.cmd('nand dump.oob %s' % size,
+                                      prompt_timeout=None)
+            return self._nand_page_size
+        
+        for size in possible_sizes:
+            
+            ret = self._uboot.cmd('nand dump.oob %s' % size,
+                                 prompt_timeout=None)
+            if ret is False: return False
+            
+            ret, line = self._uboot.expect('Page 0000')
+            if not ret: continue
+            
+            # Detect the page size upon a change on the output
+            m = re.match('^Page 0000(?P<page_size>\d+) .*', line)
+            if m:
+                page_size = int(m.group('page_size'), 16)
+                if page_size != 0:
+                    break
+                
+        if page_size == 0:
+            self._logger.error('Unable to determine the NAND page size')
+        else:
+            self._nand_page_size = page_size
+        return self._nand_page_size
+    
+    nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
+                          doc="""NAND page size (bytes). The value will be
+                           obtained from uboot (once), unless manually
+                           specified.""")
+
     def __set_ram_load_addr(self, ram_load_addr):
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.to_hex(str(ram_load_addr))
@@ -78,6 +166,7 @@ class NandInstaller(object):
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
         self._executer.dryrun = dryrun
+        self._uboot.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -176,12 +265,13 @@ class NandInstaller(object):
         if ret is False: return False
         
         # Offset in blocks
-        ubl_offset_addr = start_block * self._uboot.nand_block_size
+        self._logger.info("nand block size: %s" % self.nand_block_size)
+        ubl_offset_addr = start_block * self.nand_block_size
         
         # Size in blocks
         ubl_size_b = os.path.getsize(image_filename)
-        ubl_size_blk = (ubl_size_b / self._uboot.nand_block_size) + 1
-        ubl_size_aligned = ubl_size_blk * self._uboot.nand_block_size
+        ubl_size_blk = (ubl_size_b / self.nand_block_size) + 1
+        ubl_size_aligned = ubl_size_blk * self.nand_block_size
         
         self._logger.info("Erasing UBL NAND space")
         cmd = 'nand erase %s %s' % (hex(ubl_offset_addr),
@@ -219,12 +309,12 @@ class NandInstaller(object):
         if ret is False: return False
 
         # Offset in blocks
-        uboot_offset_addr = start_block * self._uboot.nand_block_size
+        uboot_offset_addr = start_block * self.nand_block_size
         
         # Size in blocks
         uboot_size_b = os.path.getsize(image_filename)
-        uboot_size_blk = (uboot_size_b / self._uboot.nand_block_size) + 1
-        uboot_size_aligned = uboot_size_blk * self._uboot.nand_block_size
+        uboot_size_blk = (uboot_size_b / self.nand_block_size) + 1
+        uboot_size_aligned = uboot_size_blk * self.nand_block_size
 
         self._logger.info("Erasing uboot NAND space")
         cmd = 'nand erase %s %s' % (hex(uboot_offset_addr),
@@ -264,11 +354,21 @@ class NandInstallerTFTP(NandInstaller):
     #: DHCP networking mode.
     MODE_DHCP = 'dhcp'
     
-    def __init__(self, uboot, host_ipaddr='', target_ipaddr='',
-                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFTP_PORT,
-                 net_mode=None, ram_load_addr=None, dryrun=False):
+    def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
+                 ram_load_addr=None, dryrun=False, host_ipaddr='',
+                 target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
+                 tftp_port=DEFAULT_TFTP_PORT, net_mode=None):
         """
         :param uboot: :class:`Uboot` instance.
+        :param nand_block_size: NAND block size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param nand_page_size: NAND page size (bytes). If not given, the
+            value will be obtained from uboot (once).
+        :param ram_load_addr: RAM address to load components, in decimal or
+            hexadecimal (`'0x'` prefix).
+        :param dryrun: Enable dryrun mode. System commands will be logged,
+            but not executed.
+        :type dryrun: boolean
         :param host_ipaddr: Host IP address.
         :param target_ipaddr: Target IP address, only necessary
             in :const:`MODE_STATIC`.
@@ -277,13 +377,9 @@ class NandInstallerTFTP(NandInstaller):
         :type tftp_port: integer
         :param net_mode: Networking mode. Possible values:
             :const:`MODE_STATIC`, :const:`MODE_DHCP`.
-        :param ram_load_addr: RAM address to load components, in decimal or
-            hexadecimal (`'0x'` prefix).
-        :param dryrun: Enable dryrun mode. System commands will be logged,
-            but not executed.
-        :type dryrun: boolean
         """    
-        NandInstaller.__init__(self, uboot, ram_load_addr, dryrun)
+        NandInstaller.__init__(self, uboot, nand_block_size, nand_page_size,
+                               ram_load_addr, dryrun)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode

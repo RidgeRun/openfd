@@ -61,7 +61,33 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         
     def tearDown(self):
         self._uboot.close_comm()
-                
+    
+    def test_nand_block_size(self):
+        if self._inst.dryrun:
+            self.assertEqual(self._inst.nand_block_size, 0)
+            self._inst.nand_block_size = 131072
+            self.assertEqual(self._inst.nand_block_size, 131072)
+        else:
+            # Set a value manually
+            self._inst.nand_block_size = 15
+            self.assertEqual(self._inst.nand_block_size, 15)
+            # Force to query uboot - block size = 128 KB for a leo dm368
+            self._inst.nand_block_size = 0
+            self.assertEqual(self._inst.nand_block_size, 131072)
+ 
+    def test_nand_page_size(self):
+        if self._inst.dryrun:
+            self.assertEqual(self._inst.nand_page_size, 0)
+            self._inst.nand_page_size = 2048
+            self.assertEqual(self._inst.nand_page_size, 2048)
+        else:
+            # Set a value manually
+            self._inst.nand_page_size = 15
+            self.assertEqual(self._inst.nand_page_size, 15)
+            # Force to query uboot - page size = 0x800 (2048) for a leo dm368
+            self._inst.nand_page_size = 0
+            self.assertEqual(self._inst.nand_page_size, 2048)
+    
     def test_tftp_settings(self):
         test_tftp = False
         if test_tftp:
@@ -108,7 +134,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             ubl_img = '%s/images/ubl_DM36x_nand.bin' % devdir
             ubl_nand_img = "%s/images/ubl_nand.nandbin" % devdir
             ubl_nand_start_block = 1
-            ret = gen.gen_ubl_img(page_size=self._uboot.nand_page_size,
+            ret = gen.gen_ubl_img(page_size=self._inst.nand_page_size,
                                         start_block=ubl_nand_start_block,
                                         input_img=ubl_img,
                                         output_img=ubl_nand_img)
@@ -124,7 +150,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             uboot_nand_start_block = 25
             uboot_entry_addr = '0x82000000'
             uboot_load_addr = '0x82000000'
-            ret = gen.gen_uboot_img(page_size=self._uboot.nand_page_size,
+            ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
                                     start_block=uboot_nand_start_block,
                                     entry_addr=uboot_entry_addr,
                                     load_addr=uboot_load_addr,
@@ -139,6 +165,5 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
-    suite = loader.loadTestsFromTestCase(SerialInstallerTestCase)
-    suite.addTests(loader.loadTestsFromTestCase(SerialInstallerTFTPTestCase))
+    suite = loader.loadTestsFromTestCase(NandInstallerTFTPTestCase)
     unittest.TextTestRunner(verbosity=2).run(suite)
