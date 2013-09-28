@@ -22,9 +22,9 @@ import check_env
 sys.path.insert(1, os.path.abspath('..'))
 
 import rrutils
-import time
-from serial_comm import SerialInstaller
-from serial_comm import SerialInstallerTFTP
+from uboot import Uboot
+from nand import NandInstaller
+from nand import NandInstallerTFTP
 from image_gen import NandImageGenerator
 
 # DEVDIR environment variable
@@ -36,7 +36,7 @@ test_host_ip_addr = '10.251.101.24'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 
-class SerialInstallerTestCase(unittest.TestCase):
+class NandInstallerTFTPTestCase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
@@ -45,102 +45,42 @@ class SerialInstallerTestCase(unittest.TestCase):
         logger.setLevel(rrutils.logger.DEBUG)
     
     def setUp(self):
-        self._inst = SerialInstaller()
-        ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
+        
+        self._uboot = Uboot()
+        ret = self._uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
-        ret = self._inst.uboot_sync()
+        ret = self._uboot.sync()
         self.assertTrue(ret)
         
-    def tearDown(self):
-        self._inst.close_comm()
-        
-    def test_nand_block_size(self):
-        
-        test_nbs = False
-        if test_nbs:
-            # Set a value manually
-            self._inst.nand_block_size = 15
-            self.assertEqual(self._inst.nand_block_size, 15)
-            
-            # Force to query uboot - block size = 128 KB for a leo dm368
-            self._inst.nand_block_size = 0
-            self.assertEqual(self._inst.nand_block_size, 131072)
-        
-    def test_nand_page_size(self):
-        
-        # Set a value manually
-        test_nps = False
-        if test_nps:
-            self._inst.nand_page_size = 15
-            self.assertEqual(self._inst.nand_page_size, 15)
-            
-            # Force to query uboot - page size = 0x800 (2048) for a leo dm368
-            self._inst.nand_page_size = 0
-            self.assertEqual(self._inst.nand_page_size, 2048)
-
-    def test_uboot_env(self):
-        
-        test_env = False
-        if test_env:
-            
-            value = self._inst._uboot_get_env('kerneloffset')
-            self.assertEqual(value, '0x400000')
-            
-            value = self._inst._uboot_get_env('importbootenv')
-            self.assertEqual(value, 'echo Importing environment from mmc ...; env import -t ${loadaddr} ${filesize}')
-
-    def test_uboot_cmd(self):
-        
-        test_cmd = False
-        if test_cmd:
-            
-            ret = self._inst.uboot_cmd('nand info')
-            self.assertTrue(ret)
-
-class SerialInstallerTFTPTestCase(unittest.TestCase):
-    
-    @classmethod
-    def setUpClass(cls):
-        rrutils.logger.basic_config(verbose=True)
-        logger = rrutils.logger.get_global_logger('SerialInstallerTFTP')
-        logger.setLevel(rrutils.logger.DEBUG)
-    
-    def setUp(self):
-        self._inst = SerialInstallerTFTP()
-        self._inst.net_mode = SerialInstallerTFTP.MODE_DHCP
+        self._inst = NandInstallerTFTP(uboot=self._uboot)
+        self._inst.net_mode = NandInstallerTFTP.MODE_DHCP
         self._inst.host_ipaddr = test_host_ip_addr
         self._inst.tftp_dir = '/srv/tftp'
         self._inst.tftp_port = 69
         self._inst.ram_load_addr = test_ram_load_addr
-        ret = self._inst.open_comm(port='/dev/ttyUSB0', baud=115200)
-        self.assertTrue(ret)
-        ret = self._inst.uboot_sync()
-        self.assertTrue(ret)
-
+        
     def tearDown(self):
-        self._inst.close_comm()
-        
+        self._uboot.close_comm()
+                
     def test_tftp_settings(self):
-        
         test_tftp = False
         if test_tftp:
-            
             ret = self._inst._check_tftp_settings()
             self.assertTrue(ret)
-        
+
     def test_tftp_dhcp(self):
-        
         test_dhcp = False
         if test_dhcp:
             ret = self._inst.setup_uboot_network()
             self.assertTrue(ret)
 
     def test_load_file_to_ram(self):
-        
         test_load_to_ram = False
         if test_load_to_ram:
+            ret = self._inst.setup_uboot_network()
+            self.assertTrue(ret)
             boot_img = "%s/images/bootloader" % devdir
-            ret = self._inst._load_file_to_ram(boot_img)
+            ret = self._inst._load_file_to_ram(boot_img, test_uboot_load_addr)
             self.assertTrue(ret)
     
     def test_install_bootloader(self):
@@ -168,7 +108,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
             ubl_img = '%s/images/ubl_DM36x_nand.bin' % devdir
             ubl_nand_img = "%s/images/ubl_nand.nandbin" % devdir
             ubl_nand_start_block = 1
-            ret = gen.gen_ubl_img(page_size=self._inst.nand_page_size,
+            ret = gen.gen_ubl_img(page_size=self._uboot.nand_page_size,
                                         start_block=ubl_nand_start_block,
                                         input_img=ubl_img,
                                         output_img=ubl_nand_img)
@@ -184,7 +124,7 @@ class SerialInstallerTFTPTestCase(unittest.TestCase):
             uboot_nand_start_block = 25
             uboot_entry_addr = '0x82000000'
             uboot_load_addr = '0x82000000'
-            ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
+            ret = gen.gen_uboot_img(page_size=self._uboot.nand_page_size,
                                     start_block=uboot_nand_start_block,
                                     entry_addr=uboot_entry_addr,
                                     load_addr=uboot_load_addr,

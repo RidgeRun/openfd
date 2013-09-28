@@ -19,10 +19,8 @@
 # Imports
 # ==========================================================================
 
-import time
 import os
-import re
-import serial
+import time
 import rrutils
 import rrutils.hexutils as hexutils
 
@@ -30,43 +28,24 @@ import rrutils.hexutils as hexutils
 # Constants
 # ==========================================================================
 
-CTRL_C = '\x03'
-
-# Serial settings
-DEFAULT_PORT = '/dev/ttyS0'
-DEFAULT_BAUDRATE = 115200
-DEFAULT_READ_TIMEOUT = 2 # seconds
-
-# Uboot communication timeouts (seconds)
-DEFAULT_UBOOT_TIMEOUT = 5
-DEFAULT_FLASH_TIMEOUT = 60
-
 # TFTP settings
 DEFAULT_TFTP_DIR = '/srv/tftp'
-DEFAULT_TFT_PORT = 69
+DEFAULT_TFTP_PORT = 69
+
+# NAND
+DEFAULT_NAND_TIMEOUT = 60
 
 # ==========================================================================
 # Public Classes
 # ==========================================================================
 
-class SerialInstaller(object):
-    """
-    Serial communication operations to support the installer. Based on
-    pySerial.
-    """
+class NandInstaller(object):
     
-    def __init__(self, nand_block_size=0, nand_page_size=0, ram_load_addr=None,
-                 uboot_dryrun=False, dryrun=False):
+    def __init__(self, uboot, ram_load_addr=None, dryrun=False):
         """
-        :param nand_block_size: NAND block size (bytes). If not given, the
-            value will be obtained from uboot (once).
-        :param nand_page_size: NAND page size (bytes). If not given, the
-            value will be obtained from uboot (once).
+        :param uboot: :class:`Uboot` instance.
         :param ram_load_addr: RAM address to load components, in decimal or
             hexadecimal (`'0x'` prefix).
-        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
-            logged, but not executed.
-        :type uboot_dryrun: boolean
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
@@ -75,42 +54,15 @@ class SerialInstaller(object):
         self._logger = rrutils.logger.get_global_logger()
         self._executer = rrutils.executer.Executer()
         self._executer.logger = self._logger
-        self._port = None
-        self._nand_block_size = nand_block_size
-        self._nand_page_size = nand_page_size
+        self._uboot = uboot
         self._ram_load_addr = None
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
-        self._uboot_prompt = ''
-        self._uboot_dryrun = uboot_dryrun
         self._dryrun = dryrun
-
-    @classmethod
-    def uboot_comm_error_msg(cls, port):
-        """
-        Standard error message to report a failure communicating with uboot
-        in the given port.
         
-        :param port: The port for which communication failed.
-        :return: A string with the standard message.
-        """
-        
-        return ('Failed to handshake with uboot.\n'
-               'Be sure u-boot is active on port %s and you have terminal '
-               'programs like minicom closed.' % port)
-    
-    @property
-    def port(self):
-        """
-        Serial port instance. It may be None if no serial port
-        has been opened using open_comm().
-        """
-        
-        return self._port
-    
     def __set_ram_load_addr(self, ram_load_addr):
         if hexutils.is_valid_addr(ram_load_addr):
-            self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
+            self._ram_load_addr = hexutils.to_hex(str(ram_load_addr))
         else:
             self._logger.error('Invalid RAM load address: %s' %
                                ram_load_addr)
@@ -123,16 +75,6 @@ class SerialInstaller(object):
                                doc="""Uboot RAM load address, in decimal or
                                 hexadecimal (`'0x'` prefix).""")
     
-    def __set_uboot_dryrun(self, dryrun):
-        self._uboot_dryrun = dryrun
-    
-    def __get_uboot_dryrun(self):
-        return self._uboot_dryrun
-    
-    uboot_dryrun = property(__get_uboot_dryrun, __set_uboot_dryrun,
-                     doc="""Enable uboot dryrun mode. Uboot commands will be
-                     logged, but not executed.""")
-    
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
         self._executer.dryrun = dryrun
@@ -143,323 +85,33 @@ class SerialInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                      doc="""Enable dryrun mode. System commands will be
                      logged, but not executed.""")
-
-    def __set_nand_block_size(self, size):
-        self._nand_block_size = int(size)
-
-    def __get_nand_block_size(self):
-        
-        # Don't query uboot if already set
-        
-        if self._nand_block_size != 0:
-            return self._nand_block_size
-        
-        # Ask uboot
-        
-        if self._check_open_port() is False: return 0
-        
-        ret = self.uboot_cmd('nand info', prompt_timeout=None)
-        if ret is False: return False
-            
-        ret, line = self.expect('Device 0')
-        if not ret:
-            self._logger.error('Can\'t find Device 0')
-            return self._nand_block_size
-        
-        self._logger.debug('NAND info: %s' % line)
-        
-        # Two versions of uboot output:
-        # old: Device 0: Samsung K9K1208Q0C at 0x2000000 (64 MB, 16 kB sector)
-        # new: Device 0: NAND 256MiB 1,8V 16-bit, sector size 128 KiB
-        
-        m = re.match('.* (?P<size_kb>\d+) (kb|kib).*', line, re.IGNORECASE)
-        if m:
-            size_kb = int(m.group('size_kb'))
-        else:
-            self._logger.error('Unable to determine the NAND block size')
-        self._nand_block_size = size_kb << 10
-        self._logger.debug('NAND block size: %d bytes' % self._nand_block_size)
-        return self._nand_block_size
     
-    nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
-                           doc="""NAND block size (bytes). The value will be
-                           obtained from uboot (once), unless manually
-                           specified.""")
-    
-    def __set_nand_page_size(self, size):
-        self._nand_page_size = int(size)
-    
-    def __get_nand_page_size(self):
-        
-        # Don't query uboot if already set
-        
-        if self._nand_page_size != 0:
-            return self._nand_page_size
-        
-        # Ask uboot
-        
-        if self._check_open_port() is False: return 0
-        
-        page_size = 0
-        possible_sizes=['0200', '0400', '0800', '1000']
-        
-        for size in possible_sizes:
-            
-            ret = self.uboot_cmd('nand dump.oob %s' % size,
-                                 prompt_timeout=None)
-            if ret is False: return False
-            
-            ret, line = self.expect('Page 0000')
-            if not ret: continue
-            
-            # Detect the page size upon a change on the output
-            m = re.match('^Page 0000(?P<page_size>\d+) .*', line)
-            if m:
-                page_size = int(m.group('page_size'), 16)
-                if page_size != 0:
-                    break
-
-        if page_size == 0:
-            self._logger.error('Unable to determine the NAND page size')
-        else:
-            self._nand_page_size = page_size
-            self._logger.debug('NAND page size: %d bytes' %
-                               self._nand_page_size)
-        return self._nand_page_size
-    
-    nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
-                          doc="""NAND page size (bytes). The value will be
-                           obtained from uboot (once), unless manually
-                           specified.""")
-
-    def _check_open_port(self):
-        """
-        Checks if the port is opened.
-        """
-        
-        if self._port is None:
-            self._logger.error('No opened port (try open_comm() first)')
-            return False
-        else:
-            return True
-
-    def open_comm(self, port=DEFAULT_PORT,
-                  baud=DEFAULT_BAUDRATE,
-                  timeout=DEFAULT_READ_TIMEOUT):
-        """
-        Opens the communication with the Serial port.
-        
-        :param port: Device name or port number (i.e. '/dev/ttyS0')
-        :type port: string
-        :param baud: Baud rate such as 9600 or 115200 etc
-        :param timeout: Set a read timeout value
-        :return: Returns true on success; false otherwise.
-        :exception SerialException: On error while opening the serial port.
-        """
-        
-        # Terminal line settings
-        cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
-               'eol ^J start ^Q stop ^S -echo echoe echok -echonl echoke '
-               '-echoctl -istrip -icrnl -ocrnl -igncr -inlcr onlcr -opost '
-               '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
-               '-parenb -parodd -inpck' % (port, baud))
-        
-        ret, output = self._executer.check_output(cmd)
-        if ret != 0:
-            self._logger.error(output)
-            return False
-        
-        # Open the serial port
-        try:
-            self._port = serial.Serial(port=port,
-                                       baudrate=baud,
-                                       timeout=timeout)
-        except serial.SerialException as e:
-            self._logger.error(e)
-            raise e
-        
-        return True
-
-    def close_comm(self):
-        """
-        Closes the communication with the Serial port immediately.
-        """
-        
-        if self._port:
-            self._port.close()
-            self._port = None
-
-    def expect(self, response, timeout=DEFAULT_UBOOT_TIMEOUT):
-        """
-        Expects a response from the serial port for no more than timeout
-        seconds.
-        
-        The lines read from the serial port will be stripped before being
-        compared with response.
-        
-        :param response: A string to expect in the serial port.
-        :param timeout: Timeout in seconds to wait for the response.
-        :return: Returns a tuple with two items. The first item is true if the
-            response was found; false otherwise. The second item is the
-            complete line where the response was found, or the last line read
-            if the response wasn't found and the timeout reached. The line is
-            returned stripped.
-        """
-        
-        found = False
-        line = ''
-        start_time = time.time()
-        
-        if self._check_open_port() is False: return False, ''
-        
-        while not found and (time.time() - start_time) < timeout:
-            try:
-                line = self._port.readline().strip(' \r\n')
-            except (serial.SerialException, OSError) as e:
-                self._logger.error(e)
-                return False, ''
-            if response in line:
-                found = True
-            
-        return found, line
-
-    def uboot_sync(self):
-        """
-        Synchronizes with uboot. If successful, uboot's prompt will 
-        be ready to receive commands after this call.
-            
-        :return: Returns true on success; false otherwise.
-        """
-    
-        if self._check_open_port() is False: return False
-    
-        self._port.flush()
-        self._port.write('echo resync\n')
-        self.expect('echo resync') # Ignore the echo
-        ret = self.expect('resync', timeout=1)[0]
-        if not ret:
-            msg = SerialInstaller.uboot_comm_error_msg(self._port.port)
-            self._logger.error(msg)
-            return False
-        
-        # Identify the prompt in the following line
-        try:
-            line = self._port.readline().strip('\r\n')
-        except (serial.SerialException, OSError) as e:
-            self._logger.error(e)
-            return False
-        
-        m = re.match('(?P<prompt>.*) $', line)
-        if m:
-            self._uboot_prompt = m.group('prompt').strip()
-            self._logger.debug('Uboot prompt: %s' % self._uboot_prompt)
-        else:
-            self._logger.error("Couldn't identify the uboot prompt.")
-            return False
-
-        return True
-    
-    def uboot_cmd(self, cmd, echo_timeout=DEFAULT_UBOOT_TIMEOUT,
-                  prompt_timeout=DEFAULT_UBOOT_TIMEOUT):
-        """
-        Sends a command to uboot.
-        
-        :param cmd: Command.
-        :param echo_timeout: Timeout to wait for the command to be echoed. Set
-            to None to avoid waiting for the echo.
-        :type echo_timeout: integer or none
-        :param prompt_timeout: Timeout to wait for the prompt after sending
-            the command. Set to None to avoid waiting for the prompt.
-        :type prompt_timeout: integer or none
-        :returns: Returns true on success; false otherwise.
-        """
-        
-        self._logger.info("Uboot: '%s'" % cmd.strip())
-        
-        if not self._uboot_dryrun and self._port:
-        
-            self._port.write('%s\n' % cmd)
-            time.sleep(0.1)
-            
-            # Wait for the echo
-            if echo_timeout:
-                ret, line = self.expect(cmd.strip(), echo_timeout)
-                if ret is False:
-                    self._logger.error("Uboot didn't echo the '%s' command, "
-                       "maybe it froze. This is the log of the last "
-                       "command: %s" % (cmd.strip(), line))
-                    return False
-        
-            # Wait for the prompt
-            if self._uboot_prompt and prompt_timeout:
-                ret, line = self.expect(self._uboot_prompt,
-                                        timeout=prompt_timeout)
-                if ret is False:
-                    self._logger.error("Didn't get the uboot prompt back "
-                       "after executing the '%s' command. This is the log of "
-                       "the last line: %s" % (cmd.strip(), line))
-                    return False
-        
-        return True
-
     def _check_icache(self):
         """
         Checks availability of the 'icache' uboot command.
         """
         
-        ret = self.uboot_cmd('icache', prompt_timeout=None)
-        if ret is False: return False 
+        ret = self._uboot.cmd('icache', prompt_timeout=None)
+        if ret is False: return False
         
-        ret = self.expect('Instruction Cache is')[0]
+        ret = self._uboot.expect('Instruction Cache is')[0]
         if ret is False:
             self._logger.error("Your uboot doesn't have icache command, "
                "refusing to continue due to the risk of hanging, you can "
                "update your bootloader by other means like an SD card.")
             return False
-        return True
-    
-    def _uboot_set_env(self, variable, value):
-        """
-        Sets an uboot env variable.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        ret = self.uboot_cmd('setenv %s %s' % (variable, value))
-        if ret is False: return False
-    
-    def _uboot_get_env(self, variable):
-        """
-        Returns a string with the value of the uboot env variable if found;
-        empty otherwise.
-        """
-        
-        value=''
-        
-        ret = self.uboot_cmd('printenv %s' % variable, prompt_timeout=None)
-        if ret is False: return ''
-        
-        ret, line = self.expect('%s=' % variable)
-        if ret:
-            m = re.match('.*=(?P<value>.*)', line)
-            if m:
-                value = m.group('value').strip()
+        return True    
 
-        return value
-
-    def _load_file_to_ram(self, filename):
+    def _load_file_to_ram(self, filename, load_addr):
         raise NotImplementedError
 
     def load_uboot_to_ram(self, image_filename, load_addr):
         """
-        Loads an uboot image to RAM and executes it.
-        
-        Note: This uboot will drive the installation, it will not be
-        installed to NAND.
+        Loads an uboot image to RAM and executes it. This uboot will drive
+        the installation.
         
         :param image_filename: Path to the uboot image file.
-        :param load_addr: Load address in RAM where to load the uboot image,
-            typically a hex address (i.e. '0x82000000').
+        :param load_addr: Load address in RAM where to load the uboot image.
         """
         
         if not os.path.isfile(image_filename):
@@ -467,17 +119,17 @@ class SerialInstaller(object):
                                image_filename)
             return False
         
-        ret = self.uboot_sync()
+        ret = self._uboot.sync()
         if ret is False: return False
         
         ret = self._check_icache()
         if ret is False: return False
         
         self._logger.info("Storing the current uboot's bootcmd")
-        prev_bootcmd = self._uboot_get_env('bootcmd')
-        ret = self._uboot_set_env('bootcmd', '')
+        prev_bootcmd = self._uboot.get_env('bootcmd')
+        ret = self._uboot.set_env('bootcmd', '')
         if ret is False: return False
-        ret = self.uboot_cmd('saveenv')
+        ret = self._uboot.cmd('saveenv')
         if ret is False: return False
         
         self._logger.info('Loading new uboot to RAM')
@@ -485,26 +137,26 @@ class SerialInstaller(object):
         if ret is False: return False
         
         self._logger.info('Running the new uboot')
-        ret = self.uboot_cmd('icache off')
+        ret = self._uboot.cmd('icache off')
         if ret is False: return False
-        ret = self.uboot_cmd('go %s' % load_addr)
+        ret = self._uboot.cmd('go %s' % load_addr)
         if ret is False: return False
         time.sleep(2) # Give time to uboot to restart
-        ret = self.uboot_sync()
+        ret = self._uboot.sync()
         if ret is False:
             self._logger.error('Failed to detect the new uboot starting')
             return False
         
         if prev_bootcmd:
             self._logger.info('Restoring the previous uboot bootcmd')
-            ret = self._uboot_set_env('bootcmd', prev_bootcmd)
+            ret = self._uboot.set_env('bootcmd', prev_bootcmd)
             if ret is False: return False
         
-        ret = self.uboot_cmd('saveenv')
+        ret = self._uboot.cmd('saveenv')
         if ret is False: return False
         
         return True
-
+    
     def install_ubl(self, image_filename, start_block):
         """
         Installs the UBL (initial program loader) image to NAND.
@@ -524,24 +176,24 @@ class SerialInstaller(object):
         if ret is False: return False
         
         # Offset in blocks
-        ubl_offset_addr = start_block * self.nand_block_size
+        ubl_offset_addr = start_block * self._uboot.nand_block_size
         
         # Size in blocks
         ubl_size_b = os.path.getsize(image_filename)
-        ubl_size_blk = (ubl_size_b / self.nand_block_size) + 1
-        ubl_size_aligned = ubl_size_blk * self.nand_block_size
+        ubl_size_blk = (ubl_size_b / self._uboot.nand_block_size) + 1
+        ubl_size_aligned = ubl_size_blk * self._uboot.nand_block_size
         
         self._logger.info("Erasing UBL NAND space")
         cmd = 'nand erase %s %s' % (hex(ubl_offset_addr),
                                     hex(ubl_size_aligned))
-        ret = self.uboot_cmd(cmd, echo_timeout=None,
-                             prompt_timeout=DEFAULT_FLASH_TIMEOUT)
+        ret = self._uboot.cmd(cmd, echo_timeout=None,
+                             prompt_timeout=DEFAULT_NAND_TIMEOUT)
         if ret is False: return False
         
         self._logger.info("Writing UBL image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                    hex(ubl_offset_addr), hex(ubl_size_aligned))
-        ret = self.uboot_cmd(cmd, echo_timeout=DEFAULT_FLASH_TIMEOUT,
+        ret = self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
                              prompt_timeout=None)
         if ret is False: return False
         
@@ -567,47 +219,44 @@ class SerialInstaller(object):
         if ret is False: return False
 
         # Offset in blocks
-        uboot_offset_addr = start_block * self.nand_block_size
+        uboot_offset_addr = start_block * self._uboot.nand_block_size
         
         # Size in blocks
         uboot_size_b = os.path.getsize(image_filename)
-        uboot_size_blk = (uboot_size_b / self.nand_block_size) + 1
-        uboot_size_aligned = uboot_size_blk * self.nand_block_size
+        uboot_size_blk = (uboot_size_b / self._uboot.nand_block_size) + 1
+        uboot_size_aligned = uboot_size_blk * self._uboot.nand_block_size
 
         self._logger.info("Erasing uboot NAND space")
         cmd = 'nand erase %s %s' % (hex(uboot_offset_addr),
                                     hex(uboot_size_aligned))
-        ret = self.uboot_cmd(cmd, echo_timeout=None,
-                             prompt_timeout=DEFAULT_FLASH_TIMEOUT)
+        ret = self._uboot.cmd(cmd, echo_timeout=None,
+                             prompt_timeout=DEFAULT_NAND_TIMEOUT)
         if ret is False: return False
         
         self._logger.info("Writing uboot image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                            hex(uboot_offset_addr),
                                            hex(uboot_size_aligned))
-        ret = self.uboot_cmd(cmd, echo_timeout=DEFAULT_FLASH_TIMEOUT,
+        ret = self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
                              prompt_timeout=None)
         if ret is False: return False
         
         self._logger.info("Restarting to use the uboot in NAND")
-        ret = self.uboot_cmd('reset', prompt_timeout=None)
+        ret = self._uboot.cmd('reset', prompt_timeout=None)
         uboot_reset_str = 'U-Boot'
-        found_reset_str = self.expect(uboot_reset_str, timeout=10)[0]
+        found_reset_str = self._uboot.expect(uboot_reset_str, timeout=10)[0]
         if not found_reset_str:
             self._logger.error("Failed to detect the uboot in NAND restarting")
             return False
         time.sleep(4) # Give uboot time to initialize
-        ret = self.uboot_sync()
+        ret = self._uboot.sync()
         if ret is False:
             self._logger.error("Failed synchronizing with the uboot in NAND")
             return False
-                
+        
         return True
 
-class SerialInstallerTFTP(SerialInstaller):
-    """
-    Serial communication operations to support the installer using TFTP.
-    """
+class NandInstallerTFTP(NandInstaller):
     
     #: Static networking mode.
     MODE_STATIC = 'static'
@@ -615,11 +264,11 @@ class SerialInstallerTFTP(SerialInstaller):
     #: DHCP networking mode.
     MODE_DHCP = 'dhcp'
     
-    def __init__(self, host_ipaddr='', target_ipaddr='',
-                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFT_PORT,
-                 net_mode=None, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, uboot_dryrun=False, dryrun=False):
+    def __init__(self, uboot, host_ipaddr='', target_ipaddr='',
+                 tftp_dir=DEFAULT_TFTP_DIR, tftp_port=DEFAULT_TFTP_PORT,
+                 net_mode=None, ram_load_addr=None, dryrun=False):
         """
+        :param uboot: :class:`Uboot` instance.
         :param host_ipaddr: Host IP address.
         :param target_ipaddr: Target IP address, only necessary
             in :const:`MODE_STATIC`.
@@ -628,21 +277,13 @@ class SerialInstallerTFTP(SerialInstaller):
         :type tftp_port: integer
         :param net_mode: Networking mode. Possible values:
             :const:`MODE_STATIC`, :const:`MODE_DHCP`.
-        :param nand_block_size: NAND block size (bytes). If not given, the
-            value will be obtained from uboot (once).
-        :param nand_page_size: NAND page size (bytes). If not given, the
-            value will be obtained from uboot (once).
         :param ram_load_addr: RAM address to load components, in decimal or
             hexadecimal (`'0x'` prefix).
-        :param uboot_dryrun: Enable uboot dryrun mode. Uboot commands will be
-            logged, but not executed.
-        :type uboot_dryrun: boolean
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
         """    
-        SerialInstaller.__init__(self, nand_block_size, nand_page_size,
-                                 ram_load_addr, uboot_dryrun, dryrun)
+        NandInstaller.__init__(self, uboot, ram_load_addr, dryrun)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode
@@ -755,14 +396,14 @@ class SerialInstallerTFTP(SerialInstaller):
         self._logger.debug("Starting TFTP transfer from file '%s' to "
                           "address '%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
-        ret = self.uboot_cmd(cmd, prompt_timeout=transfer_timeout)
+        ret = self._uboot.cmd(cmd, prompt_timeout=transfer_timeout)
         if ret is False:
-            self.uboot_cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
+            self._uboot.cancel_cmd()
             self._logger.error("TFTP transfer failed from '%s:%s'." %
                                (self._host_ipaddr, self._tftp_port))
             return False
         
-        filesize = self._uboot_get_env('filesize')
+        filesize = self._uboot.get_env('filesize')
         if filesize:
             filesize = int(filesize, base=16)
         else:
@@ -791,30 +432,32 @@ class SerialInstallerTFTP(SerialInstaller):
         if ret is False: return False
         
         self._logger.info('Configuring uboot network')
-        if self._net_mode == SerialInstallerTFTP.MODE_STATIC:
+        if self._net_mode == NandInstallerTFTP.MODE_STATIC:
             if not self._target_ipaddr:
                 self._logger.error('No IP address specified for the target')
                 return False
-            ret = self._uboot_set_env('ipaddr', self._target_ipaddr)
+            ret = self._uboot.set_env('ipaddr', self._target_ipaddr)
             if ret is False: return False
-        elif self._net_mode == SerialInstallerTFTP.MODE_DHCP:
-            ret = self._uboot_set_env('autoload', 'no')
+        elif self._net_mode == NandInstallerTFTP.MODE_DHCP:
+            ret = self._uboot.set_env('autoload', 'no')
             if ret is False: return False
-            ret = self._uboot_set_env('autostart', 'no')
+            ret = self._uboot.set_env('autostart', 'no')
             if ret is False: return False
-            ret = self.uboot_cmd('dhcp', prompt_timeout=None)
+            ret = self._uboot.cmd('dhcp', prompt_timeout=None)
             if ret is False: return False
             # If dhcp failed at retry 3, stop and report the error
             dhcp_error_line = 'BOOTP broadcast 3'
-            found_error, line = self.expect(dhcp_error_line, timeout=6)
+            found_error, line = self._uboot.expect(dhcp_error_line, timeout=6)
             if found_error:
-                self.uboot_cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
-                self._logger.error("Looks like your network doesn't have "
-                       "dhcp enabled or you don't have an ethernet link. "
-                       "Last line read from the bootloader: '%s'" % line)
+                self._uboot.cancel_cmd()
+                msg = ("Looks like your network doesn't have dhcp enabled or "
+                       "you don't have an ethernet link. ")
+                if line:
+                    msg += "This is the log of the last line: %s" % line
+                self._logger.error(msg)
                 return False
 
-        ret = self._uboot_set_env('serverip', self._host_ipaddr)
+        ret = self._uboot.set_env('serverip', self._host_ipaddr)
         if ret is False: return False
         
         self._is_network_setup = True
