@@ -42,6 +42,12 @@ DEFAULT_UBOOT_TIMEOUT = 5
 # Public Classes
 # ==========================================================================
 
+class UbootException(serial.SerialException):
+    """Base class for uboot related exceptions."""
+    
+class UbootTimeoutException(UbootException):
+    """Uboot timeouts give an exception."""
+
 class Uboot(object):
     """
     Class that abstracts the communication with uboot over a serial port.
@@ -90,7 +96,7 @@ class Uboot(object):
 
     def _check_open_port(self):
         if self._port is None and not self._dryrun:
-            self._logger.error('No opened port (try open_comm() first)')
+            self._logger.error('No opened port.')
             return False
         else:
             return True
@@ -190,7 +196,7 @@ class Uboot(object):
         """
         Synchronizes with uboot. If successful, uboot's prompt will be ready 
         to receive commands after this call.
-            False
+        
         :return: Returns true on success; false otherwise.
         """
         
@@ -200,10 +206,16 @@ class Uboot(object):
             self._port.flush()
         
         # Use an echo command to sync
-        if (not self.cmd('echo sync', prompt_timeout=False) or
-            not self.expect('sync', timeout=1)[0]):
-            msg = Uboot.comm_error_msg(self._port.port)
-            self._logger.error(msg)
+        err_msg = Uboot.comm_error_msg(self._port.port)
+        try:
+            self.cmd('echo sync', prompt_timeout=False)
+        except UbootTimeoutException as e:
+            self._logger.error(err_msg)
+            return False
+        
+        found_echo = self.expect('sync', timeout=1)[0]
+        if not found_echo:
+            self._logger.error(err_msg)
             return False
         
         # Identify the prompt in the following line
@@ -231,10 +243,8 @@ class Uboot(object):
         :param prompt_timeout: Timeout to wait for the prompt after sending
             the command. Set to None to avoid waiting for the prompt.
         :type prompt_timeout: integer or none
-        :returns: Returns true on success; false otherwise.
+        :exception UbootTimeoutException: When a timeout is reached.
         """
-        
-        if self._check_open_port() is False: return False
         
         self._logger.info("Uboot: '%s'" % cmd.strip())
         
@@ -245,61 +255,55 @@ class Uboot(object):
             
             # Wait for the echo
             if echo_timeout:
-                ret, line = self.expect(cmd.strip(), echo_timeout)
-                if ret is False:
+                found_echo, line = self.expect(cmd.strip(), echo_timeout)
+                if not found_echo:
                     msg = ("Uboot didn't echo the '%s' command, maybe it "
                         "froze. " % cmd.strip())
                     if line:
                         msg += "This is the log of the last line: %s" % line
-                    self._logger.error(msg)
-                    return False
-        
+                    raise UbootTimeoutException(msg)
+            
             # Wait for the prompt
             if self._prompt and prompt_timeout:
-                ret, line = self.expect(self._prompt, timeout=prompt_timeout)
-                if ret is False:
+                found_prompt, line = self.expect(self._prompt, timeout=prompt_timeout)
+                if not found_prompt:
                     msg = ("Didn't get the uboot prompt back  after "
-                           "executing the '%s' command. " % cmd.strip())
+                           "executing the '%s' command." % cmd.strip())
                     if line:
                         msg += "This is the log of the last line: %s" % line
-                    self._logger.error(msg)
-                    return False
-        
-        return True
+                    raise UbootTimeoutException(msg)
     
     def cancel_cmd(self):
         """
         Cancels the command being executed by uboot (equivalent to CTRL+C).
         
-        :returns: Returns true on success; false otherwise.
+        :exception UbootTimeoutException: When a timeout is reached.
         """
         
-        return self.cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
+        self.cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
     
     def set_env(self, variable, value):
         """
         Sets an uboot env variable.
         
-        :returns: Returns true on success; false otherwise.
+        :exception UbootTimeoutException: When a timeout is reached.
         """
         
-        return self.cmd('setenv %s %s' % (variable, value))
+        self.cmd('setenv %s %s' % (variable, value))
     
     def get_env(self, variable):
         """
         Obtains a string with the value of the uboot env variable if found;
         an empty string otherwise.
+        
+        :exception UbootTimeoutException: When a timeout is reached.
         """
         
         value=''
-        
-        ret = self.cmd('printenv %s' % variable, prompt_timeout=None)
-        if ret is False: return ''
-        
-        ret, line = self.expect('%s=' % variable)
-        if ret:
+        self.cmd('printenv %s' % variable, prompt_timeout=None)
+        found, line = self.expect('%s=' % variable)
+        if found:
             m = re.match('.*=(?P<value>.*)', line)
             if m:
-                value = m.group('value').strip()
-                
+                value = m.group('value').strip()   
         return value

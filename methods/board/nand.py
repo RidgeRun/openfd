@@ -24,6 +24,7 @@ import re
 import time
 import rrutils
 import rrutils.hexutils as hexutils
+from uboot import UbootTimeoutException
 
 # ==========================================================================
 # Constants
@@ -77,14 +78,13 @@ class NandInstaller(object):
         if self._nand_block_size != 0:
             return self._nand_block_size
         
-        ret = self._uboot.cmd('nand info', prompt_timeout=None)
-        if ret is False: return 0
+        self._uboot.cmd('nand info', prompt_timeout=None)
         
         if self._dryrun: # no need to go further in this mode
             return self._nand_block_size
         
-        ret, line = self._uboot.expect('Device 0')
-        if not ret:
+        device_found, line = self._uboot.expect('Device 0')
+        if not device_found:
             self._logger.error('Can\'t find Device 0')
             return 0
         
@@ -117,18 +117,14 @@ class NandInstaller(object):
         
         if self._dryrun:
             for size in possible_sizes:
-                ret = self._uboot.cmd('nand dump.oob %s' % size,
-                                      prompt_timeout=None)
+                self._uboot.cmd('nand dump.oob %s' % size, prompt_timeout=None)
             return self._nand_page_size
         
         for size in possible_sizes:
             
-            ret = self._uboot.cmd('nand dump.oob %s' % size,
-                                 prompt_timeout=None)
-            if ret is False: return False
-            
-            ret, line = self._uboot.expect('Page 0000')
-            if not ret: continue
+            self._uboot.cmd('nand dump.oob %s' % size, prompt_timeout=None)
+            found, line = self._uboot.expect('Page 0000')
+            if not found: continue
             
             # Detect the page size upon a change on the output
             m = re.match('^Page 0000(?P<page_size>\d+) .*', line)
@@ -180,11 +176,9 @@ class NandInstaller(object):
         Checks availability of the 'icache' uboot command.
         """
         
-        ret = self._uboot.cmd('icache', prompt_timeout=None)
-        if ret is False: return False
-        
-        ret = self._uboot.expect('Instruction Cache is')[0]
-        if ret is False:
+        self._uboot.cmd('icache', prompt_timeout=None)
+        found_icache = self._uboot.expect('Instruction Cache is')[0]
+        if not found_icache:
             self._logger.error("Your uboot doesn't have icache command, "
                "refusing to continue due to the risk of hanging, you can "
                "update your bootloader by other means like an SD card.")
@@ -216,20 +210,16 @@ class NandInstaller(object):
         
         self._logger.info("Storing the current uboot's bootcmd")
         prev_bootcmd = self._uboot.get_env('bootcmd')
-        ret = self._uboot.set_env('bootcmd', '')
-        if ret is False: return False
-        ret = self._uboot.cmd('saveenv')
-        if ret is False: return False
+        self._uboot.set_env('bootcmd', '')
+        self._uboot.cmd('saveenv')
         
         self._logger.info('Loading new uboot to RAM')
         ret = self._load_file_to_ram(image_filename, load_addr)
         if ret is False: return False
         
         self._logger.info('Running the new uboot')
-        ret = self._uboot.cmd('icache off')
-        if ret is False: return False
-        ret = self._uboot.cmd('go %s' % load_addr)
-        if ret is False: return False
+        self._uboot.cmd('icache off')
+        self._uboot.cmd('go %s' % load_addr)
         time.sleep(2) # Give time to uboot to restart
         ret = self._uboot.sync()
         if ret is False:
@@ -238,12 +228,9 @@ class NandInstaller(object):
         
         if prev_bootcmd:
             self._logger.info('Restoring the previous uboot bootcmd')
-            ret = self._uboot.set_env('bootcmd', prev_bootcmd)
-            if ret is False: return False
+            self._uboot.set_env('bootcmd', prev_bootcmd)
         
         ret = self._uboot.cmd('saveenv')
-        if ret is False: return False
-        
         return True
     
     def install_ubl(self, image_filename, start_block):
@@ -274,18 +261,16 @@ class NandInstaller(object):
         ubl_size_aligned = ubl_size_blk * self.nand_block_size
         
         self._logger.info("Erasing UBL NAND space")
-        cmd = 'nand erase %s %s' % (hex(ubl_offset_addr),
+        cmd = 'nand erase %s %s' % (hex(ubl_offset_addr), 
                                     hex(ubl_size_aligned))
-        ret = self._uboot.cmd(cmd, echo_timeout=None,
-                             prompt_timeout=DEFAULT_NAND_TIMEOUT)
-        if ret is False: return False
+        self._uboot.cmd(cmd, echo_timeout=None, 
+                        prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
         self._logger.info("Writing UBL image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                    hex(ubl_offset_addr), hex(ubl_size_aligned))
-        ret = self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
-                             prompt_timeout=None)
-        if ret is False: return False
+        self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
+                        prompt_timeout=None)
         
         return True
     
@@ -319,9 +304,8 @@ class NandInstaller(object):
         self._logger.info("Erasing uboot NAND space")
         cmd = 'nand erase %s %s' % (hex(uboot_offset_addr),
                                     hex(uboot_size_aligned))
-        ret = self._uboot.cmd(cmd, echo_timeout=None,
-                             prompt_timeout=DEFAULT_NAND_TIMEOUT)
-        if ret is False: return False
+        self._uboot.cmd(cmd, echo_timeout=None,
+                        prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
         self._logger.info("Writing uboot image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
@@ -329,12 +313,10 @@ class NandInstaller(object):
                                            hex(uboot_size_aligned))
         ret = self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
                              prompt_timeout=None)
-        if ret is False: return False
         
         self._logger.info("Restarting to use the uboot in NAND")
-        ret = self._uboot.cmd('reset', prompt_timeout=None)
-        uboot_reset_str = 'U-Boot'
-        found_reset_str = self._uboot.expect(uboot_reset_str, timeout=10)[0]
+        self._uboot.cmd('reset', prompt_timeout=None)
+        found_reset_str = self._uboot.expect('U-Boot', timeout=10)[0]
         if not found_reset_str:
             self._logger.error("Failed to detect the uboot in NAND restarting")
             return False
@@ -492,8 +474,9 @@ class NandInstallerTFTP(NandInstaller):
         self._logger.debug("Starting TFTP transfer from file '%s' to "
                           "address '%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
-        ret = self._uboot.cmd(cmd, prompt_timeout=transfer_timeout)
-        if ret is False:
+        try:
+            self._uboot.cmd(cmd, prompt_timeout=transfer_timeout)
+        except UbootTimeoutException:
             self._uboot.cancel_cmd()
             self._logger.error("TFTP transfer failed from '%s:%s'." %
                                (self._host_ipaddr, self._tftp_port))
@@ -523,24 +506,22 @@ class NandInstallerTFTP(NandInstaller):
             self._logger.error('Please provide a networking mode')
             return False
         
+        if (self._net_mode == NandInstallerTFTP.MODE_STATIC and 
+                not self._target_ipaddr):
+            self._logger.error('No IP address specified for the target.')
+            return False
+        
         self._logger.info('Checking TFTP settings')
         ret = self._check_tftp_settings()
         if ret is False: return False
         
         self._logger.info('Configuring uboot network')
         if self._net_mode == NandInstallerTFTP.MODE_STATIC:
-            if not self._target_ipaddr:
-                self._logger.error('No IP address specified for the target')
-                return False
-            ret = self._uboot.set_env('ipaddr', self._target_ipaddr)
-            if ret is False: return False
+            self._uboot.set_env('ipaddr', self._target_ipaddr)
         elif self._net_mode == NandInstallerTFTP.MODE_DHCP:
-            ret = self._uboot.set_env('autoload', 'no')
-            if ret is False: return False
-            ret = self._uboot.set_env('autostart', 'no')
-            if ret is False: return False
-            ret = self._uboot.cmd('dhcp', prompt_timeout=None)
-            if ret is False: return False
+            self._uboot.set_env('autoload', 'no')
+            self._uboot.set_env('autostart', 'no')
+            self._uboot.cmd('dhcp', prompt_timeout=None)
             # If dhcp failed at retry 3, stop and report the error
             dhcp_error_line = 'BOOTP broadcast 3'
             found_error, line = self._uboot.expect(dhcp_error_line, timeout=6)
@@ -553,9 +534,7 @@ class NandInstallerTFTP(NandInstaller):
                 self._logger.error(msg)
                 return False
 
-        ret = self._uboot.set_env('serverip', self._host_ipaddr)
-        if ret is False: return False
-        
+        self._uboot.set_env('serverip', self._host_ipaddr)
         self._is_network_setup = True
         
         return True
