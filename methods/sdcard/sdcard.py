@@ -80,6 +80,8 @@ class SDCardInstaller(object):
         self._device = device
         self._mode = mode
         self._dryrun = dryrun
+        self._executer.dryrun = dryrun
+        self._comp_installer.dryrun = dryrun
         self._interactive = interactive
         self._partitions = []
         self._loopdevice_partitions = {}

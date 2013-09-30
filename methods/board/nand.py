@@ -35,7 +35,9 @@ DEFAULT_TFTP_DIR = '/srv/tftp'
 DEFAULT_TFTP_PORT = 69
 
 # NAND
-DEFAULT_NAND_TIMEOUT = 60
+DEFAULT_NAND_TIMEOUT = 60 # seconds
+DEFAULT_NAND_BLOCK_SIZE = 131072 # bytes
+DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
 
 # ==========================================================================
 # Public Classes
@@ -68,6 +70,8 @@ class NandInstaller(object):
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
         self._dryrun = dryrun
+        self._executer.dryrun = dryrun
+        self._uboot.dryrun = dryrun
 
     def __set_nand_block_size(self, size):
         self._nand_block_size = int(size)
@@ -81,6 +85,7 @@ class NandInstaller(object):
         self._uboot.cmd('nand info', prompt_timeout=None)
         
         if self._dryrun: # no need to go further in this mode
+            self.nand_block_size = DEFAULT_NAND_BLOCK_SIZE
             return self._nand_block_size
         
         device_found, line = self._uboot.expect('Device 0')
@@ -118,6 +123,7 @@ class NandInstaller(object):
         if self._dryrun:
             for size in possible_sizes:
                 self._uboot.cmd('nand dump.oob %s' % size, prompt_timeout=None)
+            self._nand_page_size = DEFAULT_NAND_PAGE_SIZE
             return self._nand_page_size
         
         for size in possible_sizes:
@@ -487,7 +493,7 @@ class NandInstallerTFTP(NandInstaller):
             filesize = int(filesize, base=16)
         else:
             filesize = 0
-        if size_b != filesize:
+        if size_b != filesize and not self._dryrun:
             self._logger.error("Something went wrong during the transfer, the "
                 "size of file '%s' (%s) differs from the transferred "
                 "bytes (%s)" % (tftp_filename, size_b, filesize))
@@ -525,7 +531,7 @@ class NandInstallerTFTP(NandInstaller):
             # If dhcp failed at retry 3, stop and report the error
             dhcp_error_line = 'BOOTP broadcast 3'
             found_error, line = self._uboot.expect(dhcp_error_line, timeout=6)
-            if found_error:
+            if found_error and not self.dryrun:
                 self._uboot.cancel_cmd()
                 msg = ("Looks like your network doesn't have dhcp enabled or "
                        "you don't have an ethernet link. ")

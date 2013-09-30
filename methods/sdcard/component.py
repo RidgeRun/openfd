@@ -73,6 +73,7 @@ class ComponentInstaller(object):
         self._kernel_image = kernel_image
         self._rootfs = rootfs
         self._dryrun = dryrun
+        self._executer.dryrun = dryrun
 
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun

@@ -53,6 +53,7 @@ class NandImageGenerator(object):
         self._executer.logger = self._logger
         self._verbose = verbose
         self._dryrun = dryrun
+        self._executer.dryrun = dryrun
 
     def __set_bc_bin(self, bc_bin):
         if os.path.isfile(bc_bin) and os.access(bc_bin, os.X_OK):

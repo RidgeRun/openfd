@@ -202,11 +202,13 @@ class Uboot(object):
         
         if self._check_open_port() is False: return False
         
+        port_name = ''
         if not self._dryrun:
             self._port.flush()
+            port_name = self._port.port
         
         # Use an echo command to sync
-        err_msg = Uboot.comm_error_msg(self._port.port)
+        err_msg = Uboot.comm_error_msg(port_name)
         try:
             self.cmd('echo sync', prompt_timeout=False)
         except UbootTimeoutException as e:
