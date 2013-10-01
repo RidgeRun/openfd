@@ -39,6 +39,13 @@ DEFAULT_NAND_TIMEOUT = 60 # seconds
 DEFAULT_NAND_BLOCK_SIZE = 131072 # bytes
 DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
 
+# Installation
+
+# When installing the kernel to NAND, DEFAULT_KERNEL_BLOCKS_MARGIN
+# indicates how many additional blocks will be reserved for the kernel
+# partition, allowing the kernel to grow to a certain point.
+DEFAULT_KERNEL_BLOCKS_MARGIN = 4
+
 # ==========================================================================
 # Public Classes
 # ==========================================================================
@@ -275,7 +282,7 @@ class NandInstaller(object):
         self._logger.info("Writing UBL image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                    hex(ubl_offset_addr), hex(ubl_size_aligned))
-        self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
+        self._uboot.cmd(cmd, echo_timeout=None,
                         prompt_timeout=None)
         
         return True
@@ -317,7 +324,7 @@ class NandInstaller(object):
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                            hex(uboot_offset_addr),
                                            hex(uboot_size_aligned))
-        ret = self._uboot.cmd(cmd, echo_timeout=DEFAULT_NAND_TIMEOUT,
+        ret = self._uboot.cmd(cmd, echo_timeout=None,
                              prompt_timeout=None)
         
         self._logger.info("Restarting to use the uboot in NAND")
@@ -331,6 +338,56 @@ class NandInstaller(object):
         if ret is False:
             self._logger.error("Failed synchronizing with the uboot in NAND")
             return False
+        
+        return True
+
+    def _kernel_md5sum(self, image_filename):
+        cmd = "md5sum %s | cut -f1 -d' '" % image_filename
+        ret, md5sum = self._executer.check_output(cmd)
+        if ret != 0:
+            self._logger.error("Error computing the MD5 sum for '%s'" % 
+                               image_filename)
+            return ''
+        return md5sum
+    
+    def install_kernel(self, image_filename, start_block,
+                       blocks_margin=DEFAULT_KERNEL_BLOCKS_MARGIN):
+        
+        if not os.path.isfile(image_filename):
+            self._logger.error("Kernel image '%s' doesn't exist" %
+                               image_filename)
+            return False
+        
+        self._logger.info("Loading kernel image to RAM")
+        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
+        if ret is False: return False
+        
+        self._uboot.set_env('autostart', 'yes')
+        
+        # Offset in blocks
+        kernel_offset_addr = start_block * self.nand_block_size
+        
+        # Size in blocks
+        kernel_size_b = os.path.getsize(image_filename)
+        kernel_size_blk = ((kernel_size_b / self.nand_block_size) +
+            blocks_margin)
+        kernel_size_aligned = kernel_size_blk * self.nand_block_size
+        
+        self._logger.info("Erasing kernel NAND space")
+        cmd = 'nand erase %s %s' % (hex(kernel_offset_addr), 
+                                    hex(kernel_size_aligned))
+        self._uboot.cmd(cmd, echo_timeout=None,
+                        prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        
+        self._logger.info("Writing kernel image from RAM to NAND")
+        cmd = 'nand write %s %s %s' % (self._ram_load_addr,
+                                       hex(kernel_offset_addr),
+                                       hex(kernel_size_aligned))
+        self._uboot.cmd(cmd, echo_timeout=None,
+                             prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        
+        md5sum = self._kernel_md5sum(image_filename)
+        if not md5sum and not self._dryrun: return False
         
         return True
 

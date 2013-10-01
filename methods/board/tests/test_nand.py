@@ -46,7 +46,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def setUp(self):
         
-        dryrun = True
+        dryrun = False
         
         self._uboot = Uboot()
         self._uboot.dryrun = dryrun
@@ -155,6 +155,25 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             # Install uboot
             ret = self._inst.install_uboot(uboot_nand_img,
                                            uboot_nand_start_block)
+            self.assertTrue(ret)
+
+    def test_install_kernel(self):
+        test_install_k = True
+        if test_install_k:
+            
+            # Setup networking
+            ret = self._inst.setup_uboot_network()
+            self.assertTrue(ret)
+            
+            # Load to RAM the uboot that will make the installation
+            uboot_img = "%s/images/bootloader" % devdir
+            ret = self._inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
+            self.assertTrue(ret)
+            
+            # Install kernel
+            kernel_img = "%s/images/kernel.uImage" % devdir
+            kernel_start_block = 32
+            ret = self._inst.install_kernel(kernel_img, kernel_start_block)
             self.assertTrue(ret)
 
 if __name__ == '__main__':
