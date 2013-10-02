@@ -305,7 +305,7 @@ class Uboot(object):
         self.cmd('printenv %s' % variable, prompt_timeout=None)
         found, line = self.expect('%s=' % variable)
         if found:
-            m = re.match('.*=(?P<value>.*)', line)
+            m = re.match('.*?=(?P<value>.*)', line)
             if m:
                 value = m.group('value').strip()   
         return value
