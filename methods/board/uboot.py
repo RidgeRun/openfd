@@ -283,6 +283,15 @@ class Uboot(object):
         """
         
         self.cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
+
+    def save_env(self):
+        """
+        Saves the uboot environment to persistent storage.
+        
+        :exception UbootTimeoutException: When a timeout is reached.
+        """
+        
+        self.cmd('saveenv')
     
     def set_env(self, variable, value):
         """
