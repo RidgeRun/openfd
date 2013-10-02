@@ -41,10 +41,10 @@ DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
 
 # Installation
 
-# When installing the kernel to NAND, DEFAULT_KERNEL_BLOCKS_MARGIN
+# When installing the kernel to NAND, DEFAULT_KERNEL_EXTRA_BLOCKS
 # indicates how many additional blocks will be reserved for the kernel
 # partition, allowing the kernel to grow to a certain point.
-DEFAULT_KERNEL_BLOCKS_MARGIN = 4
+DEFAULT_KERNEL_EXTRA_BLOCKS = 4
 
 # ==========================================================================
 # Public Classes
@@ -341,22 +341,54 @@ class NandInstaller(object):
         
         return True
 
-    def _kernel_md5sum(self, image_filename):
-        cmd = "md5sum %s | cut -f1 -d' '" % image_filename
+    def _md5sum(self, filename):
+        cmd = "md5sum %s | cut -f1 -d' '" % filename
         ret, md5sum = self._executer.check_output(cmd)
-        if ret != 0:
-            self._logger.error("Error computing the MD5 sum for '%s'" % 
-                               image_filename)
-            return ''
-        return md5sum
+        return md5sum.strip() if ret == 0 else ''
     
+    def _is_kernel_install_needed(self, image_filename, start_block):
+        # Detect a difference in either the md5sum or the offset
+        md5sum = self._md5sum(image_filename)
+        md5sum_on_board = self._uboot.get_env('kernelmd5sum')
+        kernel_off = hex(start_block * self.nand_block_size)
+        kernel_off_on_board = self._uboot.get_env('kerneloffset') # hex
+        if md5sum != md5sum_on_board or kernel_off != kernel_off_on_board:
+            return True
+        return False
+
     def install_kernel(self, image_filename, start_block,
-                       blocks_margin=DEFAULT_KERNEL_BLOCKS_MARGIN):
+                   extra_blocks=DEFAULT_KERNEL_EXTRA_BLOCKS, force=False):
+        """
+        Installs the kernel image to NAND. After installing the image it will
+        save in uboot's environment the kernel size, offset, and md5sum. This
+        information is also used to avoid re-installing the image if it is
+        not necessary, unless `force` is specified.
+        
+        :param image_filename: Path to the kernel image file.
+        :param start_block: Start block in NAND for the kernel image.
+        :type start_block: integer
+        :param extra_blocks: Extra NAND blocks to reserve for the kernel.
+        :type extra_blocks: integer
+        :param force: Forces the kernel installation.
+        :type force: boolean
+        :returns: Returns true on success; false otherwise.
+        """
         
         if not os.path.isfile(image_filename):
             self._logger.error("Kernel image '%s' doesn't exist" %
                                image_filename)
             return False
+        
+        is_needed = self._is_kernel_install_needed(image_filename, start_block) 
+        if not is_needed and not force:
+            self._logger.info("Kernel doesn't need to be installed, since "
+                              "checksums and offset match on board and host")
+            return True
+        
+        kernel_offset_addr = start_block * self.nand_block_size
+        kernel_size = os.path.getsize(image_filename)
+        kernel_size_blk = ((kernel_size / self.nand_block_size) + extra_blocks)
+        kernel_size_aligned = kernel_size_blk * self.nand_block_size
         
         self._logger.info("Loading kernel image to RAM")
         ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
@@ -364,30 +396,22 @@ class NandInstaller(object):
         
         self._uboot.set_env('autostart', 'yes')
         
-        # Offset in blocks
-        kernel_offset_addr = start_block * self.nand_block_size
-        
-        # Size in blocks
-        kernel_size_b = os.path.getsize(image_filename)
-        kernel_size_blk = ((kernel_size_b / self.nand_block_size) +
-            blocks_margin)
-        kernel_size_aligned = kernel_size_blk * self.nand_block_size
-        
         self._logger.info("Erasing kernel NAND space")
-        cmd = 'nand erase %s %s' % (hex(kernel_offset_addr), 
+        cmd = 'nand erase %s %s' % (hex(kernel_offset_addr),
                                     hex(kernel_size_aligned))
         self._uboot.cmd(cmd, echo_timeout=None,
                         prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
         self._logger.info("Writing kernel image from RAM to NAND")
         cmd = 'nand write %s %s %s' % (self._ram_load_addr,
-                                       hex(kernel_offset_addr),
-                                       hex(kernel_size_aligned))
+                           hex(kernel_offset_addr), hex(kernel_size_aligned))
         self._uboot.cmd(cmd, echo_timeout=None,
                              prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        md5sum = self._kernel_md5sum(image_filename)
-        if not md5sum and not self._dryrun: return False
+        self._uboot.set_env('kernelsize', hex(kernel_size_aligned))
+        self._uboot.set_env('kernelmd5sum', self._md5sum(image_filename))
+        self._uboot.set_env('kerneloffset', hex(kernel_offset_addr))
+        self._uboot.cmd('saveenv')
         
         return True
 
@@ -547,10 +571,10 @@ class NandInstallerTFTP(NandInstaller):
         
         filesize = self._uboot.get_env('filesize')
         if filesize:
-            filesize = int(filesize, base=16)
+            env_size_b = int(filesize, base=16)
         else:
-            filesize = 0
-        if size_b != filesize and not self._dryrun:
+            env_size_b = 0
+        if size_b != env_size_b and not self._dryrun:
             self._logger.error("Something went wrong during the transfer, the "
                 "size of file '%s' (%s) differs from the transferred "
                 "bytes (%s)" % (tftp_filename, size_b, filesize))

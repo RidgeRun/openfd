@@ -67,20 +67,24 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self._uboot.close_comm()
     
     def test_nand_block_size(self):
-        # Set a value manually
-        self._inst.nand_block_size = 15
-        self.assertEqual(self._inst.nand_block_size, 15)
-        # Force to query uboot - block size = 128 KB for a leo dm368
-        self._inst.nand_block_size = 0
-        self.assertEqual(self._inst.nand_block_size, 131072)
+        test_nbs = False
+        if test_nbs:
+            # Set a value manually
+            self._inst.nand_block_size = 15
+            self.assertEqual(self._inst.nand_block_size, 15)
+            # Force to query uboot - block size = 128 KB for a leo dm368
+            self._inst.nand_block_size = 0
+            self.assertEqual(self._inst.nand_block_size, 131072)
         
     def test_nand_page_size(self):
-        # Set a value manually
-        self._inst.nand_page_size = 15
-        self.assertEqual(self._inst.nand_page_size, 15)
-        # Force to query uboot - page size = 0x800 (2048) for a leo dm368
-        self._inst.nand_page_size = 0
-        self.assertEqual(self._inst.nand_page_size, 2048)
+        test_nps = False
+        if test_nps:
+            # Set a value manually
+            self._inst.nand_page_size = 15
+            self.assertEqual(self._inst.nand_page_size, 15)
+            # Force to query uboot - page size = 0x800 (2048) for a leo dm368
+            self._inst.nand_page_size = 0
+            self.assertEqual(self._inst.nand_page_size, 2048)
     
     def test_tftp_settings(self):
         test_tftp = False
@@ -105,7 +109,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def test_install_bootloader(self):
         
-        test_install_uboot = True
+        test_install_uboot = False
         if test_install_uboot:
             
             # Setup networking
