@@ -224,7 +224,7 @@ class NandInstaller(object):
         self._logger.info("Storing the current uboot's bootcmd")
         prev_bootcmd = self._uboot.get_env('bootcmd')
         self._uboot.set_env('bootcmd', '')
-        self._uboot.cmd('saveenv')
+        self._uboot.save_env()
         
         self._logger.info('Loading new uboot to RAM')
         ret = self._load_file_to_ram(image_filename, load_addr)
@@ -243,7 +243,7 @@ class NandInstaller(object):
             self._logger.info('Restoring the previous uboot bootcmd')
             self._uboot.set_env('bootcmd', prev_bootcmd)
         
-        ret = self._uboot.cmd('saveenv')
+        self._uboot.save_env()
         return True
     
     def install_ubl(self, image_filename, start_block):
@@ -381,8 +381,7 @@ class NandInstaller(object):
         
         is_needed = self._is_kernel_install_needed(image_filename, start_block) 
         if not is_needed and not force:
-            self._logger.info("Kernel doesn't need to be installed, since "
-                              "checksums and offset match on board and host")
+            self._logger.info("Kernel doesn't need to be installed")
             return True
         
         kernel_offset_addr = start_block * self.nand_block_size
@@ -411,8 +410,30 @@ class NandInstaller(object):
         self._uboot.set_env('kernelsize', hex(kernel_size_aligned))
         self._uboot.set_env('kernelmd5sum', self._md5sum(image_filename))
         self._uboot.set_env('kerneloffset', hex(kernel_offset_addr))
-        self._uboot.cmd('saveenv')
+        self._uboot.save_env()
         
+        return True
+
+    def install_cmdline(self, cmdline, force=False):
+        """
+        Installs the kernel command line to uboot's environment. If the same
+        command line has already been installed it will avoid re-installing it, 
+        unless `force` is specified.
+
+        :param cmdline: Kernel command line.
+        :param force: Forces the kernel command line installation.
+        :type force: boolean
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        cmdline = cmdline.strip()
+        cmdline_on_board = self._uboot.get_env('bootargs')
+        if cmdline == cmdline_on_board and not force:
+            self._logger.info("Kernel command line doesn't need to be "
+                              "installed")
+            return True
+        self._uboot.set_env('bootargs', cmdline)
+        self._uboot.save_env() 
         return True
 
 class NandInstallerTFTP(NandInstaller):

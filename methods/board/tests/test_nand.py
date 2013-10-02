@@ -162,7 +162,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.assertTrue(ret)
 
     def test_install_kernel(self):
-        test_install_k = True
+        test_install_k = False
         if test_install_k:
             
             # Setup networking
@@ -178,6 +178,13 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             kernel_img = "%s/images/kernel.uImage" % devdir
             kernel_start_block = 32
             ret = self._inst.install_kernel(kernel_img, kernel_start_block)
+            self.assertTrue(ret)
+
+    def test_install_cmdline(self):
+        test_cmdline = True
+        if test_cmdline:
+            cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 vpfe_capture.interface=1 mem=83M rootfstype=jffs2 root=/dev/mtdblock2 mtdparts=davinci_nand.0:4096k(UBOOT),4736k(KERNEL),204800k(FS)"
+            ret = self._inst.install_cmdline(cmdline)
             self.assertTrue(ret)
 
 if __name__ == '__main__':
