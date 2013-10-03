@@ -52,7 +52,16 @@ class SDCardInstallerTestCase(unittest.TestCase):
         kernel_image = '%s/images/kernel.uImage' % devdir
         rootfs = '%s/fs/fs' % devdir
         workdir = "%s/images" % devdir
-        
+        bootargs = ("davinci_enc_mngr.ch0_output=COMPONENT "
+                  "davinci_enc_mngr.ch0_mode=1080I-30  "
+                  "davinci_display.cont2_bufsize=13631488 "
+                  "vpfe_capture.cont_bufoffset=13631488 "
+                  "vpfe_capture.cont_bufsize=12582912 "
+                  "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
+                  "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1 "
+                  "mem=83M root=/dev/mmcblk0p2 rootdelay=2 "
+                  "rootfstype=ext3")
+
         # Component installer
         self._comp_installer = ComponentInstaller()        
         self._comp_installer.uflash_bin = uflash_bin
@@ -62,6 +71,7 @@ class SDCardInstallerTestCase(unittest.TestCase):
         self._comp_installer.uboot_load_addr = uboot_load_addr
         self._comp_installer.kernel_image = kernel_image
         self._comp_installer.rootfs = rootfs
+        self._comp_installer.bootargs = bootargs
         self._comp_installer.workdir = workdir
         
         # SDCard Installer
@@ -235,9 +245,6 @@ class SDCardInstallerTestCase(unittest.TestCase):
 
     def test_install_dryrun_loopback(self):
         self.test_install_loopback(dryrun=True)
-
-    def test_special(self):
-        print self._inst.__str__()
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SDCardInstallerTestCase)

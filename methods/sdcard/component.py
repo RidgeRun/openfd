@@ -23,7 +23,6 @@
 import os
 import rrutils
 import rrutils.hexutils as hexutils
-import sys
 
 # ==========================================================================
 # Public Classes
@@ -117,8 +116,7 @@ class ComponentInstaller(object):
         if hexutils.is_valid_addr(uboot_entry_addr):
             self._uboot_entry_addr = uboot_entry_addr
         else:
-            self._l.error('Invalid u-boot entry address: %s' %
-                               uboot_entry_addr)
+            self._l.error('Invalid u-boot entry address: %s' % uboot_entry_addr)
             self._uboot_entry_addr = None
         
     def __get_uboot_entry_addr(self):
@@ -132,10 +130,8 @@ class ComponentInstaller(object):
         if hexutils.is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr
         else:
-            self._l.error('Invalid u-boot load address: %s' %
-                               uboot_load_addr)
+            self._l.error('Invalid u-boot load address: %s' % uboot_load_addr)
             self._uboot_load_addr = None
-            
         
     def __get_uboot_load_addr(self):
         return self._uboot_load_addr
@@ -179,9 +175,8 @@ class ComponentInstaller(object):
         return self._workdir
     
     workdir = property(__get_workdir, __set_workdir,
-                       doc="""Path to the workdir - a directory where this
-                       installer can write files and perform other temporary
-                       operations.""")
+               doc="""Path to the workdir - a directory where this installer
+               can write files and perform other temporary operations.""")
     
     def install_uboot(self, device):
         """
@@ -218,16 +213,15 @@ class ComponentInstaller(object):
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
         
-        cmd = 'sudo ' + self._uflash_bin + \
-              ' -d ' + device + \
-              ' -u ' + self._ubl_file + \
-              ' -b ' + self._uboot_file + \
-              ' -e ' + uboot_entry_addr + \
-              ' -l ' + uboot_load_addr
-
         self._l.info('Installing uboot')
+        cmd = ('sudo ' + self._uflash_bin +
+              ' -d ' + device +
+              ' -u ' + self._ubl_file + 
+              ' -b ' + self._uboot_file + 
+              ' -e ' + uboot_entry_addr + 
+              ' -l ' + uboot_load_addr)
         if self._e.check_call(cmd) != 0:
-            self._l.error('Failed to flash UBL and U-Boot into %s' % device)
+            self._l.error('Failed to flash UBL and uboot into %s' % device)
             return False
 
         return True
@@ -251,6 +245,10 @@ class ComponentInstaller(object):
             self._l.error('No uboot load address specified')
             return False
         
+        if not self._bootargs:
+            self._l.error('No bootargs specified')
+            return False
+        
         if not self._workdir:
             self._l.error('No workdir specified')
             return False
@@ -260,19 +258,15 @@ class ComponentInstaller(object):
         # Uboot env file preparation
         
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
-        
         if not self._dryrun:
-            uenv = open(uenv_file, "w")
-            
-            uenv.write('bootargs=%s\n' % self._bootargs)
-            uenv.write('uenvcmd=echo Running uenvcmd ...; '
-                       'run loaduimage; '
-                       'bootm %s\n' % uboot_load_addr)
-            uenv.close()
-        
-        cmd = 'sudo cp ' + uenv_file + ' ' + mount_point
+            with open(uenv_file, "w") as uenv:
+                uenv.write('bootargs=%s\n' % self._bootargs)
+                uenv.write('uenvcmd=echo Running uenvcmd ...; '
+                           'run loaduimage; '
+                           'bootm %s\n' % uboot_load_addr)
         
         self._l.info('Installing uboot environment')
+        cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
         if self._e.check_call(cmd) != 0:
             self._l.error('Failed to install uboot env file.')
             return False
@@ -293,9 +287,8 @@ class ComponentInstaller(object):
             self._l.error('No kernel image specified')
             return False
         
-        cmd = 'sudo cp ' + self._kernel_image + ' ' + mount_point + '/uImage'
-        
         self._l.info('Installing kernel')
+        cmd = 'sudo cp %s %s/uImage' % (self._kernel_image, mount_point)
         if self._e.check_call(cmd) != 0:
             self._l.error('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))
@@ -312,152 +305,10 @@ class ComponentInstaller(object):
         """
         
         if self._rootfs:
-        
-            cmd = 'cd ' + self._rootfs + ' ; find . | sudo cpio -pdum ' + \
-                    mount_point
-            
             self._l.info('Installing rootfs')
+            cmd = 'cd %s ; find . | sudo cpio -pdum %s' % (self._rootfs,
+                                                           mount_point)
             if self._e.check_call(cmd) != 0:
                 self._l.error('Failed installing rootfs into %s' % mount_point)
                 return False
-        
         return True
-
-# ==========================================================================
-# Test cases
-# ==========================================================================
-
-if __name__ == '__main__':
-
-# ==========================================================================
-# Test cases  - Support functions
-# ==========================================================================
-
-    import time
-
-    def tc_start(tc_id, sleep_time=1):
-        """
-        Sleeps for 'sleep_time' and then prints the given test case header.
-        """
-        
-        tc_header  = '=' * 20
-        tc_header += 'TEST CASE ' + str(tc_id)
-        tc_header += '=' * 20
-        
-        time.sleep(sleep_time)
-        print tc_header
-
-# ==========================================================================
-# Test cases  - Initialization
-# ==========================================================================
-
-    # Devdir info
-    devdir = ''
-    
-    try:
-        if os.environ['DEVDIR']:
-            devdir = os.environ['DEVDIR'] 
-    except KeyError:
-        print 'Unable to obtain $DEVDIR from the environment.'
-        exit(-1)
-
-    # Initialize the logger
-    rrutils.logger.basic_config(verbose=True)
-    logger = rrutils.logger.get_global_logger('sdcard-test')
-    
-    comp_installer = ComponentInstaller()
-    
-    # The following test cases will be run over the following device,
-    # in the given dryrun mode, unless otherwise specified in the test case.
-    
-    # WARNING: Dryrun mode is set by default, but be careful
-    # you don't repartition or flash a device you don't want to.
-    
-    device = "/dev/sdb"
-    comp_installer.dryrun = False
-    
-    uflash_bin = devdir + \
-       '/bootloader/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash'
-    
-    comp_installer.uflash_bin = uflash_bin
-
-# ==========================================================================
-# Test cases - Unit tests
-# ==========================================================================
-
-    # --------------- TC 1 ---------------
-    
-    tc_start(1, sleep_time=0)
-    
-    # Initial setup
-    
-    ubl_file = devdir + '/images/ubl_DM36x_sdmmc.bin'
-    uboot_file = devdir + '/images/bootloader'
-    workdir = devdir + "/images/"
-    uboot_entry_addr = '0x82000000' # 2181038080 
-    uboot_load_addr = '2181038080' # 0x82000000
-    
-    comp_installer.ubl_file = ubl_file
-    comp_installer.uboot_file = uboot_file
-    comp_installer.uboot_entry_addr = uboot_entry_addr
-    comp_installer.uboot_load_addr = uboot_load_addr
-    comp_installer.workdir = workdir
-    comp_installer.bootargs = ("davinci_enc_mngr.ch0_output=COMPONENT "
-                          "davinci_enc_mngr.ch0_mode=1080I-30  "
-                          "davinci_display.cont2_bufsize=13631488 "
-                          "vpfe_capture.cont_bufoffset=13631488 "
-                          "vpfe_capture.cont_bufsize=12582912 "
-                          "video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off "
-                          "console=ttyS0,115200n8  dm365_imp.oper_mode=0  vpfe_capture.interface=1 "
-                          "mem=83M root=/dev/mmcblk0p2 rootdelay=2 "
-                          "rootfstype=ext3")
-    
-    # Flash the device
-    
-    if comp_installer.install_uboot(device):
-        print "Uboot successfully installed on " + device
-    else:
-        print "Error installing uboot in " + device
-    
-    # --------------- TC 2 ---------------
-    
-    tc_start(2)
-    
-    # Uboot env installation
-    
-    mount_point = '/media/boot'
-    
-    if comp_installer.install_uboot_env(mount_point):
-        print "Uboot env successfully installed on " + mount_point
-    else:
-        print "Error installing uboot env on " + mount_point
-
-    # --------------- TC 3 ---------------
-    
-    tc_start(3)
-    
-    # Kernel  installation
-    
-    kernel_image = devdir + '/images/kernel.uImage'
-    
-    comp_installer.kernel_image = kernel_image
-    
-    if comp_installer.install_kernel(mount_point):
-        print "Kernel successfully installed on " + mount_point
-    else:
-        print "Error installing kernel " + kernel_image + " on " + mount_point
-
-    # --------------- TC 4 ---------------
-    
-    tc_start(4)
-    
-    comp_installer.rootfs = devdir + "/fs/fs"
-    mount_point = "/media/rootfs"
-
-    if comp_installer.install_rootfs(mount_point):
-        print "Rootfs successfully installed on " + mount_point
-    else:
-        print "Error installing rootfs on " + mount_point
-        sys.exit(-1)
-    
-    print "Test cases finished"
