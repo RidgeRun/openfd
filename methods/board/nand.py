@@ -67,18 +67,18 @@ class NandInstaller(object):
         :type dryrun: boolean
         """
         
-        self._logger = rrutils.logger.get_global_logger()
-        self._executer = rrutils.executer.Executer()
-        self._executer.logger = self._logger
-        self._uboot = uboot
+        self._l = rrutils.logger.get_global_logger()
+        self._e = rrutils.executer.Executer()
+        self._e.logger = self._l
+        self._u = uboot
         self._nand_block_size = nand_block_size
         self._nand_page_size = nand_page_size
         self._ram_load_addr = None
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
-        self._uboot.dryrun = dryrun
+        self._e.dryrun = dryrun
+        self._u.dryrun = dryrun
 
     def __set_nand_block_size(self, size):
         self._nand_block_size = int(size)
@@ -89,15 +89,15 @@ class NandInstaller(object):
         if self._nand_block_size != 0:
             return self._nand_block_size
         
-        self._uboot.cmd('nand info', prompt_timeout=None)
+        self._u.cmd('nand info', prompt_timeout=None)
         
         if self._dryrun: # no need to go further in this mode
             self.nand_block_size = DEFAULT_NAND_BLOCK_SIZE
             return self._nand_block_size
         
-        device_found, line = self._uboot.expect('Device 0')
+        device_found, line = self._u.expect('Device 0')
         if not device_found:
-            self._logger.error('Can\'t find Device 0')
+            self._l.error('Can\'t find Device 0')
             return 0
         
         # Two versions of uboot output:
@@ -107,7 +107,7 @@ class NandInstaller(object):
         if m:
             self._nand_block_size = int(m.group('size_kb')) << 10 # to bytes
         else:
-            self._logger.error('Unable to determine the NAND block size')
+            self._l.error('Unable to determine the NAND block size')
         return self._nand_block_size
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
@@ -129,14 +129,14 @@ class NandInstaller(object):
         
         if self._dryrun:
             for size in possible_sizes:
-                self._uboot.cmd('nand dump.oob %s' % size, prompt_timeout=None)
+                self._u.cmd('nand dump.oob %s' % size, prompt_timeout=None)
             self._nand_page_size = DEFAULT_NAND_PAGE_SIZE
             return self._nand_page_size
         
         for size in possible_sizes:
             
-            self._uboot.cmd('nand dump.oob %s' % size, prompt_timeout=None)
-            found, line = self._uboot.expect('Page 0000')
+            self._u.cmd('nand dump.oob %s' % size, prompt_timeout=None)
+            found, line = self._u.expect('Page 0000')
             if not found: continue
             
             # Detect the page size upon a change on the output
@@ -147,7 +147,7 @@ class NandInstaller(object):
                     break
                 
         if page_size == 0:
-            self._logger.error('Unable to determine the NAND page size')
+            self._l.error('Unable to determine the NAND page size')
         else:
             self._nand_page_size = page_size
         return self._nand_page_size
@@ -161,7 +161,7 @@ class NandInstaller(object):
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.to_hex(str(ram_load_addr))
         else:
-            self._logger.error('Invalid RAM load address: %s' %
+            self._l.error('Invalid RAM load address: %s' %
                                ram_load_addr)
             self._ram_load_addr = None
         
@@ -174,8 +174,8 @@ class NandInstaller(object):
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
-        self._uboot.dryrun = dryrun
+        self._e.dryrun = dryrun
+        self._u.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -189,12 +189,12 @@ class NandInstaller(object):
         Checks availability of the 'icache' uboot command.
         """
         
-        self._uboot.cmd('icache', prompt_timeout=None)
-        found_icache = self._uboot.expect('Instruction Cache is')[0]
+        self._u.cmd('icache', prompt_timeout=None)
+        found_icache = self._u.expect('Instruction Cache is')[0]
         if not found_icache:
-            self._logger.error("Your uboot doesn't have icache command, "
-               "refusing to continue due to the risk of hanging, you can "
-               "update your bootloader by other means like an SD card.")
+            self._l.error("Your uboot doesn't have icache command, refusing "
+               "to continue due to the risk of hanging, you can update your "
+               "bootloader by other means like an SD card.")
             return False
         return True    
 
@@ -211,39 +211,38 @@ class NandInstaller(object):
         """
         
         if not os.path.isfile(image_filename):
-            self._logger.error("Uboot image '%s' doesn't exist" %
-                               image_filename)
+            self._l.error("Uboot image '%s' doesn't exist" % image_filename)
             return False
         
-        ret = self._uboot.sync()
+        ret = self._u.sync()
         if ret is False: return False
         
         ret = self._check_icache()
-        if ret is False: return False
+        if re is False: return False
         
-        self._logger.info("Storing the current uboot's bootcmd")
-        prev_bootcmd = self._uboot.get_env('bootcmd')
-        self._uboot.set_env('bootcmd', '')
-        self._uboot.save_env()
+        self._l.info("Storing the current uboot's bootcmd")
+        prev_bootcmd = self._u.get_env('bootcmd')
+        self._u.set_env('bootcmd', '')
+        self._u.save_env()
         
-        self._logger.info('Loading new uboot to RAM')
+        self._l.info('Loading new uboot to RAM')
         ret = self._load_file_to_ram(image_filename, load_addr)
         if ret is False: return False
         
-        self._logger.info('Running the new uboot')
-        self._uboot.cmd('icache off')
-        self._uboot.cmd('go %s' % load_addr)
+        self._l.info('Running the new uboot')
+        self._u.cmd('icache off')
+        self._u.cmd('go %s' % load_addr)
         time.sleep(2) # Give time to uboot to restart
-        ret = self._uboot.sync()
+        ret = self._u.sync()
         if ret is False:
-            self._logger.error('Failed to detect the new uboot starting')
+            self._l.error('Failed to detect the new uboot starting')
             return False
         
         if prev_bootcmd:
-            self._logger.info('Restoring the previous uboot bootcmd')
-            self._uboot.set_env('bootcmd', prev_bootcmd)
+            self._l.info('Restoring the previous uboot bootcmd')
+            self._u.set_env('bootcmd', prev_bootcmd)
         
-        self._uboot.save_env()
+        self._u.save_env()
         return True
     
     def install_ubl(self, image_filename, start_block):
@@ -257,33 +256,26 @@ class NandInstaller(object):
         """
         
         if not os.path.isfile(image_filename):
-            self._logger.error("UBL image '%s' doesn't exist" % image_filename)
+            self._l.error("UBL image '%s' doesn't exist" % image_filename)
             return False
         
-        self._logger.info("Loading UBL image to RAM")
+        self._l.info("Loading UBL image to RAM")
         ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
         if ret is False: return False
         
-        # Offset in blocks
-        self._logger.info("nand block size: %s" % self.nand_block_size)
         ubl_offset_addr = start_block * self.nand_block_size
-        
-        # Size in blocks
-        ubl_size_b = os.path.getsize(image_filename)
-        ubl_size_blk = (ubl_size_b / self.nand_block_size) + 1
+        ubl_size = os.path.getsize(image_filename)
+        ubl_size_blk = (ubl_size / self.nand_block_size) + 1
         ubl_size_aligned = ubl_size_blk * self.nand_block_size
         
-        self._logger.info("Erasing UBL NAND space")
-        cmd = 'nand erase %s %s' % (hex(ubl_offset_addr), 
-                                    hex(ubl_size_aligned))
-        self._uboot.cmd(cmd, echo_timeout=None, 
-                        prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._l.info("Erasing UBL NAND space")
+        cmd = 'nand erase %s %s' % (hex(ubl_offset_addr), hex(ubl_size_aligned))
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        self._logger.info("Writing UBL image from RAM to NAND")
+        self._l.info("Writing UBL image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                    hex(ubl_offset_addr), hex(ubl_size_aligned))
-        self._uboot.cmd(cmd, echo_timeout=None,
-                        prompt_timeout=None)
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
         
         return True
     
@@ -298,60 +290,53 @@ class NandInstaller(object):
         """
     
         if not os.path.isfile(image_filename):
-            self._logger.error("Uboot image '%s' doesn't exist" %
-                               image_filename)
+            self._l.error("Uboot image '%s' doesn't exist" % image_filename)
             return False
         
-        self._logger.info("Loading uboot image to RAM")
+        self._l.info("Loading uboot image to RAM")
         ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
         if ret is False: return False
 
-        # Offset in blocks
         uboot_offset_addr = start_block * self.nand_block_size
-        
-        # Size in blocks
-        uboot_size_b = os.path.getsize(image_filename)
-        uboot_size_blk = (uboot_size_b / self.nand_block_size) + 1
+        uboot_size = os.path.getsize(image_filename)
+        uboot_size_blk = (uboot_size / self.nand_block_size) + 1
         uboot_size_aligned = uboot_size_blk * self.nand_block_size
 
-        self._logger.info("Erasing uboot NAND space")
+        self._l.info("Erasing uboot NAND space")
         cmd = 'nand erase %s %s' % (hex(uboot_offset_addr),
                                     hex(uboot_size_aligned))
-        self._uboot.cmd(cmd, echo_timeout=None,
-                        prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        self._logger.info("Writing uboot image from RAM to NAND")
+        self._l.info("Writing uboot image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
-                                           hex(uboot_offset_addr),
-                                           hex(uboot_size_aligned))
-        ret = self._uboot.cmd(cmd, echo_timeout=None,
-                             prompt_timeout=None)
+                           hex(uboot_offset_addr), hex(uboot_size_aligned))
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
         
-        self._logger.info("Restarting to use the uboot in NAND")
-        self._uboot.cmd('reset', prompt_timeout=None)
-        found_reset_str = self._uboot.expect('U-Boot', timeout=10)[0]
+        self._l.info("Restarting to use the uboot in NAND")
+        self._u.cmd('reset', prompt_timeout=None)
+        found_reset_str = self._u.expect('U-Boot', timeout=10)[0]
         if not found_reset_str:
-            self._logger.error("Failed to detect the uboot in NAND restarting")
+            self._l.error("Failed to detect the uboot in NAND restarting")
             return False
         time.sleep(4) # Give uboot time to initialize
-        ret = self._uboot.sync()
+        ret = self._u.sync()
         if ret is False:
-            self._logger.error("Failed synchronizing with the uboot in NAND")
+            self._l.error("Failed synchronizing with the uboot in NAND")
             return False
         
         return True
 
     def _md5sum(self, filename):
         cmd = "md5sum %s | cut -f1 -d' '" % filename
-        ret, md5sum = self._executer.check_output(cmd)
+        ret, md5sum = self._e.check_output(cmd)
         return md5sum.strip() if ret == 0 else ''
     
     def _is_kernel_install_needed(self, image_filename, start_block):
         # Detect a difference in either the md5sum or the offset
         md5sum = self._md5sum(image_filename)
-        md5sum_on_board = self._uboot.get_env('kernelmd5sum')
+        md5sum_on_board = self._u.get_env('kernelmd5sum')
         kernel_off = hex(start_block * self.nand_block_size)
-        kernel_off_on_board = self._uboot.get_env('kerneloffset') # hex
+        kernel_off_on_board = self._u.get_env('kerneloffset') # hex
         if md5sum != md5sum_on_board or kernel_off != kernel_off_on_board:
             return True
         return False
@@ -375,13 +360,12 @@ class NandInstaller(object):
         """
         
         if not os.path.isfile(image_filename):
-            self._logger.error("Kernel image '%s' doesn't exist" %
-                               image_filename)
+            self._l.error("Kernel image '%s' doesn't exist" % image_filename)
             return False
         
         is_needed = self._is_kernel_install_needed(image_filename, start_block) 
         if not is_needed and not force:
-            self._logger.info("Kernel doesn't need to be installed")
+            self._l.info("Kernel doesn't need to be installed")
             return True
         
         kernel_offset_addr = start_block * self.nand_block_size
@@ -389,28 +373,26 @@ class NandInstaller(object):
         kernel_size_blk = ((kernel_size / self.nand_block_size) + extra_blocks)
         kernel_size_aligned = kernel_size_blk * self.nand_block_size
         
-        self._logger.info("Loading kernel image to RAM")
+        self._l.info("Loading kernel image to RAM")
         ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
         if ret is False: return False
         
-        self._uboot.set_env('autostart', 'yes')
+        self._u.set_env('autostart', 'yes')
         
-        self._logger.info("Erasing kernel NAND space")
+        self._l.info("Erasing kernel NAND space")
         cmd = 'nand erase %s %s' % (hex(kernel_offset_addr),
                                     hex(kernel_size_aligned))
-        self._uboot.cmd(cmd, echo_timeout=None,
-                        prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        self._logger.info("Writing kernel image from RAM to NAND")
+        self._l.info("Writing kernel image from RAM to NAND")
         cmd = 'nand write %s %s %s' % (self._ram_load_addr,
                            hex(kernel_offset_addr), hex(kernel_size_aligned))
-        self._uboot.cmd(cmd, echo_timeout=None,
-                             prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        self._uboot.set_env('kernelsize', hex(kernel_size_aligned))
-        self._uboot.set_env('kernelmd5sum', self._md5sum(image_filename))
-        self._uboot.set_env('kerneloffset', hex(kernel_offset_addr))
-        self._uboot.save_env()
+        self._u.set_env('kernelsize', hex(kernel_size_aligned))
+        self._u.set_env('kernelmd5sum', self._md5sum(image_filename))
+        self._u.set_env('kerneloffset', hex(kernel_offset_addr))
+        self._u.save_env()
         
         return True
 
@@ -427,13 +409,12 @@ class NandInstaller(object):
         """
         
         cmdline = cmdline.strip()
-        cmdline_on_board = self._uboot.get_env('bootargs')
+        cmdline_on_board = self._u.get_env('bootargs')
         if cmdline == cmdline_on_board and not force:
-            self._logger.info("Kernel command line doesn't need to be "
-                              "installed")
+            self._l.info("Kernel command line doesn't need to be installed")
             return True
-        self._uboot.set_env('bootargs', cmdline)
-        self._uboot.save_env() 
+        self._u.set_env('bootargs', cmdline)
+        self._u.save_env() 
         return True
 
 class NandInstallerTFTP(NandInstaller):
@@ -530,21 +511,20 @@ class NandInstallerTFTP(NandInstaller):
         """
         
         if not os.path.isdir(self._tftp_dir):
-            self._logger.error("Can't deploy firmware to '%s', the directory "
-                               "doesn't exist" % self._tftp_dir)
+            self._l.error("Can't deploy firmware to '%s', the directory "
+                          "doesn't exist" % self._tftp_dir)
             return False
         
         if not os.access(self._tftp_dir, os.W_OK):
-            self._logger.error("Can't deploy firmware to '%s', the directory "
-                               "is not writable" % self._tftp_dir)
+            self._l.error("Can't deploy firmware to '%s', the directory is "
+                          "not writable" % self._tftp_dir)
             return False
         
         cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
-        ret = self._executer.check_call(cmd)
+        ret = self._e.check_call(cmd)
         if ret != 0:
-            self._logger.error("Seems like you aren't running tftp udp server "
-                               "on port %d, please check your server settings"
-                               % self._tftp_port)
+            self._l.error("Seems like you aren't running tftp udp server on "
+              "port %d, please check your server settings" % self._tftp_port)
             return False
         
         return True
@@ -555,21 +535,21 @@ class NandInstallerTFTP(NandInstaller):
         """
         
         if not hexutils.is_valid_addr(load_addr):
-            self._logger.error("Invalid address '%s'" % load_addr)
+            self._l.error("Invalid address '%s'" % load_addr)
             return False
         
         if not self._is_network_setup:
-            self._logger.error("Please setup uboot's network prior to any "
-                               "TFTP transfer")
+            self._l.error("Please setup uboot's network prior to any TFTP "
+                          "transfer")
             return False
         
         # Copy the file to the host's TFTP directory
         basename = os.path.basename(filename)
         tftp_filename = '%s/%s' % (self._tftp_dir, basename)
         cmd = 'cp %s %s' % (filename, tftp_filename)
-        ret, output = self._executer.check_output(cmd)
+        ret, output = self._e.check_output(cmd)
         if ret != 0:
-            self._logger.error(output)
+            self._l.error(output)
             return False
         
         # Estimate a transfer timeout - 10 seconds per MB
@@ -579,26 +559,26 @@ class NandInstallerTFTP(NandInstaller):
         
         # Transfer
         hex_load_addr = hexutils.to_hex(load_addr)
-        self._logger.debug("Starting TFTP transfer from file '%s' to "
-                          "address '%s'" % (tftp_filename, hex_load_addr))
+        self._l.debug("Starting TFTP transfer from file '%s' to address '%s'"
+                      % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         try:
-            self._uboot.cmd(cmd, prompt_timeout=transfer_timeout)
+            self._u.cmd(cmd, prompt_timeout=transfer_timeout)
         except UbootTimeoutException:
-            self._uboot.cancel_cmd()
-            self._logger.error("TFTP transfer failed from '%s:%s'." %
+            self._u.cancel_cmd()
+            self._l.error("TFTP transfer failed from '%s:%s'." %
                                (self._host_ipaddr, self._tftp_port))
             return False
         
-        filesize = self._uboot.get_env('filesize')
+        filesize = self._u.get_env('filesize')
         if filesize:
             env_size_b = int(filesize, base=16)
         else:
             env_size_b = 0
         if size_b != env_size_b and not self._dryrun:
-            self._logger.error("Something went wrong during the transfer, the "
-                "size of file '%s' (%s) differs from the transferred "
-                "bytes (%s)" % (tftp_filename, size_b, filesize))
+            self._l.error("Something went wrong during the transfer, the size "
+                "of file '%s' (%s) differs from the transferred bytes (%s)"
+                % (tftp_filename, size_b, filesize))
             return False
         
         return True
@@ -611,38 +591,38 @@ class NandInstallerTFTP(NandInstaller):
         """
         
         if not self._net_mode:
-            self._logger.error('Please provide a networking mode')
+            self._l.error('Please provide a networking mode')
             return False
         
         if (self._net_mode == NandInstallerTFTP.MODE_STATIC and 
                 not self._target_ipaddr):
-            self._logger.error('No IP address specified for the target.')
+            self._l.error('No IP address specified for the target.')
             return False
         
-        self._logger.info('Checking TFTP settings')
+        self._l.info('Checking TFTP settings')
         ret = self._check_tftp_settings()
         if ret is False: return False
         
-        self._logger.info('Configuring uboot network')
+        self._l.info('Configuring uboot network')
         if self._net_mode == NandInstallerTFTP.MODE_STATIC:
-            self._uboot.set_env('ipaddr', self._target_ipaddr)
+            self._u.set_env('ipaddr', self._target_ipaddr)
         elif self._net_mode == NandInstallerTFTP.MODE_DHCP:
-            self._uboot.set_env('autoload', 'no')
-            self._uboot.set_env('autostart', 'no')
-            self._uboot.cmd('dhcp', prompt_timeout=None)
+            self._u.set_env('autoload', 'no')
+            self._u.set_env('autostart', 'no')
+            self._u.cmd('dhcp', prompt_timeout=None)
             # If dhcp failed at retry 3, stop and report the error
             dhcp_error_line = 'BOOTP broadcast 3'
-            found_error, line = self._uboot.expect(dhcp_error_line, timeout=6)
+            found_error, line = self._u.expect(dhcp_error_line, timeout=6)
             if found_error and not self.dryrun:
-                self._uboot.cancel_cmd()
+                self._u.cancel_cmd()
                 msg = ("Looks like your network doesn't have dhcp enabled or "
                        "you don't have an ethernet link. ")
                 if line:
                     msg += "This is the log of the last line: %s" % line
-                self._logger.error(msg)
+                self._l.error(msg)
                 return False
 
-        self._uboot.set_env('serverip', self._host_ipaddr)
+        self._u.set_env('serverip', self._host_ipaddr)
         self._is_network_setup = True
         
         return True

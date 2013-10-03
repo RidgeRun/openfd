@@ -145,7 +145,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             # Generate the uboot nand image
             uboot_img = "%s/images/bootloader" % devdir
             uboot_nand_img = "%s/images/bootloader.nandbin" % devdir
-            uboot_nand_start_block = 25
+            uboot_nand_startTrue_block = 25
             uboot_entry_addr = '0x82000000'
             uboot_load_addr = '0x82000000'
             ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
@@ -177,7 +177,8 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             # Install kernel
             kernel_img = "%s/images/kernel.uImage" % devdir
             kernel_start_block = 32
-            ret = self._inst.install_kernel(kernel_img, kernel_start_block)
+            ret = self._inst.install_kernel(kernel_img, kernel_start_block, 
+                                            force=True)
             self.assertTrue(ret)
 
     def test_install_cmdline(self):
