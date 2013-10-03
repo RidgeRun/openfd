@@ -48,12 +48,12 @@ class NandImageGenerator(object):
         """
         self._bc_bin = bc_bin
         self._image_dir = image_dir
-        self._logger = rrutils.logger.get_global_logger()
-        self._executer = rrutils.executer.Executer()
-        self._executer.logger = self._logger
+        self._l = rrutils.logger.get_global_logger()
+        self._e = rrutils.executer.Executer()
+        self._e.logger = self._l
         self._verbose = verbose
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
+        self._e.dryrun = dryrun
 
     def __set_bc_bin(self, bc_bin):
         if os.path.isfile(bc_bin) and os.access(bc_bin, os.X_OK):
@@ -77,7 +77,7 @@ class NandImageGenerator(object):
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
+        self._e.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -93,25 +93,25 @@ class NandImageGenerator(object):
         """
     
         if not self._bc_bin:
-            self._logger.error("Please provide the path to the TI Binary "
-                               "Creator tool.")
+            self._l.error("Please provide the path to the TI Binary Creator "
+                          "tool.")
             return False
         
         if not os.path.isfile(input_img):
-            self._logger.error("File '%s' doesn't exist." % input_img)
+            self._l.error("File '%s' doesn't exist." % input_img)
             return False
         
         output_dir = os.path.dirname(output_img)
         if not os.access(output_dir, os.W_OK):
-            self._logger.error("Can't write to '%s'." % output_dir)
+            self._l.error("Can't write to '%s'." % output_dir)
             return False
         
         if entry_addr and not hexutils.is_valid_addr(entry_addr):
-            self._logger.error("Invalid uboot entry address '%s'" % entry_addr)
+            self._l.error("Invalid uboot entry address '%s'" % entry_addr)
             return False
         
         if load_addr and not hexutils.is_valid_addr(load_addr):
-            self._logger.error("Invalid uboot load address '%s'" % load_addr)
+            self._l.error("Invalid uboot load address '%s'" % load_addr)
             return False
         
         return True
@@ -139,18 +139,18 @@ class NandImageGenerator(object):
         entry_addr_hex = hexutils.to_hex(str(entry_addr))
         load_addr_hex = hexutils.to_hex(str(load_addr))
         
-        self._logger.info("Generating uboot image for NAND")
+        self._l.info("Generating uboot image for NAND")
         
         cmd = ('mono %s -uboot -pageSize %s -blockNum %s -startAddr %s '
                '-loadAddr %s %s -o %s' % (self._bc_bin, page_size,
                   start_block, entry_addr_hex, load_addr_hex, input_img,
                   output_img))
         if self._verbose:
-            ret = self._executer.call(cmd)
+            ret = self._e.call(cmd)
         else:
-            ret = self._executer.check_call(cmd)
+            ret = self._e.check_call(cmd)
         if ret != 0:
-            self._logger.error('Failed generating uboot image for NAND')
+            self._l.error('Failed generating uboot image for NAND')
             return False
         
         return True
@@ -170,16 +170,16 @@ class NandImageGenerator(object):
         ret = self._check_args(input_img, output_img)
         if ret is False: return False
         
-        self._logger.info("Generating UBL image for NAND")
+        self._l.info("Generating UBL image for NAND")
         
         cmd = ('mono %s -pageSize %s -blockNum %s %s -o %s' % (self._bc_bin,
                 page_size, start_block, input_img, output_img))
         if self._verbose:
-            ret = self._executer.call(cmd)
+            ret = self._e.call(cmd)
         else:
-            ret = self._executer.check_call(cmd)
+            ret = self._e.check_call(cmd)
         if ret != 0:
-            self._logger.error('Failed generating UBL image for NAND')
+            self._l.error('Failed generating UBL image for NAND')
             return False
         
         return True

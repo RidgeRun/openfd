@@ -61,9 +61,9 @@ class Uboot(object):
         :type dryrun: boolean
         """
         
-        self._logger = rrutils.logger.get_global_logger()
-        self._executer = rrutils.executer.Executer()
-        self._executer.logger = self._logger
+        self._l = rrutils.logger.get_global_logger()
+        self._e = rrutils.executer.Executer()
+        self._e.logger = self._l
         self._port = None
         self._prompt = ''
         self._dryrun = dryrun
@@ -85,7 +85,7 @@ class Uboot(object):
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
+        self._e.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -96,7 +96,7 @@ class Uboot(object):
 
     def _check_open_port(self):
         if self._port is None and not self._dryrun:
-            self._logger.error('No opened port.')
+            self._l.error('No opened port.')
             return False
         else:
             return True
@@ -124,9 +124,9 @@ class Uboot(object):
                '-echoctl -istrip -icrnl -ocrnl -igncr -inlcr onlcr -opost '
                '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
                '-parenb -parodd -inpck' % (port, baud))
-        ret, output = self._executer.check_output(cmd)
+        ret, output = self._e.check_output(cmd)
         if ret != 0:
-            self._logger.error(output)
+            self._l.error(output)
             return False
         
         try:
@@ -134,7 +134,7 @@ class Uboot(object):
                                        baudrate=baud,
                                        timeout=timeout)
         except serial.SerialException as e:
-            self._logger.error(e)
+            self._l.error(e)
             raise e
         
         return True
@@ -174,7 +174,7 @@ class Uboot(object):
             try:
                 line = self._port.readline().strip(' \r\n')
             except (serial.SerialException, OSError) as e:
-                self._logger.error(e)
+                self._l.error(e)
                 return False, ''
             if response in line:
                 found = True
@@ -185,9 +185,9 @@ class Uboot(object):
         m = re.match('(?P<prompt>.*) $', line)
         if m:
             self._prompt = m.group('prompt').strip()
-            self._logger.debug('Uboot prompt: %s' % self._prompt)
+            self._l.debug('Uboot prompt: %s' % self._prompt)
         else:
-            self._logger.error("Couldn't identify the uboot prompt.")
+            self._l.error("Couldn't identify the uboot prompt.")
             return False
         
         return True
@@ -212,12 +212,12 @@ class Uboot(object):
         try:
             self.cmd('echo sync', prompt_timeout=False)
         except UbootTimeoutException as e:
-            self._logger.error(err_msg)
+            self._l.error(err_msg)
             return False
         
         found_echo = self.expect('sync', timeout=1)[0]
         if not found_echo:
-            self._logger.error(err_msg)
+            self._l.error(err_msg)
             return False
         
         # Identify the prompt in the following line
@@ -225,7 +225,7 @@ class Uboot(object):
             try:
                 line = self._port.readline().strip('\r\n')
             except (serial.SerialException, OSError) as e:
-                self._logger.error(e)
+                self._l.error(e)
                 return False
             
             ret = self._identify_prompt(line)
@@ -248,7 +248,7 @@ class Uboot(object):
         :exception UbootTimeoutException: When a timeout is reached.
         """
         
-        self._logger.info("Uboot: '%s'" % cmd.strip())
+        self._l.info("Uboot: '%s'" % cmd.strip())
         
         if not self._dryrun:
         

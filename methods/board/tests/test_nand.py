@@ -109,7 +109,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def test_install_bootloader(self):
         
-        test_install_uboot = False
+        test_install_uboot = True
         if test_install_uboot:
             
             # Setup networking
@@ -145,7 +145,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             # Generate the uboot nand image
             uboot_img = "%s/images/bootloader" % devdir
             uboot_nand_img = "%s/images/bootloader.nandbin" % devdir
-            uboot_nand_startTrue_block = 25
+            uboot_nand_start_block = 25
             uboot_entry_addr = '0x82000000'
             uboot_load_addr = '0x82000000'
             ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
@@ -162,7 +162,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.assertTrue(ret)
 
     def test_install_kernel(self):
-        test_install_k = False
+        test_install_k = True
         if test_install_k:
             
             # Setup networking
