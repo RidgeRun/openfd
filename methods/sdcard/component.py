@@ -56,9 +56,9 @@ class ComponentInstaller(object):
         :type dryrun: boolean
         """
         
-        self._logger = rrutils.logger.get_global_logger()
-        self._executer = rrutils.executer.Executer()
-        self._executer.logger = self._logger
+        self._l = rrutils.logger.get_global_logger()
+        self._e = rrutils.executer.Executer()
+        self._e.logger = self._l
         self._workdir = workdir
         self._uflash_bin = uflash_bin
         self._ubl_file = ubl_file
@@ -73,11 +73,11 @@ class ComponentInstaller(object):
         self._kernel_image = kernel_image
         self._rootfs = rootfs
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
+        self._e.dryrun = dryrun
 
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
-        self._executer.dryrun = dryrun
+        self._e.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -117,7 +117,7 @@ class ComponentInstaller(object):
         if hexutils.is_valid_addr(uboot_entry_addr):
             self._uboot_entry_addr = uboot_entry_addr
         else:
-            self._logger.error('Invalid u-boot entry address: %s' %
+            self._l.error('Invalid u-boot entry address: %s' %
                                uboot_entry_addr)
             self._uboot_entry_addr = None
         
@@ -132,7 +132,7 @@ class ComponentInstaller(object):
         if hexutils.is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr
         else:
-            self._logger.error('Invalid u-boot load address: %s' %
+            self._l.error('Invalid u-boot load address: %s' %
                                uboot_load_addr)
             self._uboot_load_addr = None
             
@@ -196,23 +196,23 @@ class ComponentInstaller(object):
         """
         
         if not self._uflash_bin:
-            self._logger.error('No path to uflash specified')
+            self._l.error('No path to uflash specified')
             return False
         
         if not self._ubl_file:
-            self._logger.error('No path to ubl file specified')
+            self._l.error('No path to ubl file specified')
             return False
         
         if not self._uboot_file:
-            self._logger.error('No path to uboot file specified')
+            self._l.error('No path to uboot file specified')
             return False
         
         if not self._uboot_entry_addr:
-            self._logger.error('No uboot entry address specified')
+            self._l.error('No uboot entry address specified')
             return False
 
         if not self._uboot_load_addr:
-            self._logger.error('No uboot load address specified')
+            self._l.error('No uboot load address specified')
             return False
         
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
@@ -225,10 +225,9 @@ class ComponentInstaller(object):
               ' -e ' + uboot_entry_addr + \
               ' -l ' + uboot_load_addr
 
-        self._logger.info('Installing uboot')
-        if self._executer.check_call(cmd) != 0:
-            self._logger.error('Failed to flash UBL and U-Boot into %s' %
-                               device)
+        self._l.info('Installing uboot')
+        if self._e.check_call(cmd) != 0:
+            self._l.error('Failed to flash UBL and U-Boot into %s' % device)
             return False
 
         return True
@@ -245,16 +244,15 @@ class ComponentInstaller(object):
         """
         
         if not os.path.isdir(mount_point) and not self._dryrun:
-            self._logger.error('Mount point %s does not exist' %
-                               mount_point)
+            self._l.error('Mount point %s does not exist' % mount_point)
             return False
         
         if not self._uboot_load_addr:
-            self._logger.error('No uboot load address specified')
+            self._l.error('No uboot load address specified')
             return False
         
         if not self._workdir:
-            self._logger.error('No workdir specified')
+            self._l.error('No workdir specified')
             return False
         
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
@@ -274,9 +272,9 @@ class ComponentInstaller(object):
         
         cmd = 'sudo cp ' + uenv_file + ' ' + mount_point
         
-        self._logger.info('Installing uboot environment')
-        if self._executer.check_call(cmd) != 0:
-            self._logger.error('Failed to install uboot env file.')
+        self._l.info('Installing uboot environment')
+        if self._e.check_call(cmd) != 0:
+            self._l.error('Failed to install uboot env file.')
             return False
         
         return True
@@ -292,14 +290,14 @@ class ComponentInstaller(object):
         """
         
         if not self._kernel_image:
-            self._logger.error('No kernel image specified')
+            self._l.error('No kernel image specified')
             return False
         
         cmd = 'sudo cp ' + self._kernel_image + ' ' + mount_point + '/uImage'
         
-        self._logger.info('Installing kernel')
-        if self._executer.check_call(cmd) != 0:
-            self._logger.error('Failed copying %s to %s' %
+        self._l.info('Installing kernel')
+        if self._e.check_call(cmd) != 0:
+            self._l.error('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))
             return False
         
@@ -318,10 +316,9 @@ class ComponentInstaller(object):
             cmd = 'cd ' + self._rootfs + ' ; find . | sudo cpio -pdum ' + \
                     mount_point
             
-            self._logger.info('Installing rootfs')
-            if self._executer.check_call(cmd) != 0:
-                self._logger.error('Failed installing rootfs into %s' %
-                                   mount_point)
+            self._l.info('Installing rootfs')
+            if self._e.check_call(cmd) != 0:
+                self._l.error('Failed installing rootfs into %s' % mount_point)
                 return False
         
         return True
