@@ -497,23 +497,23 @@ class SDCardInstaller(object):
         
         return True
     
-    def _test_image_size(self, image_size):
+    def _test_image_size(self, image_size_mb):
         """
         Test that the image will be big enough to hold the partitions.
         
         Returns true on success; false otherwise.
         """
         
-        image_size_bytes = int(image_size) << 20
-        image_size_cyl = image_size_bytes / geometry.CYLINDER_BYTE_SIZE
+        size_b = int(image_size_mb) << 20
+        size_cyl = size_b / geometry.CYLINDER_BYTE_SIZE
         
-        if image_size_cyl < self._min_total_cyl_size():
-            image_min_size_needed = (self._min_total_cyl_size() * 
-                                    geometry.CYLINDER_BYTE_SIZE)
-            image_min_size_needed = int(image_min_size_needed) >> 20
+        if size_cyl < self._min_total_cyl_size():
+            size_needed_b = (self._min_total_cyl_size() *
+                                geometry.CYLINDER_BYTE_SIZE)
+            size_needed_mb = int(size_needed_b) >> 20
             self._l.error('Image size of %s MB is too small to hold the '
                    'partitions, the image must be bigger than %s MB to '
-                   'hold them.' % (image_size, image_min_size_needed))
+                   'hold them.' % (image_size_mb, size_needed_mb))
             return False
         
         return True
@@ -615,7 +615,8 @@ class SDCardInstaller(object):
             self._l.error('Not in MODE_LOOPBACK.')
             return False
         
-        if not self._test_image_size(image_size_mb): return False
+        if not self._test_image_size(image_size_mb):
+            return False
         
         self._l.info('Creating image file %s' % image_filename)
         if not self._create_image_file(image_filename, image_size_mb):
