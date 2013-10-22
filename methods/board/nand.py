@@ -53,7 +53,7 @@ DEFAULT_KERNEL_EXTRA_BLOCKS = 4
 class NandInstaller(object):
     
     def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, dryrun=False):
+                 ram_load_addr=None, dryrun=False, interactive=True):
         """
         :param uboot: :class:`Uboot` instance.
         :param nand_block_size: NAND block size (bytes). If not given, the
@@ -65,6 +65,9 @@ class NandInstaller(object):
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
+        :param interactive: Enable interactive mode. The user will
+            be prompted before executing dangerous commands.
+        :type interactive: boolean
         """
         
         self._l = rrutils.logger.get_global_logger()
@@ -79,6 +82,7 @@ class NandInstaller(object):
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
+        self._interactive = interactive
 
     def __set_nand_block_size(self, size):
         self._nand_block_size = int(size)
@@ -183,6 +187,16 @@ class NandInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                      doc="""Enable dryrun mode. System commands will be
                      logged, but not executed.""")
+    
+    def __set_interactive(self, interactive):
+        self._interactive = interactive
+    
+    def __get_interactive(self):
+        return self._interactive
+    
+    interactive = property(__get_interactive, __set_interactive,
+                           doc="""Enable interactive mode. The user will
+                           be prompted before executing dangerous commands.""")
     
     def _check_icache(self):
         """
@@ -426,8 +440,8 @@ class NandInstallerTFTP(NandInstaller):
     MODE_DHCP = 'dhcp'
     
     def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, dryrun=False, host_ipaddr='',
-                 target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
+                 ram_load_addr=None, dryrun=False, interactive=True,
+                 host_ipaddr='', target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
                  tftp_port=DEFAULT_TFTP_PORT, net_mode=None):
         """
         :param uboot: :class:`Uboot` instance.
@@ -440,6 +454,9 @@ class NandInstallerTFTP(NandInstaller):
         :param dryrun: Enable dryrun mode. System commands will be logged,
             but not executed.
         :type dryrun: boolean
+        :param interactive: Enable interactive mode. The user will
+            be prompted before executing dangerous commands.
+        :type interactive: boolean
         :param host_ipaddr: Host IP address.
         :param target_ipaddr: Target IP address, only necessary
             in :const:`MODE_STATIC`.
@@ -450,7 +467,7 @@ class NandInstallerTFTP(NandInstaller):
             :const:`MODE_STATIC`, :const:`MODE_DHCP`.
         """    
         NandInstaller.__init__(self, uboot, nand_block_size, nand_page_size,
-                               ram_load_addr, dryrun)
+                               ram_load_addr, dryrun, interactive)
         self._tftp_dir = tftp_dir
         self._tftp_port = tftp_port
         self._net_mode = net_mode
