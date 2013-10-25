@@ -36,15 +36,13 @@ DEFAULT_TFTP_PORT = 69
 
 # NAND
 DEFAULT_NAND_TIMEOUT = 60 # seconds
-DEFAULT_NAND_BLOCK_SIZE = 131072 # bytes
+DEFAULT_NAND_BLK_SIZE = 131072 # bytes
 DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
 
 # Installation
 
-# When installing the kernel to NAND, DEFAULT_KERNEL_EXTRA_BLOCKS
-# indicates how many additional blocks will be reserved for the kernel
-# partition, allowing the kernel to grow to a certain point.
-DEFAULT_KERNEL_EXTRA_BLOCKS = 4
+DEFAULT_KERNEL_EXTRA_BLKS = 3
+DEFAULT_FS_EXTRA_BLKS = 19
 
 # ==========================================================================
 # Public Classes
@@ -96,7 +94,7 @@ class NandInstaller(object):
         self._u.cmd('nand info', prompt_timeout=None)
         
         if self._dryrun: # no need to go further in this mode
-            self.nand_block_size = DEFAULT_NAND_BLOCK_SIZE
+            self.nand_block_size = DEFAULT_NAND_BLK_SIZE
             return self._nand_block_size
         
         device_found, line = self._u.expect('Device 0')
@@ -215,18 +213,14 @@ class NandInstaller(object):
     def _load_file_to_ram(self, filename, load_addr):
         raise NotImplementedError
 
-    def load_uboot_to_ram(self, image_filename, load_addr):
+    def load_uboot_to_ram(self, img_filename, load_addr):
         """
         Loads an uboot image to RAM and executes it. This uboot will drive
         the installation.
         
-        :param image_filename: Path to the uboot image file.
+        :param img_filename: Path to the uboot image file.
         :param load_addr: Load address in RAM where to load the uboot image.
         """
-        
-        if not os.path.isfile(image_filename):
-            self._l.error("Uboot image '%s' doesn't exist" % image_filename)
-            return False
         
         ret = self._u.sync()
         if ret is False: return False
@@ -240,7 +234,7 @@ class NandInstaller(object):
         self._u.save_env()
         
         self._l.info('Loading new uboot to RAM')
-        ret = self._load_file_to_ram(image_filename, load_addr)
+        ret = self._load_file_to_ram(img_filename, load_addr)
         if ret is False: return False
         
         self._l.info('Running the new uboot')
@@ -259,71 +253,62 @@ class NandInstaller(object):
         self._u.save_env()
         return True
     
-    def install_ubl(self, image_filename, start_block):
+    def install_ubl(self, img_filename, start_blk):
         """
         Installs the UBL (initial program loader) image to NAND.
         
-        :param image_filename: Path to the UBL image file.
-        :param start_block: Start block in NAND for the UBL image.
-        :type start_block: integer
+        :param img_filename: Path to the UBL image file.
+        :param start_blk: Start block in NAND for the UBL image.
+        :type start_blk: integer
         :returns: Returns true on success; false otherwise.
         """
         
-        if not os.path.isfile(image_filename):
-            self._l.error("UBL image '%s' doesn't exist" % image_filename)
-            return False
-        
         self._l.info("Loading UBL image to RAM")
-        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
+        ret = self._load_file_to_ram(img_filename, self._ram_load_addr)
         if ret is False: return False
         
-        ubl_offset_addr = start_block * self.nand_block_size
-        ubl_size = os.path.getsize(image_filename)
-        ubl_size_blk = (ubl_size / self.nand_block_size) + 1
-        ubl_size_aligned = ubl_size_blk * self.nand_block_size
+        offset_addr = start_blk * self.nand_block_size
+        img_size = os.path.getsize(img_filename)
+        img_size_blk = (img_size / self.nand_block_size) + 1
+        img_size_aligned = img_size_blk * self.nand_block_size
         
         self._l.info("Erasing UBL NAND space")
-        cmd = 'nand erase %s %s' % (hex(ubl_offset_addr), hex(ubl_size_aligned))
+        cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
         self._l.info("Writing UBL image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
-                                   hex(ubl_offset_addr), hex(ubl_size_aligned))
+                                   hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
         
         return True
     
-    def install_uboot(self, image_filename, start_block):
+    def install_uboot(self, img_filename, start_blk):
         """
         Installs the uboot image to NAND.
         
-        :param image_filename: Path to the uboot image file.
-        :param start_block: Start block in NAND for the uboot image.
-        :type start_block: integer
+        :param img_filename: Path to the uboot image file.
+        :param start_blk: Start block in NAND for the uboot image.
+        :type start_blk: integer
         :returns: Returns true on success; false otherwise.
         """
     
-        if not os.path.isfile(image_filename):
-            self._l.error("Uboot image '%s' doesn't exist" % image_filename)
-            return False
-        
         self._l.info("Loading uboot image to RAM")
-        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
+        ret = self._load_file_to_ram(img_filename, self._ram_load_addr)
         if ret is False: return False
 
-        uboot_offset_addr = start_block * self.nand_block_size
-        uboot_size = os.path.getsize(image_filename)
-        uboot_size_blk = (uboot_size / self.nand_block_size) + 1
-        uboot_size_aligned = uboot_size_blk * self.nand_block_size
+        offset_addr = start_blk * self.nand_block_size
+        img_size = os.path.getsize(img_filename)
+        img_size_blk = (img_size / self.nand_block_size) + 1
+        img_size_aligned = img_size_blk * self.nand_block_size
 
         self._l.info("Erasing uboot NAND space")
-        cmd = 'nand erase %s %s' % (hex(uboot_offset_addr),
-                                    hex(uboot_size_aligned))
+        cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
         self._l.info("Writing uboot image from RAM to NAND")
         cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
-                           hex(uboot_offset_addr), hex(uboot_size_aligned))
+                                       hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
         
         self._l.info("Restarting to use the uboot in NAND")
@@ -345,70 +330,135 @@ class NandInstaller(object):
         ret, md5sum = self._e.check_output(cmd)
         return md5sum.strip() if ret == 0 else ''
     
-    def _is_kernel_install_needed(self, image_filename, start_block):
+    def _is_kernel_install_needed(self, img_filename, start_blk):
         # Detect a difference in either the md5sum or the offset
-        md5sum = self._md5sum(image_filename)
+        md5sum = self._md5sum(img_filename)
         md5sum_on_board = self._u.get_env('kernelmd5sum')
-        kernel_off = hex(start_block * self.nand_block_size)
+        kernel_off = hex(start_blk * self.nand_block_size)
         kernel_off_on_board = self._u.get_env('kerneloffset') # hex
         if md5sum != md5sum_on_board or kernel_off != kernel_off_on_board:
             return True
         return False
 
-    def install_kernel(self, image_filename, start_block,
-                   extra_blocks=DEFAULT_KERNEL_EXTRA_BLOCKS, force=False):
+    def _is_fs_install_needed(self, img_filename, start_blk):
+        # Detect a difference in either the md5sum or the offset
+        md5sum = self._md5sum(img_filename)
+        md5sum_on_board = self._u.get_env('fsmd5sum')
+        fs_off = hex(start_blk * self.nand_block_size)
+        fs_off_on_board = self._u.get_env('fsoffset') # hex
+        if md5sum != md5sum_on_board or fs_off != fs_off_on_board:
+            return True
+        return False
+
+    def _install_img(self, filename, comp, comp_nick, start_blk, size_blks,
+                     extra_blks):
+        offset_addr = start_blk * self.nand_block_size
+        img_size = os.path.getsize(filename)
+        img_size_blks = (img_size / self.nand_block_size)
+        if (img_size % self.nand_block_size != 0):
+            img_size_blks += 1
+        img_size_blks += extra_blks
+        img_size_aligned = img_size_blks * self.nand_block_size
+        part_size = img_size_aligned 
+        if size_blks:
+            if img_size_blks > size_blks:
+                self._l.warning("Using %s NAND blocks instead of %s for the "
+                            "%s partition" % (img_size_blks, size_blks, comp))
+            else:
+                part_size = size_blks * self.nand_block_size
+                
+        self._l.info("Loading %s image to RAM" % comp)
+        ret = self._load_file_to_ram(filename, self._ram_load_addr)
+        if ret is False: return False
+        
+        self._u.set_env('autostart', 'yes')
+        
+        self._l.info("Erasing %s NAND space" % comp)
+        cmd = 'nand erase %s %s' % (hex(offset_addr), hex(part_size))
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        
+        self._l.info("Writing %s image from RAM to NAND" % comp)
+        cmd = 'nand write %s %s %s' % (self._ram_load_addr, 
+                                       hex(offset_addr), hex(img_size_aligned))
+        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.set_env('%ssize' % comp_nick, hex(img_size_aligned))
+        self._u.set_env('%spartitionsize' % comp_nick, hex(part_size))
+        self._u.set_env('%smd5sum' % comp_nick, self._md5sum(filename))
+        self._u.set_env('%soffset' % comp_nick, hex(offset_addr))
+        self._u.save_env()
+        return True
+
+    def install_kernel(self, img_filename, start_blk, size_blks=None,
+                   extra_blks=DEFAULT_KERNEL_EXTRA_BLKS, force=False):
         """
-        Installs the kernel image to NAND. After installing the image it will
-        save in uboot's environment the kernel size, offset, and md5sum. This
-        information is also used to avoid re-installing the image if it is
+        Installs the kernel image to NAND. After installing the image it
+        will save in uboot's environment the following variables:
+        
+        * `koffset`: Kernel offset address, hexadecimal.
+        * `kmd5sum`: Kernel image md5sum.
+        * `ksize`: Kernel size, in bytes.
+        * `kpartitionsize`: Kernel partition size, block aligned, in bytes.
+        
+        This information is also used to avoid re-installing the image if it is
         not necessary, unless `force` is specified.
         
-        :param image_filename: Path to the kernel image file.
-        :param start_block: Start block in NAND for the kernel image.
-        :type start_block: integer
-        :param extra_blocks: Extra NAND blocks to reserve for the kernel.
-        :type extra_blocks: integer
+        :param img_filename: Path to the kernel image file.
+        :param start_blk: Start block in NAND for the kernel image.
+        :type start_blk: integer
+        :param size_blks: Size in blocks for the kernel partition. If None,
+            the size will be calculated using the size of the image and 
+            the extra blocks.
+        :type size_blks: integer
+        :param extra_blks: Extra NAND blocks to reserve for the kernel.
+        :type extra_blks: integer
         :param force: Forces the kernel installation.
         :type force: boolean
         :returns: Returns true on success; false otherwise.
         """
         
-        if not os.path.isfile(image_filename):
-            self._l.error("Kernel image '%s' doesn't exist" % image_filename)
-            return False
-        
-        is_needed = self._is_kernel_install_needed(image_filename, start_block) 
-        if not is_needed and not force:
+        is_needed = self._is_kernel_install_needed(img_filename, start_blk) 
+        if not force and not is_needed:
             self._l.info("Kernel doesn't need to be installed")
             return True
         
-        kernel_offset_addr = start_block * self.nand_block_size
-        kernel_size = os.path.getsize(image_filename)
-        kernel_size_blk = ((kernel_size / self.nand_block_size) + extra_blocks)
-        kernel_size_aligned = kernel_size_blk * self.nand_block_size
+        return self._install_img(img_filename, 'kernel', 'k', start_blk,
+                                 size_blks, extra_blks)
+    
+    def install_fs(self, img_filename, start_blk, size_blks=None,
+                   extra_blks=DEFAULT_FS_EXTRA_BLKS, force=False):
+        """
+        Installs the filesystem image to NAND. After installing the image it
+        will save in uboot's environment the following variables:
         
-        self._l.info("Loading kernel image to RAM")
-        ret = self._load_file_to_ram(image_filename, self._ram_load_addr)
-        if ret is False: return False
+        * `fsoffset`: Filesystem offset address, hexadecimal.
+        * `fsmd5sum`: Filesystem image md5sum.
+        * `fssize`: Filesystem size, in bytes.
+        * `fspartitionsize`: Filesystem partition size, block aligned, in bytes.
         
-        self._u.set_env('autostart', 'yes')
+        This information is also used to avoid re-installing the image if it is
+        not necessary, unless `force` is specified.
         
-        self._l.info("Erasing kernel NAND space")
-        cmd = 'nand erase %s %s' % (hex(kernel_offset_addr),
-                                    hex(kernel_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        :param img_filename: Path to the filesystem image file.
+        :param start_blk: Start block in NAND for the filesystem image.
+        :type start_blk: integer
+        :param size_blks: Size in blocks for the filesystem partition. If None,
+            the size will be calculated using the size of the image and 
+            the extra blocks.
+        :type size_blks: integer
+        :param extra_blks: Extra NAND blocks to reserve for the filesystem.
+        :type extra_blks: integer
+        :param force: Forces the filesystem installation.
+        :type force: boolean
+        :returns: Returns true on success; false otherwise.
+        """
         
-        self._l.info("Writing kernel image from RAM to NAND")
-        cmd = 'nand write %s %s %s' % (self._ram_load_addr,
-                           hex(kernel_offset_addr), hex(kernel_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        is_needed = self._is_fs_install_needed(img_filename, start_blk) 
+        if not force and not is_needed:
+            self._l.info("Filesystem doesn't need to be installed")
+            return True
         
-        self._u.set_env('kernelsize', hex(kernel_size_aligned))
-        self._u.set_env('kernelmd5sum', self._md5sum(image_filename))
-        self._u.set_env('kerneloffset', hex(kernel_offset_addr))
-        self._u.save_env()
-        
-        return True
+        return self._install_img(img_filename, 'filesystem', 'fs', start_blk,
+                                 size_blks, extra_blks)
 
     def install_cmdline(self, cmdline, force=False):
         """
@@ -423,12 +473,34 @@ class NandInstaller(object):
         """
         
         cmdline = cmdline.strip()
-        cmdline_on_board = self._u.get_env('bootargs')
+        cmdline_on_board = self._u.get_env('bootargs')        
         if cmdline == cmdline_on_board and not force:
             self._l.info("Kernel command line doesn't need to be installed")
             return True
         self._u.set_env('bootargs', cmdline)
-        self._u.save_env() 
+        self._u.save_env()
+        return True
+
+    def install_bootcmd(self, bootcmd, force=False):
+        """
+        Installs the boot command (`bootcmd`) to uboot's environment. If the
+        same boot command has already been installed it will avoid
+        re-installing it, unless `force` is specified.
+
+        :param bootcmd: Boot command.
+        :param force: Forces the boot command installation.
+        :type force: boolean
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        bootcmd = bootcmd.strip()
+        bootcmd_on_board = self._u.get_env('bootcmd')        
+        if bootcmd == bootcmd_on_board and not force:
+            self._l.info("Boot command doesn't need to be installed")
+            return True
+        self._u.set_env('bootcmd', bootcmd)
+        self._u.set_env('autostart', 'yes') 
+        self._u.save_env()
         return True
 
 class NandInstallerTFTP(NandInstaller):
@@ -527,16 +599,6 @@ class NandInstallerTFTP(NandInstaller):
         Checks TFTP settings in the host (dir and port).
         """
         
-        if not os.path.isdir(self._tftp_dir):
-            self._l.error("Can't deploy firmware to '%s', the directory "
-                          "doesn't exist" % self._tftp_dir)
-            return False
-        
-        if not os.access(self._tftp_dir, os.W_OK):
-            self._l.error("Can't deploy firmware to '%s', the directory is "
-                          "not writable" % self._tftp_dir)
-            return False
-        
         cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
         ret = self._e.check_call(cmd)
         if ret != 0:
@@ -547,14 +609,6 @@ class NandInstallerTFTP(NandInstaller):
         return True
 
     def _load_file_to_ram(self, filename, load_addr):
-        """
-        Loads the given file through TFTP to the given load address in RAM.
-        """
-        
-        if not hexutils.is_valid_addr(load_addr):
-            self._l.error("Invalid address '%s'" % load_addr)
-            return False
-        
         if not self._is_network_setup:
             self._l.error("Please setup uboot's network prior to any TFTP "
                           "transfer")
@@ -576,8 +630,8 @@ class NandInstallerTFTP(NandInstaller):
         
         # Transfer
         hex_load_addr = hexutils.to_hex(load_addr)
-        self._l.debug("Starting TFTP transfer from file '%s' to address '%s'"
-                      % (tftp_filename, hex_load_addr))
+        self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
+                      "'%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         try:
             self._u.cmd(cmd, prompt_timeout=transfer_timeout)
