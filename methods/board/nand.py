@@ -24,7 +24,7 @@ import re
 import time
 import rrutils
 import rrutils.hexutils as hexutils
-from uboot import UbootTimeoutException
+from rrutils.uboot import UbootTimeoutException
 
 # ==========================================================================
 # Constants
@@ -302,6 +302,9 @@ class NandInstaller(object):
         img_size_blk = (img_size / self.nand_block_size) + 1
         img_size_aligned = img_size_blk * self.nand_block_size
 
+        self._u.set_env('autostart', 'no')
+        self._u.save_env()
+
         self._l.info("Erasing uboot NAND space")
         cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
@@ -322,6 +325,9 @@ class NandInstaller(object):
         if ret is False:
             self._l.error("Failed synchronizing with the uboot in NAND")
             return False
+        
+        self._u.set_env('autostart', 'yes')
+        self._u.save_env()
         
         return True
 
@@ -366,6 +372,8 @@ class NandInstaller(object):
                             "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self.nand_block_size
+                
+        self._u.set_env('autostart', 'no')
                 
         self._l.info("Loading %s image to RAM" % comp)
         ret = self._load_file_to_ram(filename, self._ram_load_addr)
@@ -499,7 +507,7 @@ class NandInstaller(object):
             self._l.info("Boot command doesn't need to be installed")
             return True
         self._u.set_env('bootcmd', bootcmd)
-        self._u.set_env('autostart', 'yes') 
+        self._u.set_env('autostart', 'yes')
         self._u.save_env()
         return True
 

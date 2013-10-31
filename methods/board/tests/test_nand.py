@@ -22,7 +22,6 @@ import check_env
 sys.path.insert(1, os.path.abspath('..'))
 
 import rrutils
-from uboot import Uboot
 from nand import NandInstaller
 from nand import NandInstallerTFTP
 from image_gen import NandImageGenerator
@@ -48,7 +47,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         
         dryrun = False
         
-        self._uboot = Uboot()
+        self._uboot = rrutils.uboot.Uboot()
         self._uboot.dryrun = dryrun
         ret = self._uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
@@ -124,6 +123,8 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         print "---- Setting up network ----"
         ret = self._inst.setup_uboot_network()
         self.assertTrue(ret)
+        self._uboot.set_env('autostart', 'yes')
+        self._uboot.save_env()
     
     def load_uboot(self):
         print "---- Loading uboot to RAM ----"
@@ -198,13 +199,13 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def install_cmdline(self):
         print "---- Installing cmdline ----"
-        cmdline = "'davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 vpfe_capture.interface=1 mem=83M rootfstype=jffs2 root=/dev/mtdblock2 mtdparts=davinci_nand.0:4096k(UBOOT),4736k(KERNEL),204800k(FS)'"
+        cmdline = "'davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=FS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:4096k(UBOOT),4736k(KERNEL),204800k(FS)'"
         ret = self._inst.install_cmdline(cmdline)
         self.assertTrue(ret)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
-        bootcmd = "setenv bootcmd nboot 0x82000000 0 \${koffset}"
+        bootcmd = "'nboot 0x82000000 0 ${koffset}'"
         ret = self._inst.install_bootcmd(bootcmd)
         self.assertTrue(ret)
 
@@ -239,12 +240,12 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_cmdline()
             
     def test_install_bootcmd(self):
-        test_bootcmd = True
+        test_bootcmd = False
         if test_bootcmd:
             self.install_bootcmd()
             
     def test_install_all(self):
-        install_all = False
+        install_all = True
         if install_all:
             self.setup_network()
             self.load_uboot()
@@ -253,6 +254,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_fs()
             self.install_cmdline()
             self.install_bootcmd()
+            self._uboot.cmd('echo Installation complete')
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
