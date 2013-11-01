@@ -25,6 +25,7 @@ import time
 import rrutils
 import rrutils.hexutils as hexutils
 from rrutils.uboot import UbootTimeoutException
+from lib2to3.fixer_util import _is_import_binding
 
 # ==========================================================================
 # Constants
@@ -335,29 +336,27 @@ class NandInstaller(object):
         cmd = "md5sum %s | cut -f1 -d' '" % filename
         ret, md5sum = self._e.check_output(cmd)
         return md5sum.strip() if ret == 0 else ''
-    
-    def _is_kernel_install_needed(self, img_filename, start_blk):
-        # Detect a difference in either the md5sum or the offset
-        md5sum = self._md5sum(img_filename)
-        md5sum_on_board = self._u.get_env('kernelmd5sum')
-        kernel_off = hex(start_blk * self.nand_block_size)
-        kernel_off_on_board = self._u.get_env('kerneloffset') # hex
-        if md5sum != md5sum_on_board or kernel_off != kernel_off_on_board:
+
+    def _is_img_install_needed(self, comp_nick, img_env):
+        md5sum_on_board = self._u.get_env('%smd5sum' % comp_nick)
+        off_on_board = self._u.get_env('%soffset' % comp_nick)
+        size_on_board = self._u.get_env('%ssize' % comp_nick)
+        part_size_on_board = self._u.get_env('%spartitionsize' % comp_nick)
+        if (img_env['md5sum'] != md5sum_on_board or
+            img_env['offset'] != off_on_board or
+            img_env['size'] != size_on_board or
+            img_env['partitionsize'] != part_size_on_board):
             return True
         return False
 
-    def _is_fs_install_needed(self, img_filename, start_blk):
-        # Detect a difference in either the md5sum or the offset
-        md5sum = self._md5sum(img_filename)
-        md5sum_on_board = self._u.get_env('fsmd5sum')
-        fs_off = hex(start_blk * self.nand_block_size)
-        fs_off_on_board = self._u.get_env('fsoffset') # hex
-        if md5sum != md5sum_on_board or fs_off != fs_off_on_board:
-            return True
-        return False
+    def _save_img_env(self, comp_nick, img_env):
+        self._u.set_env('%smd5sum' % comp_nick, img_env['md5sum'])
+        self._u.set_env('%soffset' % comp_nick, img_env['offset'])
+        self._u.set_env('%ssize' % comp_nick, img_env['size'])
+        self._u.set_env('%spartitionsize' % comp_nick, img_env['partitionsize'])
 
     def _install_img(self, filename, comp, comp_nick, start_blk, size_blks,
-                     extra_blks):
+                     extra_blks, force):
         offset_addr = start_blk * self.nand_block_size
         img_size = os.path.getsize(filename)
         img_size_blks = (img_size / self.nand_block_size)
@@ -372,7 +371,17 @@ class NandInstaller(object):
                             "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self.nand_block_size
-                
+        
+        img_env = {'md5sum': self._md5sum(filename),
+                   'offset': hex(offset_addr),
+                   'size': hex(img_size_aligned),
+                   'partitionsize': hex(part_size)}
+        
+        is_needed = self._is_img_install_needed(comp_nick, img_env)
+        if not force and not is_needed:
+            self._l.info("%s doesn't need to be installed" % comp.capitalize())
+            return True
+        
         self._u.set_env('autostart', 'no')
                 
         self._l.info("Loading %s image to RAM" % comp)
@@ -389,10 +398,7 @@ class NandInstaller(object):
         cmd = 'nand write %s %s %s' % (self._ram_load_addr, 
                                        hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
-        self._u.set_env('%ssize' % comp_nick, hex(img_size_aligned))
-        self._u.set_env('%spartitionsize' % comp_nick, hex(part_size))
-        self._u.set_env('%smd5sum' % comp_nick, self._md5sum(filename))
-        self._u.set_env('%soffset' % comp_nick, hex(offset_addr))
+        self._save_img_env(comp_nick, img_env)
         self._u.save_env()
         return True
 
@@ -424,13 +430,8 @@ class NandInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        is_needed = self._is_kernel_install_needed(img_filename, start_blk) 
-        if not force and not is_needed:
-            self._l.info("Kernel doesn't need to be installed")
-            return True
-        
         return self._install_img(img_filename, 'kernel', 'k', start_blk,
-                                 size_blks, extra_blks)
+                                 size_blks, extra_blks, force)
     
     def install_fs(self, img_filename, start_blk, size_blks=None,
                    extra_blks=DEFAULT_FS_EXTRA_BLKS, force=False):
@@ -459,14 +460,9 @@ class NandInstaller(object):
         :type force: boolean
         :returns: Returns true on success; false otherwise.
         """
-        
-        is_needed = self._is_fs_install_needed(img_filename, start_blk) 
-        if not force and not is_needed:
-            self._l.info("Filesystem doesn't need to be installed")
-            return True
-        
+       
         return self._install_img(img_filename, 'filesystem', 'fs', start_blk,
-                                 size_blks, extra_blks)
+                                 size_blks, extra_blks, force)
 
     def install_cmdline(self, cmdline, force=False):
         """

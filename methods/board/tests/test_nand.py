@@ -30,8 +30,8 @@ from image_gen import NandImageGenerator
 devdir = check_env.get_devdir()
 if not devdir: sys.exit(-1)
 
-test_host_ip_addr = '10.251.101.24'
-#test_host_ip_addr = '192.168.1.108'
+#test_host_ip_addr = '10.251.101.24'
+test_host_ip_addr = '192.168.1.110'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 
@@ -182,8 +182,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         kernel_size_blks = None
         ret = self._inst.install_kernel(kernel_img,
                                         start_blk=kernel_start_block,
-                                        size_blks=kernel_size_blks, 
-                                        force=True)
+                                        size_blks=kernel_size_blks)
         self.assertTrue(ret)
     
     def install_fs(self):
