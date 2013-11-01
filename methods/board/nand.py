@@ -25,7 +25,6 @@ import time
 import rrutils
 import rrutils.hexutils as hexutils
 from rrutils.uboot import UbootTimeoutException
-from lib2to3.fixer_util import _is_import_binding
 
 # ==========================================================================
 # Constants
