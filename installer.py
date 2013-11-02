@@ -86,9 +86,6 @@ import argparse
 # ==========================================================================
 
 _args = []
-_args_sd = []
-_args_sd_img = []
-_args_nand = []
 _parser = None
 _parser_sd = None
 _parser_sd_img = None
@@ -133,34 +130,34 @@ def _init_logging():
 # ==========================================================================
 
 def _clean_exit(code=0):
-    if code != 0: _logger.error('Exiting with code %d' % code)
+    if code != 0: _logger.debug('Exiting with code %d' % code)
     exit(code)
 
 def _abort_install():
     _logger.error('Installation aborted')
     _clean_exit(-1)
 
-def _check_is_dir(dirname):
+def _check_is_dir(dirname, arg):
     if not os.path.isdir(dirname):
-        _logger.error('Unable to find %s' % dirname)
-        _clean_exit(-1)
+        _logger.error('Unable to find %s' % (arg, dirname))
+        _abort_install()
 
-def _check_is_file(filename):
+def _check_is_file(filename, arg):
     if not os.path.isfile(filename):
-        _logger.error('Unable to find %s' % filename)
-        _clean_exit(-1)
+        _logger.error('Unable to find %s: %s' % (arg, filename))
+        _abort_install()
 
-def _check_x_ok(filename):
+def _check_x_ok(filename, arg):
     if not os.access(filename, os.X_OK):
-        _logger.error('No execution permissions on %s' % filename)
-        _clean_exit(-1)
+        _logger.error('No execution permissions on %s: %s' % (arg, filename))
+        _abort_install()
 
 def _check_is_int(val, arg):
     try:
         int(val)
     except ValueError:
         _logger.error('%s must be an integer (%s)' % (arg, val))
-        _clean_exit(-1)
+        _abort_install()
         
 # ==========================================================================
 # Command line arguments
@@ -171,7 +168,7 @@ def _missing_arg_exit(arg):
     _logger.error('Argument %s is required' % arg)
     _clean_exit(-1)
     
-def _parse_args():
+def _add_args():
     global _args
     global _parser
     global _subparsers
@@ -205,9 +202,82 @@ def _parse_args():
                        action='store_true',
                        default=False)
 
-def _parse_sd_img_args():
+def _add_args_sd_shared(subparser):
+    subparser.add_argument('--mmap-file',
+                       help='Memory map config file',
+                       metavar='<mmap>',
+                       dest='mmap_file')
+
+    subparser.add_argument('--device',
+                       help="Device to install",
+                       metavar='<device>',
+                       dest='device',
+                       required=True)
+    
+    subparser.add_argument('--kernel-img',
+                       help='Path to the Kernel Image file to be installed.',
+                       metavar='<kernel_img>',
+                       dest='kernel_img',
+                       required=True)
+    
+    subparser.add_argument('--uflash',
+                       help='Path to the uflash tool',
+                       metavar='<uflash>',
+                       dest='uflash_bin',
+                       required=True)
+    
+    subparser.add_argument('--ubl-file',
+                       help='Path to the UBL file',
+                       metavar='<ubl_file>',
+                       dest='ubl_file',
+                       required=True)
+    
+    subparser.add_argument('--uboot-file',
+                       help='Path to the U-Boot file',
+                       metavar='<uboot_file>',
+                       dest='uboot_file',
+                       required=True)
+    
+    subparser.add_argument('--uboot-entry-addr',
+                       help='U-Boot entry address (decimal)',
+                       metavar='<uboot_entry_addr>',
+                       dest='uboot_entry_addr',
+                       required=True)
+    
+    subparser.add_argument('--uboot-load-addr',
+                       help='U-Boot load address (decimal)',
+                       metavar='<uboot_load_addr>',
+                       dest='uboot_load_addr',
+                       required=True)
+    
+    subparser.add_argument('--uboot-bootargs',
+                       help='U-Boot bootargs environment variable (passed to" \
+                       " the Linux kernel)',
+                       metavar='<uboot_bootargs>',
+                       dest='uboot_bootargs',
+                       required=True)
+    
+    subparser.add_argument('--work-dir',
+                       help='Directory to perform temporary operations',
+                       metavar='<workdir>',
+                       dest='workdir',
+                       required=True)
+    
+    subparser.add_argument('--rootfs',
+                       help='Path to the rootfs that will be installed.',
+                       metavar='<rootfs>',
+                       dest='rootfs',
+                       default=None)
+def _add_args_sd():
+    global _parser_sd
+    _parser_sd = _subparsers.add_parser(MODE_SD)
+    _add_args_sd_shared(_parser_sd)
+
+def _add_args_sd_img():
+    global _parser_sd
     global _parser_sd_img
     _parser_sd_img = _subparsers.add_parser(MODE_SD_IMG)
+    _add_args_sd_shared(_parser_sd_img)
     
     _parser_sd_img.add_argument('--image',
                        help="The filename of the image to create in workdir",
@@ -220,79 +290,7 @@ def _parse_sd_img_args():
                        metavar='<imagesize_mb>',
                        dest='imagesize_mb')
 
-def _parse_sd_args():
-    global _parser_sd
-    _parser_sd = _subparsers.add_parser(MODE_SD)
-
-    _parser_sd.add_argument('--mmap-file',
-                       help='Memory map config file',
-                       metavar='<mmap>',
-                       dest='mmap_file')
-
-    _parser_sd.add_argument('--device',
-                       help="Device to install",
-                       metavar='<device>',
-                       dest='device',
-                       required=True)
-    
-    _parser_sd.add_argument('--kernel-img',
-                       help='Path to the Kernel Image file to be installed.',
-                       metavar='<kernel_img>',
-                       dest='kernel_img',
-                       required=True)
-    
-    # MODE_SD and MODE_LOOPBACK - Required arguments
-    
-    _parser_sd.add_argument('--uflash',
-                       help='Path to the uflash tool',
-                       metavar='<uflash>',
-                       dest='uflash_bin',
-                       required=True)
-    
-    _parser_sd.add_argument('--ubl-file',
-                       help='Path to the UBL file',
-                       metavar='<ubl_file>',
-                       dest='ubl_file',
-                       required=True)
-    
-    _parser_sd.add_argument('--uboot-file',
-                       help='Path to the U-Boot file',
-                       metavar='<uboot_file>',
-                       dest='uboot_file',
-                       required=True)
-    
-    _parser_sd.add_argument('--uboot-entry-addr',
-                       help='U-Boot entry address (decimal)',
-                       metavar='<uboot_entry_addr>',
-                       dest='uboot_entry_addr',
-                       required=True)
-    
-    _parser_sd.add_argument('--uboot-load-addr',
-                       help='U-Boot load address (decimal)',
-                       metavar='<uboot_load_addr>',
-                       dest='uboot_load_addr',
-                       required=True)
-    
-    _parser_sd.add_argument('--uboot-bootargs',
-                       help='U-Boot bootargs environment variable (passed to" \
-                       " the Linux kernel)',
-                       metavar='<uboot_bootargs>',
-                       dest='uboot_bootargs',
-                       required=True)
-    
-    _parser_sd.add_argument('--work-dir',
-                       help='Directory to perform temporary operations',
-                       metavar='<workdir>',
-                       dest='workdir',
-                       required=True)
-    
-    _parser_sd.add_argument('--rootfs',
-                       help='Path to the rootfs that will be installed.',
-                       metavar='<rootfs>',
-                       dest='rootfs',
-                       default=None)
-
-def _parse_nand_args():
+def _add_args_nand():
     global _parser_nand
     _parser_nand = _subparsers.add_parser(MODE_NAND)
     
@@ -319,31 +317,29 @@ def _check_args():
         _logger.setLevel(rrutils.logger.DEBUG)
     if _args.quiet: # quiet has precedence over verbose
         _logger.setLevel(rrutils.logger.CRITICAL)
+    if _args.mode == MODE_SD:
+        _check_args_sd()
+    elif _args.mode == MODE_SD_IMG:
+        _check_args_sd_img()
+    elif _args.mode == MODE_NAND:
+        _check_args_nand()
     
 def _check_args_sd():    
-    global _args_sd
-    _args_sd = _parser_sd.parse_args()    
-    _check_is_file(_args_sd.mmap_file)
-    _check_is_file(_args_sd.uflash_bin)
-    _check_x_ok(_args_sd.uflash_bin)
-    _check_is_file(_args_sd.ubl_file)
-    _check_is_file(_args_sd.uboot_file)
-    _check_is_dir(_args_sd.workdir)
-    if _args_sd.rootfs:
-        _check_is_dir(_args_sd.rootfs)
+    _check_is_file(_args.mmap_file, '--mmap-file')
+    _check_is_file(_args.uflash_bin, '--uflash')
+    _check_x_ok(_args.uflash_bin, '--uflash')
+    _check_is_file(_args.ubl_file, '--ubl-file')
+    _check_is_file(_args.uboot_file, '--uboot-file')
+    _check_is_dir(_args.workdir, '--work-dir')
+    if _args.rootfs:
+        _check_is_dir(_args.rootfs, '--rootfs')
     
 def _check_args_sd_img():
-    global _args_sd_img
-    _args_sd_img = _parser_sd_img.parse_args()
-    _check_is_file(_args_sd_img.mmap_file)
-    _check_is_file(_args_sd_img.uflash_bin)
-    _check_x_ok(_args_sd_img.uflash_bin)
-    _check_is_file(_args_sd_img.ubl_file)
-    _check_is_file(_args_sd_img.uboot_file)
-    _check_is_dir(_args_sd_img.workdir)
-    if _args.rootfs:
-        _check_is_dir(_args.rootfs)
+    _check_args_sd()
     _check_is_int(_args.imagesize_mb, '--image-size')
+
+def _check_args_nand():
+    pass
 
 # ==========================================================================
 # Main logic
@@ -352,15 +348,15 @@ def _check_args_sd_img():
 def main():
 
     _init_logging()
-    _parse_args()
-    _parse_nand_args()
-    _parse_sd_args()
-    _parse_sd_img_args()
+    _add_args()
+    _add_args_nand()
+    _add_args_sd()
+    _add_args_sd_img()
     _check_args()
     
     mode = _args.mode
     
-    if mode == MODE_SD or mode == MODE_LOOPBACK:
+    if mode == MODE_SD or mode == MODE_SD_IMG:
         
         # Components installer
         
@@ -391,7 +387,7 @@ def main():
             sd_installer.mode = sd_installer.MODE_SD
             ret = sd_installer.format_sd()
             if ret is False: _abort_install()
-        elif mode == MODE_LOOPBACK:
+        elif mode == MODE_SD_IMG:
             sd_installer.mode = sd_installer.MODE_LOOPBACK
             ret = sd_installer.format_loopdevice(_args.workdir +
                                                  _args.image, 
