@@ -91,6 +91,7 @@ _parser = None
 _parser_sd = None
 _parser_sd_img = None
 _parser_nand = None
+_parser_nand_kernel = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
@@ -313,7 +314,11 @@ def _add_args_sd_img():
 
 def _add_args_nand():
     global _parser_nand
+    global _subparsers_nand
     _parser_nand = _subparsers.add_parser(MODE_NAND)
+    
+    _subparsers_nand = _parser_nand.add_subparsers(help="component (--help available)",
+                                                    dest="component")
     
     _add_args_shared(_parser_nand)
     
@@ -364,6 +369,44 @@ def _add_args_nand():
                        metavar='<board_ip_addr>',
                        dest='board_ip_addr')
 
+    _add_args_nand_kernel()
+
+def _add_args_nand_kernel():
+    global _parser_nand_kernel 
+    _parser_nand_kernel = _subparsers_nand.add_parser(COMP_KERNEL)
+     
+    _parser_nand_kernel.add_argument('--kernel-file',
+                       help='Path to the Kernel file to be installed',
+                       metavar='<file>',
+                       dest='kernel_file',
+                       required=True)
+    
+    _parser_nand_kernel.add_argument('--kernel-start-blk',
+                       help="Start block in NAND for the kernel image",
+                       metavar='<blk>',
+                       required=True,
+                       dest='kernel_start_blk')
+    
+    _parser_nand_kernel.add_argument('--kernel-size-blks',
+                       help=("Size in NAND blocks for the kernel partition, if "
+                            "omitted the size will be calculated using the "
+                            "size of the image and the extra blocks"),
+                       metavar='<blks>',
+                       dest='kernel_size_blk')
+    
+    _parser_nand_kernel.add_argument('--kernel-extra-blks',
+                       help=("Extra NAND blocks to reserve for the kernel "
+                             "partition (only makes sense when --kernel-"
+                             "size-blks has not been specified)"),
+                       metavar='<blks>',
+                       dest='kernel_extra_blks')
+    
+    _parser_nand_kernel.add_argument('--force',
+                       help='Force component installation',
+                       dest='kernel_force',
+                       action='store_true',
+                       default=False)
+
 def _check_args():
     global _args
     _args = _parser.parse_args()
@@ -403,6 +446,14 @@ def _check_args_nand():
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
     if _args.net_mode == NET_MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
+    if _args.component == COMP_KERNEL:
+        _check_args_nand_kernel()
+
+def _check_args_nand_kernel():
+    _check_is_file(_args.kernel_file, '--kernel-file')
+    _check_is_int(_args.kernel_start_blk, '--kernel-start-blk')
+    _check_is_int(_args.kernel_size_blks, '--kernel-size-blks')
+    _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
 
 # ==========================================================================
 # Main logic
