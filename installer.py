@@ -260,13 +260,13 @@ def _add_args_sd_shared(subparser):
                        required=True)
     
     subparser.add_argument('--uboot-entry-addr',
-                       help='U-Boot entry address (decimal)',
+                       help='U-Boot entry address (decimal or hex)',
                        metavar='<uboot_entry_addr>',
                        dest='uboot_entry_addr',
                        required=True)
     
     subparser.add_argument('--uboot-load-addr',
-                       help='U-Boot load address (decimal)',
+                       help='U-Boot load address (decimal or hex)',
                        metavar='<uboot_load_addr>',
                        dest='uboot_load_addr',
                        required=True)
@@ -328,7 +328,7 @@ def _add_args_nand():
                        dest='nand_page_size')
     
     _parser_nand.add_argument('--ram-load-addr',
-                       help='RAM address to load components (decimal)',
+                       help='RAM address to load components (decimal or hex)',
                        metavar='<ram_load_addr>',
                        dest='ram_load_addr',
                        required=True)
@@ -384,6 +384,8 @@ def _check_args_sd():
     _check_x_ok(_args.uflash_bin, '--uflash')
     _check_is_file(_args.ubl_file, '--ubl-file')
     _check_is_file(_args.uboot_file, '--uboot-file')
+    _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
+    _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
     _check_is_dir(_args.workdir, '--work-dir')
     if _args.rootfs:
         _check_is_dir(_args.rootfs, '--rootfs')
