@@ -224,7 +224,7 @@ def _add_args():
 def _add_args_shared(subparser):
     subparser.add_argument('--mmap-file',
                        help='Memory map config file',
-                       metavar='<mmap>',
+                       metavar='<file>',
                        dest='mmap_file')
 
 def _add_args_sd_shared(subparser):
@@ -232,62 +232,62 @@ def _add_args_sd_shared(subparser):
     
     subparser.add_argument('--device',
                        help="Device to install",
-                       metavar='<device>',
+                       metavar='<dev>',
                        dest='device',
                        required=True)
     
     subparser.add_argument('--kernel-file',
                        help='Path to the Kernel file to be installed.',
-                       metavar='<kernel_file>',
+                       metavar='<file>',
                        dest='kernel_file',
                        required=True)
     
     subparser.add_argument('--uflash',
                        help='Path to the uflash tool',
-                       metavar='<uflash>',
+                       metavar='<file>',
                        dest='uflash_bin',
                        required=True)
     
     subparser.add_argument('--ubl-file',
                        help='Path to the UBL file',
-                       metavar='<ubl_file>',
+                       metavar='<file>',
                        dest='ubl_file',
                        required=True)
     
     subparser.add_argument('--uboot-file',
                        help='Path to the U-Boot file',
-                       metavar='<uboot_file>',
+                       metavar='<file>',
                        dest='uboot_file',
                        required=True)
     
     subparser.add_argument('--uboot-entry-addr',
                        help='U-Boot entry address (decimal or hex)',
-                       metavar='<uboot_entry_addr>',
+                       metavar='<addr>',
                        dest='uboot_entry_addr',
                        required=True)
     
     subparser.add_argument('--uboot-load-addr',
                        help='U-Boot load address (decimal or hex)',
-                       metavar='<uboot_load_addr>',
+                       metavar='<addr>',
                        dest='uboot_load_addr',
                        required=True)
     
     subparser.add_argument('--uboot-bootargs',
                        help='U-Boot bootargs environment variable (passed to" \
                        " the Linux kernel)',
-                       metavar='<uboot_bootargs>',
+                       metavar='<bootargs>',
                        dest='uboot_bootargs',
                        required=True)
     
     subparser.add_argument('--work-dir',
                        help='Directory to perform temporary operations',
-                       metavar='<workdir>',
+                       metavar='<dir>',
                        dest='workdir',
                        required=True)
     
     subparser.add_argument('--rootfs',
                        help='Path to the rootfs that will be installed.',
-                       metavar='<rootfs>',
+                       metavar='<dir>',
                        dest='rootfs',
                        default=None)
     
@@ -304,12 +304,12 @@ def _add_args_sd_img():
     
     _parser_sd_img.add_argument('--image',
                        help="The filename of the image to create in workdir",
-                       metavar='<image>',
+                       metavar='<file>',
                        dest='image')
     
     _parser_sd_img.add_argument('--image-size-mb',
                        help="Size in MB of the image file to create",
-                       metavar='<imagesize_mb>',
+                       metavar='<size>',
                        dest='imagesize_mb')
 
 def _add_args_nand():
@@ -324,17 +324,17 @@ def _add_args_nand():
     
     _parser_nand.add_argument('--nand-blk-size',
                        help="NAND block size (bytes)",
-                       metavar='<nand_blk_size>',
+                       metavar='<size>',
                        dest='nand_blk_size')
     
     _parser_nand.add_argument('--nand-page-size',
                        help="NAND page size (bytes)",
-                       metavar='<nand_page_size>',
+                       metavar='<size>',
                        dest='nand_page_size')
     
     _parser_nand.add_argument('--ram-load-addr',
                        help='RAM address to load components (decimal or hex)',
-                       metavar='<ram_load_addr>',
+                       metavar='<addr>',
                        dest='ram_load_addr',
                        required=True)
     
@@ -343,30 +343,30 @@ def _add_args_nand():
     _parser_nand.add_argument('--net-mode',
                        help="Networking mode: %s (default: dhcp)" %
                        ''.join('%s|' % mode for mode in net_modes).rstrip('|'),
-                       metavar='<net_mode>',
+                       metavar='<mode>',
                        choices=net_modes,
                        dest='net_mode',
                        default=NET_MODE_DHCP)
 
     _parser_nand.add_argument('--tftp-dir',
                        help="TFTP server root directory",
-                       metavar='<tftp_dir>',
+                       metavar='<dir>',
                        dest='tftp_dir')
 
     _parser_nand.add_argument('--tftp-port',
                        help="TFTP server port (default: 69)",
-                       metavar='<tftp_port>',
+                       metavar='<port>',
                        dest='tftp_port',
                        default=69)
     
     _parser_nand.add_argument('--host-ip-addr',
                        help="Host IP address",
-                       metavar='<host_ip_addr>',
+                       metavar='<addr>',
                        dest='host_ip_addr')
     
     _parser_nand.add_argument('--board-ip-addr',
                        help="Board IP address (only required in --net-mode=static)",
-                       metavar='<board_ip_addr>',
+                       metavar='<addr>',
                        dest='board_ip_addr')
 
     _add_args_nand_kernel()
