@@ -80,6 +80,7 @@ import sys
 import rrutils
 import methods
 import argparse
+import socket
 
 # ==========================================================================
 # Global variables
@@ -91,6 +92,7 @@ _parser_sd = None
 _parser_sd_img = None
 _parser_nand = None
 _subparsers = None
+_subparsers_nand = None
 _logger  = None
 
 # ==========================================================================
@@ -110,6 +112,10 @@ COMP_KERNEL = "kernel"
 COMP_FS = "filesystem"
 COMP_CMDLINE = "cmdline"
 COMP_BOOTCMD = "bootcmd"
+
+# Networking mode
+NET_MODE_STATIC = 'static'
+NET_MODE_DHCP = 'dhcp'
 
 # ==========================================================================
 # Logging
@@ -139,7 +145,7 @@ def _abort_install():
 
 def _check_is_dir(dirname, arg):
     if not os.path.isdir(dirname):
-        _logger.error('Unable to find %s' % (arg, dirname))
+        _logger.error('Unable to find %s: %s' % (arg, dirname))
         _abort_install()
 
 def _check_is_file(filename, arg):
@@ -158,7 +164,19 @@ def _check_is_int(val, arg):
     except ValueError:
         _logger.error('%s must be an integer (%s)' % (arg, val))
         _abort_install()
-        
+
+def _check_is_valid_addr(addr, arg):
+    if not rrutils.hexutils.is_valid_addr(addr):
+        _logger.error('Invalid address on %s: %s' % (arg, addr))
+        _abort_install()
+
+def _check_is_valid_ipv4(ip, arg):
+    try:
+        socket.inet_aton(ip)
+    except socket.error:
+        _logger.error('Invalid IP address on %s: %s' % (arg, ip))
+        _abort_install()
+
 # ==========================================================================
 # Command line arguments
 # ==========================================================================
@@ -202,22 +220,25 @@ def _add_args():
                        action='store_true',
                        default=False)
 
-def _add_args_sd_shared(subparser):
+def _add_args_shared(subparser):
     subparser.add_argument('--mmap-file',
                        help='Memory map config file',
                        metavar='<mmap>',
                        dest='mmap_file')
 
+def _add_args_sd_shared(subparser):
+    _add_args_shared(subparser)
+    
     subparser.add_argument('--device',
                        help="Device to install",
                        metavar='<device>',
                        dest='device',
                        required=True)
     
-    subparser.add_argument('--kernel-img',
-                       help='Path to the Kernel Image file to be installed.',
-                       metavar='<kernel_img>',
-                       dest='kernel_img',
+    subparser.add_argument('--kernel-file',
+                       help='Path to the Kernel file to be installed.',
+                       metavar='<kernel_file>',
+                       dest='kernel_file',
                        required=True)
     
     subparser.add_argument('--uflash',
@@ -268,6 +289,7 @@ def _add_args_sd_shared(subparser):
                        metavar='<rootfs>',
                        dest='rootfs',
                        default=None)
+    
 def _add_args_sd():
     global _parser_sd
     _parser_sd = _subparsers.add_parser(MODE_SD)
@@ -284,9 +306,8 @@ def _add_args_sd_img():
                        metavar='<image>',
                        dest='image')
     
-    _parser_sd_img.add_argument('--image-size',
-                       help="Size in MB of the image file to create (integer" \
-                       " number)",
+    _parser_sd_img.add_argument('--image-size-mb',
+                       help="Size in MB of the image file to create",
                        metavar='<imagesize_mb>',
                        dest='imagesize_mb')
 
@@ -294,21 +315,54 @@ def _add_args_nand():
     global _parser_nand
     _parser_nand = _subparsers.add_parser(MODE_NAND)
     
-    _parser_nand.add_argument('--mmap-file',
-                       help='Memory map config file',
-                       metavar='<mmap>',
-                       dest='mmap_file')
+    _add_args_shared(_parser_nand)
     
-    components = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS,
-                    COMP_CMDLINE, COMP_BOOTCMD]
-    components_help = ("Components: % s" %
-                       ''.join('%s|' % comp for comp in components).rstrip("|"))
-    _parser_nand.add_argument('--component',
-                       help=components_help,
-                       metavar='<mode>',
-                       dest='installation_mode',
-                       required=False,
-                       choices=components)
+    _parser_nand.add_argument('--nand-blk-size',
+                       help="NAND block size (bytes)",
+                       metavar='<nand_blk_size>',
+                       dest='nand_blk_size')
+    
+    _parser_nand.add_argument('--nand-page-size',
+                       help="NAND page size (bytes)",
+                       metavar='<nand_page_size>',
+                       dest='nand_page_size')
+    
+    _parser_nand.add_argument('--ram-load-addr',
+                       help='RAM address to load components (decimal)',
+                       metavar='<ram_load_addr>',
+                       dest='ram_load_addr',
+                       required=True)
+    
+    net_modes = [NET_MODE_STATIC, NET_MODE_DHCP]
+    
+    _parser_nand.add_argument('--net-mode',
+                       help="Networking mode: %s (default: dhcp)" %
+                       ''.join('%s|' % mode for mode in net_modes).rstrip('|'),
+                       metavar='<net_mode>',
+                       choices=net_modes,
+                       dest='net_mode',
+                       default=NET_MODE_DHCP)
+
+    _parser_nand.add_argument('--tftp-dir',
+                       help="TFTP server root directory",
+                       metavar='<tftp_dir>',
+                       dest='tftp_dir')
+
+    _parser_nand.add_argument('--tftp-port',
+                       help="TFTP server port (default: 69)",
+                       metavar='<tftp_port>',
+                       dest='tftp_port',
+                       default=69)
+    
+    _parser_nand.add_argument('--host-ip-addr',
+                       help="Host IP address",
+                       metavar='<host_ip_addr>',
+                       dest='host_ip_addr')
+    
+    _parser_nand.add_argument('--board-ip-addr',
+                       help="Board IP address (only required in --net-mode=static)",
+                       metavar='<board_ip_addr>',
+                       dest='board_ip_addr')
 
 def _check_args():
     global _args
@@ -339,7 +393,14 @@ def _check_args_sd_img():
     _check_is_int(_args.imagesize_mb, '--image-size')
 
 def _check_args_nand():
-    pass
+    _check_is_int(_args.nand_blk_size, '--nand-blk-size')
+    _check_is_int(_args.nand_page_size, '--nand-page-size')
+    _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
+    _check_is_dir(_args.tftp_dir, '--tftp-dir')
+    _check_is_int(_args.tftp_port, '--tftp-port')
+    _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
+    if _args.net_mode == NET_MODE_STATIC:
+        _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
 
 # ==========================================================================
 # Main logic
@@ -367,7 +428,7 @@ def main():
         comp_installer.uboot_entry_addr = _args.uboot_entry_addr
         comp_installer.uboot_load_addr = _args.uboot_load_addr
         comp_installer.bootargs = _args.uboot_bootargs
-        comp_installer.kernel_image = _args.kernel_img
+        comp_installer.kernel_image = _args.kernel_file
         comp_installer.rootfs = _args.rootfs
         comp_installer.workdir = _args.workdir
         
