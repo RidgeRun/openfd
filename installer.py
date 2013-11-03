@@ -82,6 +82,8 @@ import methods
 import argparse
 import socket
 
+from methods.board.nand import NandInstallerTFTP
+
 # ==========================================================================
 # Global variables
 # ==========================================================================
@@ -113,10 +115,6 @@ COMP_KERNEL = "kernel"
 COMP_FS = "filesystem"
 COMP_CMDLINE = "cmdline"
 COMP_BOOTCMD = "bootcmd"
-
-# Networking mode
-NET_MODE_STATIC = 'static'
-NET_MODE_DHCP = 'dhcp'
 
 # ==========================================================================
 # Logging
@@ -332,21 +330,45 @@ def _add_args_nand():
                        metavar='<size>',
                        dest='nand_page_size')
     
+    _parser_nand.add_argument('--serial-port',
+                       help="Device name or port number for serial communica"
+                       "tion with U-Boot (i.e. '/dev/ttyS0')",
+                       metavar='<port>',
+                       dest='serial_port',
+                       required=True)
+    
+    _parser_nand.add_argument('--serial-baud',
+                       help="Baud rate such as 9600 or 115200 etc",
+                       metavar='<baud>',
+                       dest='serial_baud',
+                       required=True)
+    
     _parser_nand.add_argument('--ram-load-addr',
                        help='RAM address to load components (decimal or hex)',
                        metavar='<addr>',
                        dest='ram_load_addr',
                        required=True)
     
-    net_modes = [NET_MODE_STATIC, NET_MODE_DHCP]
+    net_modes = [NandInstallerTFTP.MODE_STATIC, NandInstallerTFTP.MODE_DHCP]
     
-    _parser_nand.add_argument('--net-mode',
+    _parser_nand.add_argument('--board-net-mode',
                        help="Networking mode: %s (default: dhcp)" %
                        ''.join('%s|' % mode for mode in net_modes).rstrip('|'),
                        metavar='<mode>',
                        choices=net_modes,
-                       dest='net_mode',
-                       default=NET_MODE_DHCP)
+                       dest='board_net_mode',
+                       default=NandInstallerTFTP.MODE_DHCP)
+
+    _parser_nand.add_argument('--board-ip-addr',
+                       help="Board IPv4 address (only required in --board-net-"
+                       "mode=static)",
+                       metavar='<addr>',
+                       dest='board_ip_addr')
+    
+    _parser_nand.add_argument('--host-ip-addr',
+                       help="Host IPv4 address",
+                       metavar='<addr>',
+                       dest='host_ip_addr')
 
     _parser_nand.add_argument('--tftp-dir',
                        help="TFTP server root directory",
@@ -359,16 +381,6 @@ def _add_args_nand():
                        dest='tftp_port',
                        default=69)
     
-    _parser_nand.add_argument('--host-ip-addr',
-                       help="Host IP address",
-                       metavar='<addr>',
-                       dest='host_ip_addr')
-    
-    _parser_nand.add_argument('--board-ip-addr',
-                       help="Board IP address (only required in --net-mode=static)",
-                       metavar='<addr>',
-                       dest='board_ip_addr')
-
     _add_args_nand_kernel()
 
 def _add_args_nand_kernel():
@@ -443,8 +455,9 @@ def _check_args_nand():
     _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
     _check_is_dir(_args.tftp_dir, '--tftp-dir')
     _check_is_int(_args.tftp_port, '--tftp-port')
+    _check_is_int(_args.serial_baud, '--serial-baud')
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
-    if _args.net_mode == NET_MODE_STATIC:
+    if _args.net_mode == NandInstallerTFTP.MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
     if _args.component == COMP_KERNEL:
         _check_args_nand_kernel()
@@ -519,7 +532,7 @@ def main():
         
     if mode == MODE_NAND:
         pass
-            
+        
     _logger.info('Installation complete')
     _clean_exit(0)
     
