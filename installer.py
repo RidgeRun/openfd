@@ -81,6 +81,7 @@ import rrutils
 import methods
 import argparse
 import socket
+import serial
 
 from methods.board.nand import NandInstallerTFTP
 
@@ -338,10 +339,10 @@ def _add_args_nand():
                        required=True)
     
     _parser_nand.add_argument('--serial-baud',
-                       help="Baud rate such as 9600 or 115200 etc",
+                       help="Baud rate (default: 115200)",
                        metavar='<baud>',
                        dest='serial_baud',
-                       required=True)
+                       default=115200)
     
     _parser_nand.add_argument('--ram-load-addr',
                        help='RAM address to load components (decimal or hex)',
@@ -368,12 +369,14 @@ def _add_args_nand():
     _parser_nand.add_argument('--host-ip-addr',
                        help="Host IPv4 address",
                        metavar='<addr>',
-                       dest='host_ip_addr')
+                       dest='host_ip_addr',
+                       required=True)
 
     _parser_nand.add_argument('--tftp-dir',
                        help="TFTP server root directory",
                        metavar='<dir>',
-                       dest='tftp_dir')
+                       dest='tftp_dir',
+                       required=True)
 
     _parser_nand.add_argument('--tftp-port',
                        help="TFTP server port (default: 69)",
@@ -404,14 +407,15 @@ def _add_args_nand_kernel():
                             "omitted the size will be calculated using the "
                             "size of the image and the extra blocks"),
                        metavar='<blks>',
-                       dest='kernel_size_blk')
+                       dest='kernel_size_blks')
     
     _parser_nand_kernel.add_argument('--kernel-extra-blks',
                        help=("Extra NAND blocks to reserve for the kernel "
                              "partition (only makes sense when --kernel-"
-                             "size-blks has not been specified)"),
+                             "size-blks has not been specified) (default: 3)"),
                        metavar='<blks>',
-                       dest='kernel_extra_blks')
+                       dest='kernel_extra_blks',
+                       default=3)
     
     _parser_nand_kernel.add_argument('--force',
                        help='Force component installation',
@@ -448,16 +452,22 @@ def _check_args_sd():
 def _check_args_sd_img():
     _check_args_sd()
     _check_is_int(_args.imagesize_mb, '--image-size')
+    _args.imagesize_mb = int(_args.imagesize_mb)
 
 def _check_args_nand():
-    _check_is_int(_args.nand_blk_size, '--nand-blk-size')
-    _check_is_int(_args.nand_page_size, '--nand-page-size')
+    if _args.nand_blk_size:
+        _check_is_int(_args.nand_blk_size, '--nand-blk-size')
+        _args.nand_blk_size = int(_args.nand_blk_size)
+    if _args.nand_page_size:
+        _check_is_int(_args.nand_page_size, '--nand-page-size')
+        _args.nand_page_size = int(_args.nand_page_size)
     _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
     _check_is_dir(_args.tftp_dir, '--tftp-dir')
     _check_is_int(_args.tftp_port, '--tftp-port')
+    _args.tftp_port = int(_args.tftp_port)
     _check_is_int(_args.serial_baud, '--serial-baud')
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
-    if _args.net_mode == NandInstallerTFTP.MODE_STATIC:
+    if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
     if _args.component == COMP_KERNEL:
         _check_args_nand_kernel()
@@ -465,8 +475,11 @@ def _check_args_nand():
 def _check_args_nand_kernel():
     _check_is_file(_args.kernel_file, '--kernel-file')
     _check_is_int(_args.kernel_start_blk, '--kernel-start-blk')
-    _check_is_int(_args.kernel_size_blks, '--kernel-size-blks')
-    _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
+    _args.kernel_start_blk = int(_args.kernel_start_blk)
+    if _args.kernel_size_blks:
+        _check_is_int(_args.kernel_size_blks, '--kernel-size-blks')
+    if _args.kernel_extra_blks:
+        _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
 
 # ==========================================================================
 # Main logic
@@ -531,7 +544,40 @@ def main():
         if ret is False: _abort_install()
         
     if mode == MODE_NAND:
-        pass
+        
+        uboot = rrutils.uboot.Uboot()
+        uboot.dryrun = _args.dryrun
+        
+        try:
+            ret = uboot.open_comm(port=_args.serial_port, baud=_args.serial_baud)
+            if ret is False: _abort_install()
+        except serial.SerialException:
+            _abort_install()
+        
+        uboot.sync()
+        if ret is False: _abort_install()
+        
+        nand_installer = NandInstallerTFTP(uboot=uboot)
+        nand_installer.net_mode = _args.board_net_mode
+        if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
+            nand_installer.target_ipaddr = _args.board_ip_addr
+        nand_installer.host_ipaddr = _args.host_ip_addr
+        nand_installer.tftp_dir = _args.tftp_dir
+        nand_installer.tftp_port = _args.tftp_port
+        nand_installer.ram_load_addr = _args.ram_load_addr
+        nand_installer.dryrun = _args.dryrun
+        
+        ret = nand_installer.setup_uboot_network()
+        if ret is False: _abort_install()
+        
+        if _args.component == COMP_KERNEL:
+            nand_installer.install_kernel(_args.kernel_file,
+                                      _args.kernel_start_blk, 
+                                      _args.kernel_size_blks,
+                                      _args.kernel_extra_blks,
+                                      _args.kernel_force)
+
+        uboot.close_comm()
         
     _logger.info('Installation complete')
     _clean_exit(0)
