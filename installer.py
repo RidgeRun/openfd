@@ -817,6 +817,8 @@ def main():
             if ret is False: _abort_install()
        
         try:     
+            uboot.set_env('autostart', 'yes')
+            uboot.save_env()
             uboot.cmd('echo Installation complete')
         except rrutils.uboot.UbootTimeoutException as e:
             _logger.error(e)
