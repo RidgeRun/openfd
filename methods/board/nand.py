@@ -664,6 +664,9 @@ class NandInstallerTFTP(NandInstaller):
         Returns true on success; false otherwise.
         """
         
+        if self._is_network_setup:
+            return True
+        
         if not self._net_mode:
             self._l.error('Please provide a networking mode')
             return False
