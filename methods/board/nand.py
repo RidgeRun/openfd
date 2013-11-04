@@ -481,6 +481,7 @@ class NandInstaller(object):
             self._l.info("Kernel command line doesn't need to be installed")
             return True
         self._u.set_env('bootargs', cmdline)
+        self._u.set_env('autostart', 'yes')
         self._u.save_env()
         return True
 

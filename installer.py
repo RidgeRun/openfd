@@ -99,9 +99,11 @@ _parser_nand_ipl = None
 _parser_nand_bootloader = None
 _parser_nand_kernel = None
 _parser_nand_fs = None
+_parser_nand_cmdline = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
+_uboot = None
 
 # ==========================================================================
 # Constants
@@ -140,6 +142,7 @@ def _init_logging():
 # ==========================================================================
 
 def _clean_exit(code=0):
+    if uboot: uboot.close_comm()
     if code != 0: _logger.debug('Exiting with code %d' % code)
     exit(code)
 
@@ -392,6 +395,7 @@ def _add_args_nand():
     _add_args_nand_bootloader()
     _add_args_nand_kernel()
     _add_args_nand_fs()
+    _add_args_nand_cmdline()
 
 def _add_args_nand_ipl():
     global _parser_nand_ipl 
@@ -541,6 +545,23 @@ def _add_args_nand_fs():
                        action='store_true',
                        default=False)
 
+def _add_args_nand_cmdline():
+    global _parser_nand_cmdline 
+    _parser_nand_cmdline = _subparsers_nand.add_parser(COMP_CMDLINE,
+                                                  help="Kernel's command line")
+    
+    _parser_nand_cmdline.add_argument('--cmdline',
+                       help="Kernel's command line",
+                       metavar='<cmdline>',
+                       dest='cmdline',
+                       required=True)
+    
+    _parser_nand_cmdline.add_argument('--force',
+                       help='Force component installation',
+                       dest='cmdline_force',
+                       action='store_true',
+                       default=False)
+
 def _check_args():
     global _args
     _args = _parser.parse_args()
@@ -596,6 +617,8 @@ def _check_args_nand():
         _check_args_nand_kernel()
     if _args.component == COMP_FS:
         _check_args_nand_fs()
+    if _args.component == COMP_CMDLINE:
+        _check_args_nand_cmdline()
     
 def _check_args_nand_ipl():
     _check_is_file(_args.bc_bin, '--bc-bin')
@@ -635,11 +658,15 @@ def _check_args_nand_fs():
         _check_is_int(_args.fs_extra_blks, '--fs-extra-blks')
         _args.fs_extra_blks = int(_args.fs_extra_blks)
 
+def _check_args_nand_cmdline():
+    pass # nothing to check
+
 # ==========================================================================
 # Main logic
 # ==========================================================================
 
 def main():
+    global uboot
 
     _init_logging()
     _add_args()
@@ -725,8 +752,12 @@ def main():
         nand_installer.ram_load_addr = _args.ram_load_addr
         nand_installer.dryrun = _args.dryrun
         
-        ret = nand_installer.setup_uboot_network()
-        if ret is False: _abort_install()
+        if (_args.component == COMP_IPL or
+            _args.component == COMP_BOOTLOADER or
+            _args.component == COMP_KERNEL or
+            _args.component == COMP_FS): 
+            ret = nand_installer.setup_uboot_network()
+            if ret is False: _abort_install()
         
         if _args.component == COMP_IPL:
             nand_img_gen = NandImageGenerator()
@@ -764,6 +795,7 @@ def main():
             if ret is False: _abort_install()
             
         if _args.component == COMP_KERNEL:
+            
             ret = nand_installer.install_kernel(_args.kernel_file,
                                       _args.kernel_start_blk, 
                                       _args.kernel_size_blks,
@@ -779,7 +811,17 @@ def main():
                                       _args.fs_force)
             if ret is False: _abort_install()
 
-        uboot.cmd('echo Installation complete')
+        if _args.component == COMP_CMDLINE:
+            ret = nand_installer.install_cmdline(_args.cmdline,
+                                                 _args.cmdline_force)
+            if ret is False: _abort_install()
+       
+        try:     
+            uboot.cmd('echo Installation complete')
+        except rrutils.uboot.UbootTimeoutException as e:
+            _logger.error(e)
+            _abort_install()
+            
         uboot.close_comm()
         
     _logger.info('Installation complete')
