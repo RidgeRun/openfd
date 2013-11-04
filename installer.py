@@ -96,6 +96,7 @@ _parser_sd = None
 _parser_sd_img = None
 _parser_nand = None
 _parser_nand_ipl = None
+_parser_nand_bootloader = None
 _parser_nand_kernel = None
 _subparsers = None
 _subparsers_nand = None
@@ -387,6 +388,7 @@ def _add_args_nand():
                        default=69)
     
     _add_args_nand_ipl()
+    _add_args_nand_bootloader()
     _add_args_nand_kernel()
 
 def _add_args_nand_ipl():
@@ -417,6 +419,47 @@ def _add_args_nand_ipl():
                        metavar='<blk>',
                        required=True,
                        dest='ipl_start_blk')
+
+def _add_args_nand_bootloader():
+    global _parser_nand_bootloader 
+    _parser_nand_bootloader = _subparsers_nand.add_parser(COMP_BOOTLOADER)
+    
+    _parser_nand_bootloader.add_argument('--bc-bin',
+                       help='Path to the TI DM36x Binary Creator (BC) tool',
+                       metavar='<file>',
+                       dest='bc_bin',
+                       required=True)
+    
+    _parser_nand_bootloader.add_argument('--uboot-file',
+                       help='Path to the U-Boot image file',
+                       metavar='<file>',
+                       dest='uboot_file',
+                       required=True)
+    
+    _parser_nand_bootloader.add_argument('--uboot-nand-file',
+                       help='Path to the NAND U-Boot file that will be '
+                       'generated and installed',
+                       metavar='<file>',
+                       dest='uboot_nand_file',
+                       required=True)
+    
+    _parser_nand_bootloader.add_argument('--uboot-start-blk',
+                       help="Start block in NAND for the U-Boot image",
+                       metavar='<blk>',
+                       required=True,
+                       dest='uboot_start_blk')
+    
+    _parser_nand_bootloader.add_argument('--uboot-entry-addr',
+                       help='U-Boot entry address (decimal or hex)',
+                       metavar='<addr>',
+                       dest='uboot_entry_addr',
+                       required=True)
+    
+    _parser_nand_bootloader.add_argument('--uboot-load-addr',
+                       help='U-Boot load address (decimal or hex)',
+                       metavar='<addr>',
+                       dest='uboot_load_addr',
+                       required=True)
 
 def _add_args_nand_kernel():
     global _parser_nand_kernel 
@@ -504,6 +547,8 @@ def _check_args_nand():
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
     if _args.component == COMP_IPL:
         _check_args_nand_ipl()
+    if _args.component == COMP_BOOTLOADER:
+        _check_args_nand_bootloader()
     if _args.component == COMP_KERNEL:
         _check_args_nand_kernel()
 
@@ -513,6 +558,15 @@ def _check_args_nand_ipl():
     _check_is_file(_args.ipl_file, '--ipl-file')
     _check_is_int(_args.ipl_start_blk, '--ipl-start-blk')
     _args.ipl_start_blk = int(_args.ipl_start_blk)
+
+def _check_args_nand_bootloader():
+    _check_is_file(_args.bc_bin, '--bc-bin')
+    _check_x_ok(_args.bc_bin, '--bc-bin')
+    _check_is_file(_args.uboot_file, '--uboot-file')
+    _check_is_int(_args.uboot_start_blk, '--uboot-start-blk')
+    _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
+    _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
+    _args.uboot_start_blk = int(_args.uboot_start_blk)
     
 def _check_args_nand_kernel():
     _check_is_file(_args.kernel_file, '--kernel-file')
@@ -602,6 +656,10 @@ def main():
         if ret is False: _abort_install()
         
         nand_installer = NandInstallerTFTP(uboot=uboot)
+        if _args.nand_blk_size:
+            nand_installer.nand_block_size = _args.nand_blk_size
+        if _args.nand_page_size:
+            nand_installer.nand_page_size = _args.nand_page_size
         nand_installer.net_mode = _args.board_net_mode
         if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
             nand_installer.target_ipaddr = _args.board_ip_addr
@@ -630,6 +688,25 @@ def main():
                                              _args.ipl_start_blk)
             if ret is False: _abort_install()
         
+        if _args.component == COMP_BOOTLOADER:
+            nand_img_gen = NandImageGenerator()
+            nand_img_gen.bc_bin = _args.bc_bin
+            nand_img_gen.dryrun = _args.dryrun
+            nand_img_gen.verbose = _args.verbose
+            
+            ret = nand_img_gen.gen_uboot_img(
+                                page_size=nand_installer.nand_page_size,
+                                start_block=_args.uboot_start_blk,
+                                entry_addr=_args.uboot_entry_addr,
+                                load_addr=_args.uboot_load_addr,
+                                input_img=_args.uboot_file,
+                                output_img=_args.uboot_nand_file)
+            if ret is False: _abort_install()
+            
+            ret = nand_installer.install_uboot(_args.uboot_nand_file,
+                                               _args.uboot_start_blk)
+            if ret is False: _abort_install()
+            
         if _args.component == COMP_KERNEL:
             nand_installer.install_kernel(_args.kernel_file,
                                       _args.kernel_start_blk, 
