@@ -252,6 +252,8 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_fs()
             self.install_cmdline()
             self.install_bootcmd()
+            self._uboot.set_env('autostart', 'yes')
+            self._uboot.save_env()
             self._uboot.cmd('echo Installation complete')
 
 if __name__ == '__main__':

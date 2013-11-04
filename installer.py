@@ -100,6 +100,7 @@ _parser_nand_bootloader = None
 _parser_nand_kernel = None
 _parser_nand_fs = None
 _parser_nand_cmdline = None
+_parser_nand_bootcmd = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
@@ -396,6 +397,7 @@ def _add_args_nand():
     _add_args_nand_kernel()
     _add_args_nand_fs()
     _add_args_nand_cmdline()
+    _add_args_nand_bootcmd()
 
 def _add_args_nand_ipl():
     global _parser_nand_ipl 
@@ -562,6 +564,23 @@ def _add_args_nand_cmdline():
                        action='store_true',
                        default=False)
 
+def _add_args_nand_bootcmd():
+    global _parser_nand_bootcmd 
+    _parser_nand_bootcmd = _subparsers_nand.add_parser(COMP_BOOTCMD,
+                                          help="U-Boots's bootcmd variable")
+    
+    _parser_nand_bootcmd.add_argument('--bootcmd',
+                       help="U-Boots's bootcmd variable",
+                       metavar='<bootcmd>',
+                       dest='bootcmd',
+                       required=True)
+    
+    _parser_nand_bootcmd.add_argument('--force',
+                       help='Force component installation',
+                       dest='bootcmd_force',
+                       action='store_true',
+                       default=False)
+
 def _check_args():
     global _args
     _args = _parser.parse_args()
@@ -619,6 +638,8 @@ def _check_args_nand():
         _check_args_nand_fs()
     if _args.component == COMP_CMDLINE:
         _check_args_nand_cmdline()
+    if _args.component == COMP_BOOTCMD:
+        _check_args_nand_bootcmd()
     
 def _check_args_nand_ipl():
     _check_is_file(_args.bc_bin, '--bc-bin')
@@ -659,6 +680,9 @@ def _check_args_nand_fs():
         _args.fs_extra_blks = int(_args.fs_extra_blks)
 
 def _check_args_nand_cmdline():
+    pass # nothing to check
+
+def _check_args_nand_bootcmd():
     pass # nothing to check
 
 # ==========================================================================
@@ -816,9 +840,15 @@ def main():
                                                  _args.cmdline_force)
             if ret is False: _abort_install()
        
-        try:     
-            uboot.set_env('autostart', 'yes')
-            uboot.save_env()
+        if _args.component == COMP_BOOTCMD:
+            ret = nand_installer.install_bootcmd(_args.bootcmd,
+                                                 _args.bootcmd_force)
+            if ret is False: _abort_install()
+       
+        try:
+            if uboot.get_env('autostart') == 'no':
+                uboot.set_env('autostart', 'yes')
+                uboot.save_env()
             uboot.cmd('echo Installation complete')
         except rrutils.uboot.UbootTimeoutException as e:
             _logger.error(e)
