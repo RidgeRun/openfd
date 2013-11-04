@@ -98,6 +98,7 @@ _parser_nand = None
 _parser_nand_ipl = None
 _parser_nand_bootloader = None
 _parser_nand_kernel = None
+_parser_nand_fs = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
@@ -116,7 +117,7 @@ MODE_LOOPBACK = 'loopback'
 COMP_IPL = "ipl"
 COMP_BOOTLOADER = "bootloader"
 COMP_KERNEL = "kernel"
-COMP_FS = "filesystem"
+COMP_FS = "fs"
 COMP_CMDLINE = "cmdline"
 COMP_BOOTCMD = "bootcmd"
 
@@ -390,10 +391,12 @@ def _add_args_nand():
     _add_args_nand_ipl()
     _add_args_nand_bootloader()
     _add_args_nand_kernel()
+    _add_args_nand_fs()
 
 def _add_args_nand_ipl():
     global _parser_nand_ipl 
-    _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL)
+    _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL,
+                                                   help="Initial Program Loader (UBL)")
 
     _parser_nand_ipl.add_argument('--bc-bin',
                        help='Path to the TI DM36x Binary Creator (BC) tool',
@@ -422,7 +425,8 @@ def _add_args_nand_ipl():
 
 def _add_args_nand_bootloader():
     global _parser_nand_bootloader 
-    _parser_nand_bootloader = _subparsers_nand.add_parser(COMP_BOOTLOADER)
+    _parser_nand_bootloader = _subparsers_nand.add_parser(COMP_BOOTLOADER,
+                                                  help="Bootloader (U-Boot)")
     
     _parser_nand_bootloader.add_argument('--bc-bin',
                        help='Path to the TI DM36x Binary Creator (BC) tool',
@@ -463,7 +467,8 @@ def _add_args_nand_bootloader():
 
 def _add_args_nand_kernel():
     global _parser_nand_kernel 
-    _parser_nand_kernel = _subparsers_nand.add_parser(COMP_KERNEL)
+    _parser_nand_kernel = _subparsers_nand.add_parser(COMP_KERNEL,
+                                                      help="Kernel")
      
     _parser_nand_kernel.add_argument('--kernel-file',
                        help='Path to the Kernel file to be installed',
@@ -495,6 +500,44 @@ def _add_args_nand_kernel():
     _parser_nand_kernel.add_argument('--force',
                        help='Force component installation',
                        dest='kernel_force',
+                       action='store_true',
+                       default=False)
+
+def _add_args_nand_fs():
+    global _parser_nand_fs 
+    _parser_nand_fs = _subparsers_nand.add_parser(COMP_FS,
+                                                  help="Filesystem")
+    
+    _parser_nand_fs.add_argument('--fs-file',
+                       help='Path to the Filesystem file to be installed',
+                       metavar='<file>',
+                       dest='fs_file',
+                       required=True)
+    
+    _parser_nand_fs.add_argument('--fs-start-blk',
+                       help="Start block in NAND for the filesystem image",
+                       metavar='<blk>',
+                       required=True,
+                       dest='fs_start_blk')
+    
+    _parser_nand_fs.add_argument('--fs-size-blks',
+                       help=("Size in NAND blocks for the filesystem "
+                            "partition, if omitted the size will be calculated "
+                            "using the size of the image and the extra blocks"),
+                       metavar='<blks>',
+                       dest='fs_size_blks')
+    
+    _parser_nand_fs.add_argument('--fs-extra-blks',
+                       help=("Extra NAND blocks to reserve for the filesystem "
+                             "partition (only makes sense when --fs-size-blks "
+                             "has not been specified) (default: 19)"),
+                       metavar='<blks>',
+                       dest='fs_extra_blks',
+                       default=19)
+    
+    _parser_nand_fs.add_argument('--force',
+                       help='Force component installation',
+                       dest='fs_force',
                        action='store_true',
                        default=False)
 
@@ -551,7 +594,9 @@ def _check_args_nand():
         _check_args_nand_bootloader()
     if _args.component == COMP_KERNEL:
         _check_args_nand_kernel()
-
+    if _args.component == COMP_FS:
+        _check_args_nand_fs()
+    
 def _check_args_nand_ipl():
     _check_is_file(_args.bc_bin, '--bc-bin')
     _check_x_ok(_args.bc_bin, '--bc-bin')
@@ -578,6 +623,17 @@ def _check_args_nand_kernel():
     if _args.kernel_extra_blks:
         _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
         _args.kernel_extra_blks = int(_args.kernel_extra_blks)
+
+def _check_args_nand_fs():
+    _check_is_file(_args.fs_file, '--fs-file')
+    _check_is_int(_args.fs_start_blk, '--fs-start-blk')
+    _args.fs_start_blk = int(_args.fs_start_blk)
+    if _args.fs_size_blks:
+        _check_is_int(_args.fs_size_blks, '--fs-size-blks')
+        _args.fs_size_blks = int(_args.fs_size_blks)
+    if _args.fs_extra_blks:
+        _check_is_int(_args.fs_extra_blks, '--fs-extra-blks')
+        _args.fs_extra_blks = int(_args.fs_extra_blks)
 
 # ==========================================================================
 # Main logic
@@ -708,11 +764,20 @@ def main():
             if ret is False: _abort_install()
             
         if _args.component == COMP_KERNEL:
-            nand_installer.install_kernel(_args.kernel_file,
+            ret = nand_installer.install_kernel(_args.kernel_file,
                                       _args.kernel_start_blk, 
                                       _args.kernel_size_blks,
                                       _args.kernel_extra_blks,
                                       _args.kernel_force)
+            if ret is False: _abort_install()
+
+        if _args.component == COMP_FS:
+            ret = nand_installer.install_fs(_args.fs_file,
+                                      _args.fs_start_blk,
+                                      _args.fs_size_blks,
+                                      _args.fs_extra_blks,                                      
+                                      _args.fs_force)
+            if ret is False: _abort_install()
 
         uboot.cmd('echo Installation complete')
         uboot.close_comm()
