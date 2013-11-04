@@ -84,6 +84,7 @@ import socket
 import serial
 
 from methods.board.nand import NandInstallerTFTP
+from methods.board.image_gen import NandImageGenerator
 
 # ==========================================================================
 # Global variables
@@ -94,6 +95,7 @@ _parser = None
 _parser_sd = None
 _parser_sd_img = None
 _parser_nand = None
+_parser_nand_ipl = None
 _parser_nand_kernel = None
 _subparsers = None
 _subparsers_nand = None
@@ -241,7 +243,7 @@ def _add_args_sd_shared(subparser):
                        dest='kernel_file',
                        required=True)
     
-    subparser.add_argument('--uflash',
+    subparser.add_argument('--uflash-bin',
                        help='Path to the uflash tool',
                        metavar='<file>',
                        dest='uflash_bin',
@@ -384,7 +386,37 @@ def _add_args_nand():
                        dest='tftp_port',
                        default=69)
     
+    _add_args_nand_ipl()
     _add_args_nand_kernel()
+
+def _add_args_nand_ipl():
+    global _parser_nand_ipl 
+    _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL)
+
+    _parser_nand_ipl.add_argument('--bc-bin',
+                       help='Path to the TI DM36x Binary Creator (BC) tool',
+                       metavar='<file>',
+                       dest='bc_bin',
+                       required=True)
+
+    _parser_nand_ipl.add_argument('--ipl-file',
+                       help='Path to the IPL image file',
+                       metavar='<file>',
+                       dest='ipl_file',
+                       required=True)
+    
+    _parser_nand_ipl.add_argument('--ipl-nand-file',
+                       help='Path to the NAND IPL file that will be generated '
+                       'and installed',
+                       metavar='<file>',
+                       dest='ipl_nand_file',
+                       required=True)
+    
+    _parser_nand_ipl.add_argument('--ipl-start-blk',
+                       help="Start block in NAND for the IPL image",
+                       metavar='<blk>',
+                       required=True,
+                       dest='ipl_start_blk')
 
 def _add_args_nand_kernel():
     global _parser_nand_kernel 
@@ -446,6 +478,7 @@ def _check_args_sd():
     _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
     _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
     _check_is_dir(_args.workdir, '--work-dir')
+    _args.workdir = _args.workdir.rstrip('/') 
     if _args.rootfs:
         _check_is_dir(_args.rootfs, '--rootfs')
     
@@ -469,17 +502,28 @@ def _check_args_nand():
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
     if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
+    if _args.component == COMP_IPL:
+        _check_args_nand_ipl()
     if _args.component == COMP_KERNEL:
         _check_args_nand_kernel()
 
+def _check_args_nand_ipl():
+    _check_is_file(_args.bc_bin, '--bc-bin')
+    _check_x_ok(_args.bc_bin, '--bc-bin')
+    _check_is_file(_args.ipl_file, '--ipl-file')
+    _check_is_int(_args.ipl_start_blk, '--ipl-start-blk')
+    _args.ipl_start_blk = int(_args.ipl_start_blk)
+    
 def _check_args_nand_kernel():
     _check_is_file(_args.kernel_file, '--kernel-file')
     _check_is_int(_args.kernel_start_blk, '--kernel-start-blk')
     _args.kernel_start_blk = int(_args.kernel_start_blk)
     if _args.kernel_size_blks:
         _check_is_int(_args.kernel_size_blks, '--kernel-size-blks')
+        _args.kernel_size_blks = int(_args.kernel_size_blks)
     if _args.kernel_extra_blks:
         _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
+        _args.kernel_extra_blks = int(_args.kernel_extra_blks)
 
 # ==========================================================================
 # Main logic
@@ -554,7 +598,7 @@ def main():
         except serial.SerialException:
             _abort_install()
         
-        uboot.sync()
+        ret = uboot.sync()
         if ret is False: _abort_install()
         
         nand_installer = NandInstallerTFTP(uboot=uboot)
@@ -570,6 +614,22 @@ def main():
         ret = nand_installer.setup_uboot_network()
         if ret is False: _abort_install()
         
+        if _args.component == COMP_IPL:
+            nand_img_gen = NandImageGenerator()
+            nand_img_gen.bc_bin = _args.bc_bin
+            nand_img_gen.dryrun = _args.dryrun
+            nand_img_gen.verbose = _args.verbose
+            
+            ret = nand_img_gen.gen_ubl_img(page_size=nand_installer.nand_page_size,
+                                     start_block=_args.ipl_start_blk,
+                                     input_img=_args.ipl_file,
+                                     output_img=_args.ipl_nand_file)
+            if ret is False: _abort_install()
+            
+            ret = nand_installer.install_ubl(_args.ipl_nand_file,
+                                             _args.ipl_start_blk)
+            if ret is False: _abort_install()
+        
         if _args.component == COMP_KERNEL:
             nand_installer.install_kernel(_args.kernel_file,
                                       _args.kernel_start_blk, 
@@ -577,6 +637,7 @@ def main():
                                       _args.kernel_extra_blks,
                                       _args.kernel_force)
 
+        uboot.cmd('echo Installation complete')
         uboot.close_comm()
         
     _logger.info('Installation complete')
