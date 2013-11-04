@@ -15,7 +15,7 @@
 #
 # ==========================================================================
 
-import os, sys, time
+import os, sys
 import unittest
 import check_env
 
@@ -138,7 +138,6 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         gen = NandImageGenerator()
         gen.bc_bin = ('%s/bootloader/u-boot-2010.12-rc2-psp03.01.01.39'
                   '/ti-flash-utils/src/DM36x/GNU/bc_DM36x.exe' % devdir)
-        gen.image_dir = '%s/images' % devdir
         gen.dryrun = self._inst.dryrun
         
         # Generate the UBL nand image

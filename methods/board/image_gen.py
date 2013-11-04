@@ -36,8 +36,7 @@ class NandImageGenerator(object):
     to be flashed using the uboot NAND commands.
     """
     
-    def __init__(self, bc_bin=None, image_dir=None, verbose=False,
-                 dryrun=False):
+    def __init__(self, bc_bin=None, verbose=False, dryrun=False):
         """
         :param bc_bin: Path to the TI DM36x Binary Creator (BC) tool.
         :param verbose: Enable verbose mode to display the BC tool output.
@@ -47,7 +46,6 @@ class NandImageGenerator(object):
         :type dryrun: boolean
         """
         self._bc_bin = bc_bin
-        self._image_dir = image_dir
         self._l = rrutils.logger.get_global_logger()
         self._e = rrutils.executer.Executer()
         self._e.logger = self._l
