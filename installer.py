@@ -134,7 +134,7 @@ def _init_logging():
 
     _program_name = os.path.basename(sys.argv[0])
     
-    rrutils.logger.basic_config(verbose=True)
+    rrutils.logger.basic_config(verbose=False)
     _logger = rrutils.logger.get_global_logger(_program_name,
                                                level=rrutils.logger.INFO)
 
@@ -402,7 +402,7 @@ def _add_args_nand():
 def _add_args_nand_ipl():
     global _parser_nand_ipl 
     _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL,
-                                                   help="Initial Program Loader (UBL)")
+                                           help="Initial Program Loader (UBL)")
 
     _parser_nand_ipl.add_argument('--bc-bin',
                        help='Path to the TI DM36x Binary Creator (BC) tool',
@@ -597,8 +597,8 @@ def _check_args():
     
 def _check_args_sd():    
     _check_is_file(_args.mmap_file, '--mmap-file')
-    _check_is_file(_args.uflash_bin, '--uflash')
-    _check_x_ok(_args.uflash_bin, '--uflash')
+    _check_is_file(_args.uflash_bin, '--uflash-bin')
+    _check_x_ok(_args.uflash_bin, '--uflash-bin')
     _check_is_file(_args.ubl_file, '--ubl-file')
     _check_is_file(_args.uboot_file, '--uboot-file')
     _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
@@ -776,10 +776,8 @@ def main():
         nand_installer.ram_load_addr = _args.ram_load_addr
         nand_installer.dryrun = _args.dryrun
         
-        if (_args.component == COMP_IPL or
-            _args.component == COMP_BOOTLOADER or
-            _args.component == COMP_KERNEL or
-            _args.component == COMP_FS): 
+        comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
+        if _args.component in comp_requires_network:
             ret = nand_installer.setup_uboot_network()
             if ret is False: _abort_install()
         
@@ -846,9 +844,11 @@ def main():
             if ret is False: _abort_install()
        
         try:
-            if uboot.get_env('autostart') == 'no':
-                uboot.set_env('autostart', 'yes')
-                uboot.save_env()
+            _logger.info("Finishing installation")
+            if _args.component in comp_requires_network:
+                if uboot.get_env('autostart') == 'no':
+                    uboot.set_env('autostart', 'yes')
+                    uboot.save_env()
             uboot.cmd('echo Installation complete')
         except rrutils.uboot.UbootTimeoutException as e:
             _logger.error(e)

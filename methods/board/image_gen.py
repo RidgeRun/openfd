@@ -137,7 +137,7 @@ class NandImageGenerator(object):
         entry_addr_hex = hexutils.to_hex(str(entry_addr))
         load_addr_hex = hexutils.to_hex(str(load_addr))
         
-        self._l.info("Generating uboot image for NAND: %s" % output_img)
+        self._l.info("Generating uboot image for NAND")
         
         cmd = ('mono %s -uboot -pageSize %s -blockNum %s -startAddr %s '
                '-loadAddr %s %s -o %s' % (self._bc_bin, page_size,
@@ -168,7 +168,7 @@ class NandImageGenerator(object):
         ret = self._check_args(input_img, output_img)
         if ret is False: return False
         
-        self._l.info("Generating UBL image for NAND: %s" % output_img)
+        self._l.info("Generating UBL image for NAND")
         
         cmd = ('mono %s -pageSize %s -blockNum %s %s -o %s' % (self._bc_bin,
                 page_size, start_block, input_img, output_img))

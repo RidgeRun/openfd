@@ -91,6 +91,8 @@ class NandInstaller(object):
         if self._nand_block_size != 0:
             return self._nand_block_size
         
+        self._l.info("Identifying NAND block size")
+        
         self._u.cmd('nand info', prompt_timeout=None)
         
         if self._dryrun: # no need to go further in this mode
@@ -110,6 +112,7 @@ class NandInstaller(object):
             self._nand_block_size = int(m.group('size_kb')) << 10 # to bytes
         else:
             self._l.error('Unable to determine the NAND block size')
+        self._l.info("NAND block size ... %s" % hex(self._nand_block_size))
         return self._nand_block_size
     
     nand_block_size = property(__get_nand_block_size, __set_nand_block_size, 
@@ -125,6 +128,8 @@ class NandInstaller(object):
         # Don't query uboot if already set
         if self._nand_page_size != 0:
             return self._nand_page_size
+        
+        self._l.info("Identifying NAND page size")
         
         page_size = 0
         possible_sizes=['0200', '0400', '0800', '1000']
@@ -152,6 +157,8 @@ class NandInstaller(object):
             self._l.error('Unable to determine the NAND page size')
         else:
             self._nand_page_size = page_size
+            
+        self._l.info("NAND page size ... %s" % hex(self._nand_page_size))
         return self._nand_page_size
     
     nand_page_size = property(__get_nand_page_size, __set_nand_page_size,
@@ -371,22 +378,20 @@ class NandInstaller(object):
             else:
                 part_size = size_blks * self.nand_block_size
         
+        self._l.info('Verifying if %s installation is needed' % comp)
         img_env = {'md5sum': self._md5sum(filename),
                    'offset': hex(offset_addr),
                    'size': hex(img_size_aligned),
                    'partitionsize': hex(part_size)}
-        
         is_needed = self._is_img_install_needed(comp_nick, img_env)
         if not force and not is_needed:
             self._l.info("%s doesn't need to be installed" % comp.capitalize())
             return True
         
-        self._u.set_env('autostart', 'no')
-                
         self._l.info("Loading %s image to RAM" % comp)
+        self._u.set_env('autostart', 'no')
         ret = self._load_file_to_ram(filename, self._ram_load_addr)
         if ret is False: return False
-        
         self._u.set_env('autostart', 'yes')
         
         self._l.info("Erasing %s NAND space" % comp)
@@ -397,6 +402,8 @@ class NandInstaller(object):
         cmd = 'nand write %s %s %s' % (self._ram_load_addr, 
                                        hex(offset_addr), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        
+        self._l.info("Saving %s partition info" % comp)
         self._save_img_env(comp_nick, img_env)
         self._u.save_env()
         return True
@@ -476,9 +483,10 @@ class NandInstaller(object):
         """
         
         cmdline = cmdline.strip()
-        cmdline_on_board = self._u.get_env('bootargs')        
+        self._l.info("Verifying if cmdline installation is needed")
+        cmdline_on_board = self._u.get_env('bootargs')
         if cmdline == cmdline_on_board and not force:
-            self._l.info("Kernel command line doesn't need to be installed")
+            self._l.info("Kernel cmdline doesn't need to be installed")
             return True
         self._u.set_env('bootargs', cmdline)
         self._u.save_env()
@@ -497,9 +505,10 @@ class NandInstaller(object):
         """
         
         bootcmd = bootcmd.strip()
+        self._l.info("Verifying if bootcmd installation is needed")
         bootcmd_on_board = self._u.get_env('bootcmd')        
         if bootcmd == bootcmd_on_board and not force:
-            self._l.info("Boot command doesn't need to be installed")
+            self._l.info("Uboot's bootcmd doesn't need to be installed")
             return True
         self._u.set_env('bootcmd', bootcmd)
         self._u.save_env()
