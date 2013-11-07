@@ -24,8 +24,7 @@ def get_devdir():
     
     devdir = ''
     try:
-        if os.environ['DEVDIR']:
-            devdir = os.environ['DEVDIR'] 
+        devdir = os.environ['DEVDIR'] 
     except KeyError:
         print 'Unable to obtain $DEVDIR from the environment.'
     return devdir

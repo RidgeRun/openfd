@@ -53,7 +53,7 @@ class Partition(object):
                  part_type='', filesystem='', components=[]):
         """    
         :param name: Partition name.
-        :param start_addr: Partition start addres (decimal).
+        :param start_addr: Partition start address (decimal).
         :param size: Partition size in cylinders. Size can be '-' to indicate
             the max size available.
         :param bootable: Enables the bootable flag on this partition.

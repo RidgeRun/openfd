@@ -22,9 +22,11 @@
 import os
 import re
 import time
+import ConfigParser
 import rrutils
 import rrutils.hexutils as hexutils
 from rrutils.uboot import UbootTimeoutException
+from partition import NandPartition
 
 # ==========================================================================
 # Constants
@@ -81,6 +83,7 @@ class NandInstaller(object):
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
         self._interactive = interactive
+        self._partitions = []
 
     def __set_nand_block_size(self, size):
         self._nand_block_size = int(size)
@@ -512,6 +515,32 @@ class NandInstaller(object):
             return True
         self._u.set_env('bootcmd', bootcmd)
         self._u.save_env()
+        return True
+    
+    def read_partitions(self, filename):
+        """
+        Reads the partitions information from the given file.
+        
+        :param filename: Path to the file with the partitions information.
+        :returns: Returns true on success; false otherwise.  
+        """
+        
+        self._partitions[:] = []
+        self._l.debug('Reading file %s' % filename)
+        config = ConfigParser.RawConfigParser()
+        config.readfp(open(filename))
+        for section in config.sections():
+            if config.has_option(section, 'name'):
+                part = NandPartition(config.get(section, 'name'))
+                if config.has_option(section, 'start_blk'):
+                    part.start = config.get(section, 'start_blk')
+                if config.has_option(section, 'size_blks'):
+                    part.size = config.get(section, 'size_blks')
+                if config.has_option(section, 'filesystem'):
+                    part.filesystem = config.get(section, 'filesystem')
+                if config.has_option(section, 'image'):
+                    part.filesystem = config.get(section, 'image')
+                self._partitions.append(part)
         return True
 
 class NandInstallerTFTP(NandInstaller):

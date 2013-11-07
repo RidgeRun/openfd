@@ -11,7 +11,7 @@
 # into another programming language without prior written consent of 
 # RidgeRun, LLC.
 #
-# Tests for the serial_comm module.
+# Tests for the nand module.
 #
 # ==========================================================================
 
@@ -22,7 +22,6 @@ import check_env
 sys.path.insert(1, os.path.abspath('..'))
 
 import rrutils
-from nand import NandInstaller
 from nand import NandInstallerTFTP
 from image_gen import NandImageGenerator
 
@@ -30,8 +29,8 @@ from image_gen import NandImageGenerator
 devdir = check_env.get_devdir()
 if not devdir: sys.exit(-1)
 
-#test_host_ip_addr = '10.251.101.24'
-test_host_ip_addr = '192.168.1.110'
+test_host_ip_addr = '10.251.101.24'
+#test_host_ip_addr = '192.168.1.110'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 
@@ -40,7 +39,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         rrutils.logger.basic_config(verbose=True)
-        logger = rrutils.logger.get_global_logger('SerialInstaller')
+        logger = rrutils.logger.get_global_logger('NandInstaller')
         logger.setLevel(rrutils.logger.DEBUG)
     
     def setUp(self):
@@ -114,7 +113,13 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             boot_img = "%s/images/bootloader" % devdir
             ret = self._inst._load_file_to_ram(boot_img, test_uboot_load_addr)
             self.assertTrue(ret)
-            
+    
+    def test_read_partitions(self):
+        print "---- test_nand_block_size ----"
+        test_read_part = True
+        if test_read_part:
+            self._inst.read_partitions('%s/images/nand-mmap.config' % devdir)
+    
 # ==========================================================================
 # Install methods
 # ==========================================================================
@@ -243,7 +248,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_bootcmd()
             
     def test_install_all(self):
-        install_all = True
+        install_all = False
         if install_all:
             self.setup_network()
             self.load_uboot()
@@ -259,4 +264,4 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
     suite = loader.loadTestsFromTestCase(NandInstallerTFTPTestCase)
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    unittest.TextTestRunner(verbosity=1).run(suite)
