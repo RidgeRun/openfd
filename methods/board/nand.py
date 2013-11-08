@@ -276,9 +276,6 @@ class NandInstaller(object):
         """
         Installs the UBL (initial program loader) image to NAND.
         
-        :param img_filename: Path to the UBL image file.
-        :param start_blk: Start block in NAND for the UBL image.
-        :type start_blk: integer
         :returns: Returns true on success; false otherwise.
         """
         
@@ -307,9 +304,6 @@ class NandInstaller(object):
         """
         Installs the uboot image to NAND.
         
-        :param img_filename: Path to the uboot image file.
-        :param start_blk: Start block in NAND for the uboot image.
-        :type start_blk: integer
         :returns: Returns true on success; false otherwise.
         """
     
@@ -421,8 +415,7 @@ class NandInstaller(object):
         self._u.save_env()
         return True
 
-    def install_kernel(self, img_filename, start_blk, size_blks=None,
-                   extra_blks=DEFAULT_KERNEL_EXTRA_BLKS, force=False):
+    def install_kernel(self, extra_blks=DEFAULT_KERNEL_EXTRA_BLKS, force=False):
         """
         Installs the kernel image to NAND. After installing the image it
         will save in uboot's environment the following variables:
@@ -435,13 +428,6 @@ class NandInstaller(object):
         This information is also used to avoid re-installing the image if it is
         not necessary, unless `force` is specified.
         
-        :param img_filename: Path to the kernel image file.
-        :param start_blk: Start block in NAND for the kernel image.
-        :type start_blk: integer
-        :param size_blks: Size in blocks for the kernel partition. If None,
-            the size will be calculated using the size of the image and 
-            the extra blocks.
-        :type size_blks: integer
         :param extra_blks: Extra NAND blocks to reserve for the kernel.
         :type extra_blks: integer
         :param force: Forces the kernel installation.
@@ -449,11 +435,13 @@ class NandInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        return self._install_img(img_filename, 'kernel', 'k', start_blk,
-                                 size_blks, extra_blks, force)
+        for part in self._partitions:
+            if part.name == NandInstaller.names['kernel']:
+                return self._install_img(part.image, 'kernel', 'k',
+                             part.start_blk, part.size_blks, extra_blks, force)
+        return True
     
-    def install_fs(self, img_filename, start_blk, size_blks=None,
-                   extra_blks=DEFAULT_FS_EXTRA_BLKS, force=False):
+    def install_fs(self, extra_blks=DEFAULT_FS_EXTRA_BLKS, force=False):
         """
         Installs the filesystem image to NAND. After installing the image it
         will save in uboot's environment the following variables:
@@ -466,22 +454,17 @@ class NandInstaller(object):
         This information is also used to avoid re-installing the image if it is
         not necessary, unless `force` is specified.
         
-        :param img_filename: Path to the filesystem image file.
-        :param start_blk: Start block in NAND for the filesystem image.
-        :type start_blk: integer
-        :param size_blks: Size in blocks for the filesystem partition. If None,
-            the size will be calculated using the size of the image and 
-            the extra blocks.
-        :type size_blks: integer
         :param extra_blks: Extra NAND blocks to reserve for the filesystem.
         :type extra_blks: integer
         :param force: Forces the filesystem installation.
         :type force: boolean
         :returns: Returns true on success; false otherwise.
         """
-       
-        return self._install_img(img_filename, 'filesystem', 'fs', start_blk,
-                                 size_blks, extra_blks, force)
+        for part in self._partitions:
+            if part.name == NandInstaller.names['fs']:
+                return self._install_img(part.image, 'filesystem', 'fs',
+                             part.start_blk, part.size_blks, extra_blks, force)
+        return True
 
     def install_cmdline(self, cmdline, force=False):
         """

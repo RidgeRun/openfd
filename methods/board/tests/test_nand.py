@@ -39,10 +39,14 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        rrutils.logger.basic_config(verbose=False)
+        verbose = False
+        rrutils.logger.basic_config(verbose=verbose)
         logger = rrutils.logger.get_global_logger('NandInstaller')
-        logger.setLevel(rrutils.logger.DEBUG)
-    
+        if verbose:
+            logger.setLevel(rrutils.logger.DEBUG)
+        else:
+            logger.setLevel(rrutils.logger.INFO)
+            
     def setUp(self):
         
         dryrun = False
@@ -159,7 +163,6 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 #                                    output_img=ubl_nand_img)
 #        self.assertTrue(ret)
         
-        # Install UBL to NAND 
         ret = self._inst.install_ubl()
         self.assertTrue(ret)
         
@@ -177,30 +180,17 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 #                                output_img=uboot_nand_img)
 #        self.assertTrue(ret)
         
-        # Install uboot
         ret = self._inst.install_uboot()
         self.assertTrue(ret)
     
     def install_kernel(self):
         print "---- Installing kernel ----"
-        kernel_img = "%s/images/kernel.uImage" % devdir
-        kernel_start_block = 32 # values tied to those in mtdparts of the cmdline
-        #kernel_size_blks = 37
-        kernel_size_blks = None
-        ret = self._inst.install_kernel(kernel_img,
-                                        start_blk=kernel_start_block,
-                                        size_blks=kernel_size_blks)
+        ret = self._inst.install_kernel(force=False)
         self.assertTrue(ret)
     
     def install_fs(self):
         print "---- Installing fs ----"
-        fs_img = "%s/images/fsimage.uImage" % devdir
-        fs_start_block = 69 # kernel start blk: 32, kernel part size: 37
-        fs_part_size = 1600 # values tied to those in mtdparts of the cmdline
-        ret = self._inst.install_fs(fs_img,
-                                    start_blk=fs_start_block,
-                                    size_blks=fs_part_size,
-                                    force=False)
+        ret = self._inst.install_fs(force=False)
         self.assertTrue(ret)
     
     def install_cmdline(self):
@@ -220,7 +210,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 # ==========================================================================
 
     def test_install_bootloader(self):
-        test_install_uboot = True
+        test_install_uboot = False
         if test_install_uboot:
             self.setup_network()
             self.load_uboot()

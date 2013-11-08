@@ -414,32 +414,12 @@ def _add_args_nand_kernel():
     _parser_nand_kernel = _subparsers_nand.add_parser(COMP_KERNEL,
                                                       help="Kernel")
      
-    _parser_nand_kernel.add_argument('--kernel-file',
-                       help='Path to the Kernel file to be installed',
-                       metavar='<file>',
-                       dest='kernel_file',
-                       required=True)
-    
-    _parser_nand_kernel.add_argument('--kernel-start-blk',
-                       help="Start block in NAND for the kernel image",
-                       metavar='<blk>',
-                       required=True,
-                       dest='kernel_start_blk')
-    
-    _parser_nand_kernel.add_argument('--kernel-size-blks',
-                       help=("Size in NAND blocks for the kernel partition, if "
-                            "omitted the size will be calculated using the "
-                            "size of the image and the extra blocks"),
-                       metavar='<blks>',
-                       dest='kernel_size_blks')
-    
     _parser_nand_kernel.add_argument('--kernel-extra-blks',
                        help=("Extra NAND blocks to reserve for the kernel "
-                             "partition (only makes sense when --kernel-"
-                             "size-blks has not been specified) (default: 3)"),
+                             "partition"),
                        metavar='<blks>',
                        dest='kernel_extra_blks',
-                       default=3)
+                       default=0)
     
     _parser_nand_kernel.add_argument('--force',
                        help='Force component installation',
@@ -452,32 +432,12 @@ def _add_args_nand_fs():
     _parser_nand_fs = _subparsers_nand.add_parser(COMP_FS,
                                                   help="Filesystem")
     
-    _parser_nand_fs.add_argument('--fs-file',
-                       help='Path to the Filesystem file to be installed',
-                       metavar='<file>',
-                       dest='fs_file',
-                       required=True)
-    
-    _parser_nand_fs.add_argument('--fs-start-blk',
-                       help="Start block in NAND for the filesystem image",
-                       metavar='<blk>',
-                       required=True,
-                       dest='fs_start_blk')
-    
-    _parser_nand_fs.add_argument('--fs-size-blks',
-                       help=("Size in NAND blocks for the filesystem "
-                            "partition, if omitted the size will be calculated "
-                            "using the size of the image and the extra blocks"),
-                       metavar='<blks>',
-                       dest='fs_size_blks')
-    
     _parser_nand_fs.add_argument('--fs-extra-blks',
                        help=("Extra NAND blocks to reserve for the filesystem "
-                             "partition (only makes sense when --fs-size-blks "
-                             "has not been specified) (default: 19)"),
+                             "partition"),
                        metavar='<blks>',
                        dest='fs_extra_blks',
-                       default=19)
+                       default=0)
     
     _parser_nand_fs.add_argument('--force',
                        help='Force component installation',
@@ -566,6 +526,10 @@ def _check_args_nand():
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
     if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
+    if _args.component == COMP_IPL:
+        _check_args_nand_ipl()
+    if _args.component == COMP_BOOTLOADER:
+        _check_args_nand_bootloader()
     if _args.component == COMP_KERNEL:
         _check_args_nand_kernel()
     if _args.component == COMP_FS:
@@ -575,33 +539,18 @@ def _check_args_nand():
     if _args.component == COMP_BOOTCMD:
         _check_args_nand_bootcmd()
 
+def _check_args_nand_ipl():
+    pass # nothing to check
+    
 def _check_args_nand_bootloader():
-    _check_is_file(_args.bc_bin, '--bc-bin')
-    _check_x_ok(_args.bc_bin, '--bc-bin')
-    _check_is_file(_args.uboot_file, '--uboot-file')
-    _check_is_int(_args.uboot_start_blk, '--uboot-start-blk')
-    _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
-    _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
-    _args.uboot_start_blk = int(_args.uboot_start_blk)
+    pass # nothing to check
     
 def _check_args_nand_kernel():
-    _check_is_file(_args.kernel_file, '--kernel-file')
-    _check_is_int(_args.kernel_start_blk, '--kernel-start-blk')
-    _args.kernel_start_blk = int(_args.kernel_start_blk)
-    if _args.kernel_size_blks:
-        _check_is_int(_args.kernel_size_blks, '--kernel-size-blks')
-        _args.kernel_size_blks = int(_args.kernel_size_blks)
     if _args.kernel_extra_blks:
         _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
         _args.kernel_extra_blks = int(_args.kernel_extra_blks)
 
 def _check_args_nand_fs():
-    _check_is_file(_args.fs_file, '--fs-file')
-    _check_is_int(_args.fs_start_blk, '--fs-start-blk')
-    _args.fs_start_blk = int(_args.fs_start_blk)
-    if _args.fs_size_blks:
-        _check_is_int(_args.fs_size_blks, '--fs-size-blks')
-        _args.fs_size_blks = int(_args.fs_size_blks)
     if _args.fs_extra_blks:
         _check_is_int(_args.fs_extra_blks, '--fs-extra-blks')
         _args.fs_extra_blks = int(_args.fs_extra_blks)
@@ -717,19 +666,13 @@ def main():
             if ret is False: _abort_install()
             
         if _args.component == COMP_KERNEL:
-            ret = nand_installer.install_kernel(_args.kernel_file,
-                                      _args.kernel_start_blk, 
-                                      _args.kernel_size_blks,
-                                      _args.kernel_extra_blks,
-                                      _args.kernel_force)
+            ret = nand_installer.install_kernel(
+                    extra_blks=_args.kernel_extra_blks, force=_args.kernel_force)
             if ret is False: _abort_install()
 
         if _args.component == COMP_FS:
-            ret = nand_installer.install_fs(_args.fs_file,
-                                      _args.fs_start_blk,
-                                      _args.fs_size_blks,
-                                      _args.fs_extra_blks,                                      
-                                      _args.fs_force)
+            ret = nand_installer.install_fs(extra_blks=_args.fs_extra_blks,                                      
+                                      force=_args.fs_force)
             if ret is False: _abort_install()
 
         if _args.component == COMP_CMDLINE:
