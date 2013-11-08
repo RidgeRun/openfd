@@ -52,6 +52,13 @@ DEFAULT_FS_EXTRA_BLKS = 19
 
 class NandInstaller(object):
     
+    names = {
+        'ipl': 'ubl',
+        'bootloader': 'uboot',
+        'kernel': 'kernel',
+        'fs': 'rootfs'
+    }
+    
     def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
                  ram_load_addr=None, dryrun=False, interactive=True):
         """
@@ -263,7 +270,7 @@ class NandInstaller(object):
         self._u.save_env()
         return True
     
-    def install_ubl(self, img_filename, start_blk):
+    def install_ubl(self):
         """
         Installs the UBL (initial program loader) image to NAND.
         
@@ -273,25 +280,27 @@ class NandInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        self._l.info("Loading UBL image to RAM")
-        ret = self._load_file_to_ram(img_filename, self._ram_load_addr)
-        if ret is False: return False
-        
-        offset_addr = start_blk * self.nand_block_size
-        img_size = os.path.getsize(img_filename)
-        img_size_blk = (img_size / self.nand_block_size) + 1
-        img_size_aligned = img_size_blk * self.nand_block_size
-        
-        self._l.info("Erasing UBL NAND space")
-        cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
-        
-        self._l.info("Writing UBL image from RAM to NAND")
-        cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
-                                   hex(offset_addr), hex(img_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
-        
-        return True
+        for part in self._partitions:
+            if part.name == NandInstaller.names['ipl']:
+                self._l.info("Loading UBL image to RAM")
+                ret = self._load_file_to_ram(part.image, self._ram_load_addr)
+                if ret is False: return False
+                
+                offset_addr = part.start_blk * self.nand_block_size
+                img_size = os.path.getsize(part.image)
+                img_size_blk = (img_size / self.nand_block_size) + 1
+                img_size_aligned = img_size_blk * self.nand_block_size
+                
+                self._l.info("Erasing UBL NAND space")
+                cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
+                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+                
+                self._l.info("Writing UBL image from RAM to NAND")
+                cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
+                                       hex(offset_addr), hex(img_size_aligned))
+                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
+                
+                return True
     
     def install_uboot(self, img_filename, start_blk):
         """
@@ -533,13 +542,13 @@ class NandInstaller(object):
             if config.has_option(section, 'name'):
                 part = NandPartition(config.get(section, 'name'))
                 if config.has_option(section, 'start_blk'):
-                    part.start = config.get(section, 'start_blk')
+                    part.start_blk = int(config.get(section, 'start_blk'))
                 if config.has_option(section, 'size_blks'):
-                    part.size = config.get(section, 'size_blks')
+                    part.size_blks = int(config.get(section, 'size_blks'))
                 if config.has_option(section, 'filesystem'):
                     part.filesystem = config.get(section, 'filesystem')
                 if config.has_option(section, 'image'):
-                    part.filesystem = config.get(section, 'image')
+                    part.image = config.get(section, 'image')
                 self._partitions.append(part)
         return True
 

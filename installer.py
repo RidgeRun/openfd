@@ -404,31 +404,6 @@ def _add_args_nand_ipl():
     _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL,
                                            help="Initial Program Loader (UBL)")
 
-    _parser_nand_ipl.add_argument('--bc-bin',
-                       help='Path to the TI DM36x Binary Creator (BC) tool',
-                       metavar='<file>',
-                       dest='bc_bin',
-                       required=True)
-
-    _parser_nand_ipl.add_argument('--ipl-file',
-                       help='Path to the IPL image file',
-                       metavar='<file>',
-                       dest='ipl_file',
-                       required=True)
-    
-    _parser_nand_ipl.add_argument('--ipl-nand-file',
-                       help='Path to the NAND IPL file that will be generated '
-                       'and installed',
-                       metavar='<file>',
-                       dest='ipl_nand_file',
-                       required=True)
-    
-    _parser_nand_ipl.add_argument('--ipl-start-blk',
-                       help="Start block in NAND for the IPL image",
-                       metavar='<blk>',
-                       required=True,
-                       dest='ipl_start_blk')
-
 def _add_args_nand_bootloader():
     global _parser_nand_bootloader 
     _parser_nand_bootloader = _subparsers_nand.add_parser(COMP_BOOTLOADER,
@@ -628,8 +603,6 @@ def _check_args_nand():
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
     if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
-    if _args.component == COMP_IPL:
-        _check_args_nand_ipl()
     if _args.component == COMP_BOOTLOADER:
         _check_args_nand_bootloader()
     if _args.component == COMP_KERNEL:
@@ -640,13 +613,6 @@ def _check_args_nand():
         _check_args_nand_cmdline()
     if _args.component == COMP_BOOTCMD:
         _check_args_nand_bootcmd()
-    
-def _check_args_nand_ipl():
-    _check_is_file(_args.bc_bin, '--bc-bin')
-    _check_x_ok(_args.bc_bin, '--bc-bin')
-    _check_is_file(_args.ipl_file, '--ipl-file')
-    _check_is_int(_args.ipl_start_blk, '--ipl-start-blk')
-    _args.ipl_start_blk = int(_args.ipl_start_blk)
 
 def _check_args_nand_bootloader():
     _check_is_file(_args.bc_bin, '--bc-bin')
@@ -782,19 +748,8 @@ def main():
             if ret is False: _abort_install()
         
         if _args.component == COMP_IPL:
-            nand_img_gen = NandImageGenerator()
-            nand_img_gen.bc_bin = _args.bc_bin
-            nand_img_gen.dryrun = _args.dryrun
-            nand_img_gen.verbose = _args.verbose
-            
-            ret = nand_img_gen.gen_ubl_img(page_size=nand_installer.nand_page_size,
-                                     start_block=_args.ipl_start_blk,
-                                     input_img=_args.ipl_file,
-                                     output_img=_args.ipl_nand_file)
-            if ret is False: _abort_install()
-            
-            ret = nand_installer.install_ubl(_args.ipl_nand_file,
-                                             _args.ipl_start_blk)
+            nand_installer.read_partitions(_args.mmap_file)
+            ret = nand_installer.install_ubl()
             if ret is False: _abort_install()
         
         if _args.component == COMP_BOOTLOADER:
