@@ -163,7 +163,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 #                                    output_img=ubl_nand_img)
 #        self.assertTrue(ret)
         
-        ret = self._inst.install_ubl()
+        ret = self._inst.install_ipl()
         self.assertTrue(ret)
         
 #        # Generate the uboot nand image
@@ -180,17 +180,17 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 #                                output_img=uboot_nand_img)
 #        self.assertTrue(ret)
         
-        ret = self._inst.install_uboot()
+        ret = self._inst.install_bootloader()
         self.assertTrue(ret)
     
     def install_kernel(self):
         print "---- Installing kernel ----"
-        ret = self._inst.install_kernel(force=False)
+        ret = self._inst.install_kernel(force=True)
         self.assertTrue(ret)
     
     def install_fs(self):
         print "---- Installing fs ----"
-        ret = self._inst.install_fs(force=False)
+        ret = self._inst.install_fs(force=True)
         self.assertTrue(ret)
     
     def install_cmdline(self):
@@ -241,7 +241,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_bootcmd()
             
     def test_install_all(self):
-        install_all = False
+        install_all = True
         if install_all:
             self.setup_network()
             self.load_uboot()

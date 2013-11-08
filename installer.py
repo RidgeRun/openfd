@@ -84,7 +84,6 @@ import socket
 import serial
 
 from methods.board.nand import NandInstallerTFTP
-from methods.board.image_gen import NandImageGenerator
 
 # ==========================================================================
 # Global variables
@@ -403,6 +402,12 @@ def _add_args_nand_ipl():
     global _parser_nand_ipl 
     _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL,
                                            help="Initial Program Loader (UBL)")
+    
+    _parser_nand_ipl.add_argument('--force',
+                       help='Force component installation',
+                       dest='ipl_force',
+                       action='store_true',
+                       default=False)
 
 def _add_args_nand_bootloader():
     global _parser_nand_bootloader 
@@ -413,13 +418,6 @@ def _add_args_nand_kernel():
     global _parser_nand_kernel 
     _parser_nand_kernel = _subparsers_nand.add_parser(COMP_KERNEL,
                                                       help="Kernel")
-     
-    _parser_nand_kernel.add_argument('--kernel-extra-blks',
-                       help=("Extra NAND blocks to reserve for the kernel "
-                             "partition"),
-                       metavar='<blks>',
-                       dest='kernel_extra_blks',
-                       default=0)
     
     _parser_nand_kernel.add_argument('--force',
                        help='Force component installation',
@@ -431,13 +429,6 @@ def _add_args_nand_fs():
     global _parser_nand_fs 
     _parser_nand_fs = _subparsers_nand.add_parser(COMP_FS,
                                                   help="Filesystem")
-    
-    _parser_nand_fs.add_argument('--fs-extra-blks',
-                       help=("Extra NAND blocks to reserve for the filesystem "
-                             "partition"),
-                       metavar='<blks>',
-                       dest='fs_extra_blks',
-                       default=0)
     
     _parser_nand_fs.add_argument('--force',
                        help='Force component installation',
@@ -540,26 +531,22 @@ def _check_args_nand():
         _check_args_nand_bootcmd()
 
 def _check_args_nand_ipl():
-    pass # nothing to check
+    pass
     
 def _check_args_nand_bootloader():
-    pass # nothing to check
+    pass
     
 def _check_args_nand_kernel():
-    if _args.kernel_extra_blks:
-        _check_is_int(_args.kernel_extra_blks, '--kernel-extra-blks')
-        _args.kernel_extra_blks = int(_args.kernel_extra_blks)
+    pass
 
 def _check_args_nand_fs():
-    if _args.fs_extra_blks:
-        _check_is_int(_args.fs_extra_blks, '--fs-extra-blks')
-        _args.fs_extra_blks = int(_args.fs_extra_blks)
+    pass
 
 def _check_args_nand_cmdline():
-    pass # nothing to check
+    pass
 
 def _check_args_nand_bootcmd():
-    pass # nothing to check
+    pass
 
 # ==========================================================================
 # Main logic
@@ -659,20 +646,18 @@ def main():
             if ret is False: _abort_install()
         
         if _args.component == COMP_IPL:
-            ret = nand_installer.install_ubl()
+            ret = nand_installer.install_ipl(force=_args.ipl_force)
             if ret is False: _abort_install()
         if _args.component == COMP_BOOTLOADER:
-            ret = nand_installer.install_uboot()
+            ret = nand_installer.install_bootloader()
             if ret is False: _abort_install()
             
         if _args.component == COMP_KERNEL:
-            ret = nand_installer.install_kernel(
-                    extra_blks=_args.kernel_extra_blks, force=_args.kernel_force)
+            ret = nand_installer.install_kernel(force=_args.kernel_force)
             if ret is False: _abort_install()
 
         if _args.component == COMP_FS:
-            ret = nand_installer.install_fs(extra_blks=_args.fs_extra_blks,                                      
-                                      force=_args.fs_force)
+            ret = nand_installer.install_fs(force=_args.fs_force)
             if ret is False: _abort_install()
 
         if _args.component == COMP_CMDLINE:
