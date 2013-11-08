@@ -33,12 +33,13 @@ test_host_ip_addr = '10.251.101.24'
 #test_host_ip_addr = '192.168.1.110'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
+test_mmap_file = '%s/images/nand-mmap.config' % devdir
 
 class NandInstallerTFTPTestCase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        rrutils.logger.basic_config(verbose=True)
+        rrutils.logger.basic_config(verbose=False)
         logger = rrutils.logger.get_global_logger('NandInstaller')
         logger.setLevel(rrutils.logger.DEBUG)
     
@@ -60,6 +61,9 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self._inst.tftp_port = 69
         self._inst.ram_load_addr = test_ram_load_addr
         self._inst.dryrun = dryrun
+        
+        ret = self._inst.read_partitions(test_mmap_file)
+        self.assertTrue(ret)
         
     def tearDown(self):
         self._uboot.close_comm()
@@ -116,7 +120,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def test_read_partitions(self):
         print "---- test_nand_block_size ----"
-        test_read_part = True
+        test_read_part = False
         if test_read_part:
             self._inst.read_partitions('%s/images/nand-mmap.config' % devdir)
     
@@ -139,43 +143,42 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             
     def install_bootloader(self):
         print "---- Installing bootloader ----"
-        # Image generator
-        gen = NandImageGenerator()
-        gen.bc_bin = ('%s/bootloader/u-boot-2010.12-rc2-psp03.01.01.39'
-                  '/ti-flash-utils/src/DM36x/GNU/bc_DM36x.exe' % devdir)
-        gen.dryrun = self._inst.dryrun
-        
-        # Generate the UBL nand image
-        ubl_img = '%s/images/ubl_DM36x_nand.bin' % devdir
-        ubl_nand_img = "%s/images/ubl_nand.nandbin" % devdir
-        ubl_nand_start_block = 1
-        ret = gen.gen_ubl_img(page_size=self._inst.nand_page_size,
-                                    start_block=ubl_nand_start_block,
-                                    input_img=ubl_img,
-                                    output_img=ubl_nand_img)
-        self.assertTrue(ret)
+#        # Image generator
+#        gen = NandImageGenerator()
+#        gen.bc_bin = ('%s/bootloader/u-boot-2010.12-rc2-psp03.01.01.39'
+#                  '/ti-flash-utils/src/DM36x/GNU/bc_DM36x.exe' % devdir)
+#        gen.dryrun = self._inst.dryrun
+#        
+#        # Generate the UBL nand image
+#        ubl_img = '%s/images/ubl_DM36x_nand.bin' % devdir
+#        ubl_nand_img = "%s/images/ubl_nand.nandbin" % devdir
+#        ubl_nand_start_block = 1
+#        ret = gen.gen_ubl_img(page_size=self._inst.nand_page_size,
+#                                    start_block=ubl_nand_start_block,
+#                                    input_img=ubl_img,
+#                                    output_img=ubl_nand_img)
+#        self.assertTrue(ret)
         
         # Install UBL to NAND 
-        ret = self._inst.install_ubl(ubl_nand_img, ubl_nand_start_block)
+        ret = self._inst.install_ubl()
         self.assertTrue(ret)
         
-        # Generate the uboot nand image
-        uboot_img = "%s/images/bootloader" % devdir
-        uboot_nand_img = "%s/images/bootloader.nandbin" % devdir
-        uboot_nand_start_block = 25
-        uboot_entry_addr = '0x82000000'
-        uboot_load_addr = '0x82000000'
-        ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
-                                start_block=uboot_nand_start_block,
-                                entry_addr=uboot_entry_addr,
-                                load_addr=uboot_load_addr,
-                                input_img=uboot_img,
-                                output_img=uboot_nand_img)
-        self.assertTrue(ret)
+#        # Generate the uboot nand image
+#        uboot_img = "%s/images/bootloader" % devdir
+#        uboot_nand_img = "%s/images/bootloader.nandbin" % devdir
+#        uboot_nand_start_block = 25
+#        uboot_entry_addr = '0x82000000'
+#        uboot_load_addr = '0x82000000'
+#        ret = gen.gen_uboot_img(page_size=self._inst.nand_page_size,
+#                                start_block=uboot_nand_start_block,
+#                                entry_addr=uboot_entry_addr,
+#                                load_addr=uboot_load_addr,
+#                                input_img=uboot_img,
+#                                output_img=uboot_nand_img)
+#        self.assertTrue(ret)
         
         # Install uboot
-        ret = self._inst.install_uboot(uboot_nand_img,
-                                       uboot_nand_start_block)
+        ret = self._inst.install_uboot()
         self.assertTrue(ret)
     
     def install_kernel(self):
@@ -217,7 +220,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 # ==========================================================================
 
     def test_install_bootloader(self):
-        test_install_uboot = False
+        test_install_uboot = True
         if test_install_uboot:
             self.setup_network()
             self.load_uboot()

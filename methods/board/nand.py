@@ -213,11 +213,13 @@ class NandInstaller(object):
                            doc="""Enable interactive mode. The user will
                            be prompted before executing dangerous commands.""")
     
+    def _bytes_to_blks(self, size_b):
+        size_blks = (size_b / self.nand_block_size)
+        if (size_b % self.nand_block_size != 0):
+            size_blks += 1
+        return size_blks
+    
     def _check_icache(self):
-        """
-        Checks availability of the 'icache' uboot command.
-        """
-        
         self._u.cmd('icache', prompt_timeout=None)
         found_icache = self._u.expect('Instruction Cache is')[0]
         if not found_icache:
@@ -288,7 +290,7 @@ class NandInstaller(object):
                 
                 offset_addr = part.start_blk * self.nand_block_size
                 img_size = os.path.getsize(part.image)
-                img_size_blk = (img_size / self.nand_block_size) + 1
+                img_size_blk = self._bytes_to_blks(img_size)
                 img_size_aligned = img_size_blk * self.nand_block_size
                 
                 self._l.info("Erasing UBL NAND space")
@@ -298,11 +300,10 @@ class NandInstaller(object):
                 self._l.info("Writing UBL image from RAM to NAND")
                 cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
                                        hex(offset_addr), hex(img_size_aligned))
-                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
-                
-                return True
+                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)        
+        return True
     
-    def install_uboot(self, img_filename, start_blk):
+    def install_uboot(self):
         """
         Installs the uboot image to NAND.
         
@@ -312,42 +313,44 @@ class NandInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
     
-        self._l.info("Loading uboot image to RAM")
-        ret = self._load_file_to_ram(img_filename, self._ram_load_addr)
-        if ret is False: return False
-
-        offset_addr = start_blk * self.nand_block_size
-        img_size = os.path.getsize(img_filename)
-        img_size_blk = (img_size / self.nand_block_size) + 1
-        img_size_aligned = img_size_blk * self.nand_block_size
-
-        self._u.set_env('autostart', 'no')
-        self._u.save_env()
-
-        self._l.info("Erasing uboot NAND space")
-        cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        for part in self._partitions:
+            if part.name == NandInstaller.names['bootloader']:
+                self._l.info("Loading uboot image to RAM")
+                ret = self._load_file_to_ram(part.image, self._ram_load_addr)
+                if ret is False: return False
         
-        self._l.info("Writing uboot image from RAM to NAND")
-        cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
-                                       hex(offset_addr), hex(img_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
+                offset_addr = part.start_blk * self.nand_block_size
+                img_size = os.path.getsize(part.image)
+                img_size_blk = self._bytes_to_blks(img_size)
+                img_size_aligned = img_size_blk * self.nand_block_size
         
-        self._l.info("Restarting to use the uboot in NAND")
-        self._u.cmd('reset', prompt_timeout=None)
-        found_reset_str = self._u.expect('U-Boot', timeout=10)[0]
-        if not found_reset_str:
-            self._l.error("Failed to detect the uboot in NAND restarting")
-            return False
-        time.sleep(4) # Give uboot time to initialize
-        ret = self._u.sync()
-        if ret is False:
-            self._l.error("Failed synchronizing with the uboot in NAND")
-            return False
+                self._u.set_env('autostart', 'no')
+                self._u.save_env()
         
-        self._u.set_env('autostart', 'yes')
-        self._u.save_env()
-        
+                self._l.info("Erasing uboot NAND space")
+                cmd = 'nand erase %s %s' % (hex(offset_addr), hex(img_size_aligned))
+                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+                
+                self._l.info("Writing uboot image from RAM to NAND")
+                cmd = 'nand write.ubl %s %s %s' % (self._ram_load_addr,
+                                               hex(offset_addr), hex(img_size_aligned))
+                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
+                
+                self._l.info("Restarting to use the uboot in NAND")
+                self._u.cmd('reset', prompt_timeout=None)
+                found_reset_str = self._u.expect('U-Boot', timeout=10)[0]
+                if not found_reset_str:
+                    self._l.error("Failed to detect the uboot in NAND restarting")
+                    return False
+                time.sleep(4) # Give uboot time to initialize
+                ret = self._u.sync()
+                if ret is False:
+                    self._l.error("Failed synchronizing with the uboot in NAND")
+                    return False
+                
+                self._u.set_env('autostart', 'yes')
+                self._u.save_env()
+            
         return True
 
     def _md5sum(self, filename):
@@ -373,13 +376,11 @@ class NandInstaller(object):
         self._u.set_env('%ssize' % comp_nick, img_env['size'])
         self._u.set_env('%spartitionsize' % comp_nick, img_env['partitionsize'])
 
-    def _install_img(self, filename, comp, comp_nick, start_blk, size_blks,
-                     extra_blks, force):
+    def _install_img(self, filename, comp, comp_nick, start_blk, size_blks=0,
+                     extra_blks=0, force=False):
         offset_addr = start_blk * self.nand_block_size
         img_size = os.path.getsize(filename)
-        img_size_blks = (img_size / self.nand_block_size)
-        if (img_size % self.nand_block_size != 0):
-            img_size_blks += 1
+        img_size_blks = self._bytes_to_blks(img_size)
         img_size_blks += extra_blks
         img_size_aligned = img_size_blks * self.nand_block_size
         part_size = img_size_aligned 
