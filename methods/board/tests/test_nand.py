@@ -29,8 +29,8 @@ from image_gen import NandImageGenerator
 devdir = check_env.get_devdir()
 if not devdir: sys.exit(-1)
 
-test_host_ip_addr = '10.251.101.24'
-#test_host_ip_addr = '192.168.1.110'
+#test_host_ip_addr = '10.251.101.24'
+test_host_ip_addr = '192.168.1.110'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 test_mmap_file = '%s/images/nand-mmap.config' % devdir
@@ -128,6 +128,12 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         if test_read_part:
             self._inst.read_partitions('%s/images/nand-mmap.config' % devdir)
     
+    def test_mtdparts(self):
+        print "---- test_mtdparts ----"
+        test_mtd_parts = False
+        if test_mtd_parts:
+            self._inst._generate_mtdparts('davinci_nand.0')
+    
 # ==========================================================================
 # Install methods
 # ==========================================================================
@@ -195,8 +201,10 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def install_cmdline(self):
         print "---- Installing cmdline ----"
-        cmdline = "'davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=FS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:4096k(UBOOT),4736k(KERNEL),204800k(FS)'"
-        ret = self._inst.install_cmdline(cmdline)
+        # cmdline for ubifs
+        cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs"
+        gen_mtdparts = True
+        ret = self._inst.install_cmdline(cmdline, gen_mtdparts=gen_mtdparts)
         self.assertTrue(ret)
         
     def install_bootcmd(self):
@@ -241,7 +249,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_bootcmd()
             
     def test_install_all(self):
-        install_all = True
+        install_all = False
         if install_all:
             self.setup_network()
             self.load_uboot()

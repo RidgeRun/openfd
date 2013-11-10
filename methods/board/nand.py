@@ -40,6 +40,7 @@ DEFAULT_TFTP_PORT = 69
 DEFAULT_NAND_TIMEOUT = 60 # seconds
 DEFAULT_NAND_BLK_SIZE = 131072 # bytes
 DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
+DEFAULT_NAND_MTDDEVICE = 'davinci_nand.0'
 
 # ==========================================================================
 # Public Classes
@@ -468,7 +469,16 @@ class NandInstaller(object):
                                          part.start_blk, part.size_blks, force)
         return True
 
-    def install_cmdline(self, cmdline, force=False):
+    def _generate_mtdparts(self, mtd_device):
+        mtdparts = "mtdparts=%s:" % mtd_device
+        for part in self._partitions:
+            size_k = (part.size_blks * self.nand_block_size) / 1024
+            off_k = (part.start_blk * self.nand_block_size) / 1024
+            mtdparts += '%sk@%sk(%s),' % (size_k, off_k, part.name.upper())
+        return mtdparts.rstrip(',')
+
+    def install_cmdline(self, cmdline, gen_mtdparts=False,
+                        mtd_device=DEFAULT_NAND_MTDDEVICE, force=False):
         """
         Installs the kernel command line to uboot's environment. If the same
         command line has already been installed it will avoid re-installing it, 
@@ -481,12 +491,21 @@ class NandInstaller(object):
         """
         
         cmdline = cmdline.strip()
+        if gen_mtdparts:
+            self._l.info("Generating mtdparts")
+            if not mtd_device:
+                self._l.warning("Using default MTD Id: %s" %
+                                    DEFAULT_NAND_MTDDEVICE)
+                mtd_device=DEFAULT_NAND_MTDDEVICE
+            mtdparts = self._generate_mtdparts(mtd_device)
+            cmdline += ' %s' % mtdparts
+            self._u.set_env('mtdparts', mtdparts)
         self._l.info("Verifying if cmdline installation is needed")
         cmdline_on_board = self._u.get_env('bootargs')
         if cmdline == cmdline_on_board and not force:
             self._l.info("Kernel cmdline doesn't need to be installed")
             return True
-        self._u.set_env('bootargs', cmdline)
+        self._u.set_env('bootargs', "'%s'" % cmdline)
         self._u.save_env()
         return True
 
@@ -511,7 +530,7 @@ class NandInstaller(object):
         self._u.set_env('bootcmd', bootcmd)
         self._u.save_env()
         return True
-    
+        
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
@@ -535,7 +554,15 @@ class NandInstaller(object):
                     part.filesystem = config.get(section, 'filesystem')
                 if config.has_option(section, 'image'):
                     part.image = config.get(section, 'image')
-                self._partitions.append(part)
+                # insert ordered by start blk
+                inserted = False
+                for i in range(0, len(self._partitions)):
+                    if self._partitions[i].start_blk > part.start_blk:
+                        self._partitions.insert(i, part)
+                        inserted = True
+                        break
+                if not inserted:
+                    self._partitions.append(part)
         return True
 
 class NandInstallerTFTP(NandInstaller):

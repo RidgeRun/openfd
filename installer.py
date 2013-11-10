@@ -447,6 +447,18 @@ def _add_args_nand_cmdline():
                        dest='cmdline',
                        required=True)
     
+    _parser_nand_cmdline.add_argument('--gen-mtdparts',
+                       help='Generates the mtdparts command line option',
+                       dest='gen_mtdparts',
+                       action='store_true',
+                       default=False)
+    
+    _parser_nand_cmdline.add_argument('--mtd-id',
+                       help="Unique id used in mapping driver/device (number "
+                       "of flash bank), only necessary when --gen-mtdparts",
+                       metavar='<id>',
+                       dest='mtd_id')
+    
     _parser_nand_cmdline.add_argument('--force',
                        help='Force component installation',
                        dest='cmdline_force',
@@ -648,6 +660,7 @@ def main():
         if _args.component == COMP_IPL:
             ret = nand_installer.install_ipl(force=_args.ipl_force)
             if ret is False: _abort_install()
+            
         if _args.component == COMP_BOOTLOADER:
             ret = nand_installer.install_bootloader()
             if ret is False: _abort_install()
@@ -662,6 +675,8 @@ def main():
 
         if _args.component == COMP_CMDLINE:
             ret = nand_installer.install_cmdline(_args.cmdline,
+                                                 _args.gen_mtdparts,
+                                                 _args.mtd_id,
                                                  _args.cmdline_force)
             if ret is False: _abort_install()
        
