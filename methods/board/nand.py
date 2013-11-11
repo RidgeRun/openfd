@@ -255,7 +255,7 @@ class NandInstaller(object):
         if ret is False: return False
         
         ret = self._check_icache()
-        if re is False: return False
+        if ret is False: return False
         
         self._l.info("Storing the current uboot's bootcmd")
         prev_bootcmd = self._u.get_env('bootcmd')
