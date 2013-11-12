@@ -711,7 +711,7 @@ class NandInstallerTFTP(NandInstaller):
         if size_b != env_size_b and not self._dryrun:
             self._l.error("Something went wrong during the transfer, the size "
                 "of file '%s' (%s) differs from the transferred bytes (%s)"
-                % (tftp_filename, size_b, filesize))
+                % (tftp_filename, size_b, env_size_b))
             return False
         
         return True
