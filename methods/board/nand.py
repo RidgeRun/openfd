@@ -739,24 +739,30 @@ class NandInstallerTFTP(NandInstaller):
         ret = self._check_tftp_settings()
         if ret is False: return False
         
+        
         self._l.info('Configuring uboot network')
-        if self._net_mode == NandInstallerTFTP.MODE_STATIC:
-            self._u.set_env('ipaddr', self._target_ipaddr)
-        elif self._net_mode == NandInstallerTFTP.MODE_DHCP:
-            self._u.set_env('autoload', 'no')
-            self._u.set_env('autostart', 'no')
-            self._u.cmd('dhcp', prompt_timeout=None)
-            # If dhcp failed at retry 3, stop and report the error
-            dhcp_error_line = 'BOOTP broadcast 3'
-            found_error, line = self._u.expect(dhcp_error_line, timeout=6)
-            if found_error and not self.dryrun:
-                self._u.cancel_cmd()
-                msg = ("Looks like your network doesn't have dhcp enabled or "
-                       "you don't have an ethernet link. ")
-                if line:
-                    msg += "This is the log of the last line: %s" % line
-                self._l.error(msg)
-                return False
+        # Don't configure networking if we can reach the host already
+        self._u.cmd('ping %s' % self._host_ipaddr, prompt_timeout=None)
+        host_is_reachable, line = self._u.expect('is alive', timeout=2)
+        if not host_is_reachable:
+            self._u.cancel_cmd()
+            if self._net_mode == NandInstallerTFTP.MODE_STATIC:
+                self._u.set_env('ipaddr', self._target_ipaddr)
+            elif self._net_mode == NandInstallerTFTP.MODE_DHCP:
+                self._u.set_env('autoload', 'no')
+                self._u.set_env('autostart', 'no')
+                self._u.cmd('dhcp', prompt_timeout=None)
+                # If dhcp failed at retry 3, stop and report the error
+                dhcp_error_line = 'BOOTP broadcast 3'
+                found_error, line = self._u.expect(dhcp_error_line, timeout=6)
+                if found_error and not self.dryrun:
+                    self._u.cancel_cmd()
+                    msg = ("Looks like your network doesn't have dhcp enabled "
+                           "or you don't have an ethernet link. ")
+                    if line:
+                        msg += "This is the log of the last line: %s" % line
+                    self._l.error(msg)
+                    return False
 
         self._u.set_env('serverip', self._host_ipaddr)
         self._is_network_setup = True
