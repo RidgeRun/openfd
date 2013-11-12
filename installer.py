@@ -128,14 +128,16 @@ COMP_BOOTCMD = "bootcmd"
 # ==========================================================================
 
 def _init_logging():
-
     global _logger
-
     _program_name = os.path.basename(sys.argv[0])
-    
     rrutils.logger.basic_config(verbose=False)
+    level = rrutils.logger.INFO
+    if _args.verbose:
+        level = rrutils.logger.DEBUG
+    if _args.quiet:
+        level = rrutils.logger.CRITICAL
     _logger = rrutils.logger.get_global_logger(_program_name,
-                                               level=rrutils.logger.INFO)
+                                                level=level)
 
 # ==========================================================================
 # Functions
@@ -484,12 +486,6 @@ def _add_args_nand_bootcmd():
                        default=False)
 
 def _check_args():
-    global _args
-    _args = _parser.parse_args()
-    if _args.verbose:
-        _logger.setLevel(rrutils.logger.DEBUG)
-    if _args.quiet: # quiet has precedence over verbose
-        _logger.setLevel(rrutils.logger.CRITICAL)
     if _args.mode == MODE_SD:
         _check_args_sd()
     elif _args.mode == MODE_SD_IMG:
@@ -567,12 +563,13 @@ def _check_args_nand_bootcmd():
 
 def main():
     global uboot
-
-    _init_logging()
+    global _args
     _add_args()
     _add_args_nand()
     _add_args_sd()
     _add_args_sd_img()
+    _args = _parser.parse_args()
+    _init_logging()
     _check_args()
     
     mode = _args.mode
