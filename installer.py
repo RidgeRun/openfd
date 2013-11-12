@@ -231,7 +231,8 @@ def _add_args_shared(subparser):
     subparser.add_argument('--mmap-file',
                        help='Memory map config file',
                        metavar='<file>',
-                       dest='mmap_file')
+                       dest='mmap_file',
+                       required=True)
 
 def _add_args_sd_shared(subparser):
     _add_args_shared(subparser)
