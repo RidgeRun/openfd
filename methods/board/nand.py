@@ -701,6 +701,10 @@ class NandInstallerTFTP(NandInstaller):
         one_mb = 1 << 20
         transfer_timeout = ((size_b/one_mb) + 1) * 10
         
+        if size_b == 0:
+            self._l.error("Size of file %s is 0" % filename)
+            return False
+        
         # Transfer
         hex_load_addr = hexutils.to_hex(load_addr)
         self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
