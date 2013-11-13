@@ -307,6 +307,7 @@ class NandInstaller(object):
 
     def _install_img(self, filename, comp, comp_nick, start_blk, size_blks=0,
                      force=False):
+        self._l.info('Installing %s' % comp)
         offset = start_blk * self.nand_block_size
         img_size_blks = self._bytes_to_blks(os.path.getsize(filename))
         img_size_aligned = img_size_blks * self.nand_block_size
@@ -318,7 +319,7 @@ class NandInstaller(object):
             else:
                 part_size = size_blks * self.nand_block_size
         
-        self._l.info('Verifying if %s installation is needed' % comp)
+        self._l.debug('Verifying if %s installation is needed' % comp)
         img_env = {'md5sum': self._md5sum(filename),
                    'offset': hex(offset),
                    'size': hex(img_size_aligned),
@@ -327,25 +328,27 @@ class NandInstaller(object):
             self._l.info("%s doesn't need to be installed" % comp.capitalize())
             return True
         
-        self._l.info("Loading %s image to RAM" % comp)
+        self._l.debug("Loading %s image to RAM" % comp)
         self._u.set_env('autostart', 'no')
         ret = self._load_file_to_ram(filename, self._ram_load_addr)
         if ret is False: return False
         self._u.set_env('autostart', 'yes')
         
-        self._l.info("Erasing %s NAND space" % comp)
+        self._l.debug("Erasing %s NAND space" % comp)
         cmd = "%s %s %s" % \
                 (NandInstaller.erase_cmd[comp], hex(offset), hex(part_size))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        self._l.info("Writing %s image from RAM to NAND" % comp)
+        self._l.debug("Writing %s image from RAM to NAND" % comp)
         cmd = "%s %s %s %s" % (NandInstaller.write_cmd[comp],
                        self._ram_load_addr, hex(offset), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
-        self._l.info("Saving %s partition info" % comp)
+        self._l.debug("Saving %s partition info" % comp)
         self._save_img_env(comp_nick, img_env)
         self._u.save_env()
+        
+        self._l.info('%s installation complete' % comp.capitalize())
         return True
     
     def install_ipl(self, force=False):
@@ -382,7 +385,10 @@ class NandInstaller(object):
     
         for part in self._partitions:
             if part.name == NandInstaller.names['bootloader']:
-                self._l.info("Loading uboot image to RAM")
+                
+                self._l.info('Installing bootloader')
+                
+                self._l.debug("Loading uboot image to RAM")
                 ret = self._load_file_to_ram(part.image, self._ram_load_addr)
                 if ret is False: return False
         
@@ -394,17 +400,17 @@ class NandInstaller(object):
                 self._u.set_env('autostart', 'no')
                 self._u.save_env()
         
-                self._l.info("Erasing uboot NAND space")
+                self._l.debug("Erasing uboot NAND space")
                 cmd = "%s %s %s" % (NandInstaller.erase_cmd['bootloader'],
                                         hex(offset), hex(img_size_aligned))
                 self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 
-                self._l.info("Writing uboot image from RAM to NAND")
+                self._l.debug("Writing uboot image from RAM to NAND")
                 cmd = "%s %s %s %s" % (NandInstaller.write_cmd['bootloader'],
                         self._ram_load_addr, hex(offset), hex(img_size_aligned))
                 self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
                 
-                self._l.info("Restarting to use the uboot in NAND")
+                self._l.debug("Restarting to use the uboot in NAND")
                 self._u.cmd('reset', prompt_timeout=None)
                 found_reset_str = self._u.expect('U-Boot', timeout=10)[0]
                 if not found_reset_str:
@@ -418,7 +424,8 @@ class NandInstaller(object):
                 
                 self._u.set_env('autostart', 'yes')
                 self._u.save_env()
-            
+                
+                self._l.info('Bootloader installation complete')
         return True
 
     def install_kernel(self, force=False):
@@ -490,23 +497,25 @@ class NandInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
+        self._l.info("Installing kernel cmdline")
         cmdline = cmdline.strip()
         if gen_mtdparts:
-            self._l.info("Generating mtdparts")
+            self._l.debug("Generating mtdparts")
             if not mtd_device:
-                self._l.warning("Using default MTD Id: %s" %
+                self._l.warning("Using default MTD Device: %s" %
                                     DEFAULT_NAND_MTDDEVICE)
                 mtd_device=DEFAULT_NAND_MTDDEVICE
             mtdparts = self._generate_mtdparts(mtd_device)
             cmdline += ' %s' % mtdparts
             self._u.set_env('mtdparts', mtdparts)
-        self._l.info("Verifying if cmdline installation is needed")
+        self._l.debug("Verifying if cmdline installation is needed")
         cmdline_on_board = self._u.get_env('bootargs')
         if cmdline == cmdline_on_board and not force:
             self._l.info("Kernel cmdline doesn't need to be installed")
             return True
         self._u.set_env('bootargs', "'%s'" % cmdline)
         self._u.save_env()
+        self._l.info("Kernel cmdline installation complete")
         return True
 
     def install_bootcmd(self, bootcmd, force=False):
@@ -521,14 +530,16 @@ class NandInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
+        self._l.info("Installing bootcmd")
         bootcmd = bootcmd.strip()
-        self._l.info("Verifying if bootcmd installation is needed")
+        self._l.debug("Verifying if bootcmd installation is needed")
         bootcmd_on_board = self._u.get_env('bootcmd')        
         if bootcmd == bootcmd_on_board and not force:
             self._l.info("Uboot's bootcmd doesn't need to be installed")
             return True
         self._u.set_env('bootcmd', bootcmd)
         self._u.save_env()
+        self._l.info("Bootcmd installation complete")
         return True
         
     def read_partitions(self, filename):
@@ -739,11 +750,10 @@ class NandInstallerTFTP(NandInstaller):
         ret = self._check_tftp_settings()
         if ret is False: return False
         
-        
         self._l.info('Configuring uboot network')
         # Don't configure networking if we can reach the host already
         self._u.cmd('ping %s' % self._host_ipaddr, prompt_timeout=None)
-        host_is_reachable, line = self._u.expect('is alive', timeout=2)
+        host_is_reachable = self._u.expect('is alive', timeout=2)[0]
         if not host_is_reachable:
             self._u.cancel_cmd()
             if self._net_mode == NandInstallerTFTP.MODE_STATIC:
