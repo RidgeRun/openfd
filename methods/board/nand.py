@@ -746,12 +746,11 @@ class NandInstallerTFTP(NandInstaller):
             self._l.error('No IP address specified for the target.')
             return False
         
-        self._l.info('Checking TFTP settings')
+        self._l.info('Configuring uboot network')
         ret = self._check_tftp_settings()
         if ret is False: return False
         
-        self._l.info('Configuring uboot network')
-        # Don't configure networking if we can reach the host already
+        # Don't configure the network if we can reach the host already
         self._u.cmd('ping %s' % self._host_ipaddr, prompt_timeout=None)
         host_is_reachable = self._u.expect('is alive', timeout=2)[0]
         if not host_is_reachable:
@@ -773,8 +772,9 @@ class NandInstallerTFTP(NandInstaller):
                         msg += "This is the log of the last line: %s" % line
                     self._l.error(msg)
                     return False
-
-        self._u.set_env('serverip', self._host_ipaddr)
-        self._is_network_setup = True
+                
+        if self._u.get_env('serverip') != self._host_ipaddr:
+            self._u.set_env('serverip', self._host_ipaddr)
         
+        self._is_network_setup = True
         return True

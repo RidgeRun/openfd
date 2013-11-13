@@ -684,7 +684,7 @@ def main():
             if ret is False: _abort_install()
        
         try:
-            _logger.info("Finishing installation")
+            _logger.debug("Finishing installation")
             if _args.component in comp_requires_network:
                 if uboot.get_env('autostart') == 'no':
                     uboot.set_env('autostart', 'yes')
