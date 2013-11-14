@@ -632,64 +632,66 @@ def main():
         except serial.SerialException:
             _abort_install()
         
-        ret = uboot.sync()
-        if ret is False: _abort_install()
-        
-        nand_installer = NandInstallerTFTP(uboot=uboot)
-        if _args.nand_blk_size:
-            nand_installer.nand_block_size = _args.nand_blk_size
-        if _args.nand_page_size:
-            nand_installer.nand_page_size = _args.nand_page_size
-        nand_installer.net_mode = _args.board_net_mode
-        if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
-            nand_installer.target_ipaddr = _args.board_ip_addr
-        nand_installer.host_ipaddr = _args.host_ip_addr
-        nand_installer.tftp_dir = _args.tftp_dir
-        nand_installer.tftp_port = _args.tftp_port
-        nand_installer.ram_load_addr = _args.ram_load_addr
-        nand_installer.dryrun = _args.dryrun
-        nand_installer.read_partitions(_args.mmap_file)
-        
-        comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
-        if _args.component in comp_requires_network:
-            ret = nand_installer.setup_uboot_network()
-            if ret is False: _abort_install()
-        
-        if _args.component == COMP_IPL:
-            ret = nand_installer.install_ipl(force=_args.ipl_force)
-            if ret is False: _abort_install()
-            
-        if _args.component == COMP_BOOTLOADER:
-            ret = nand_installer.install_bootloader()
-            if ret is False: _abort_install()
-            
-        if _args.component == COMP_KERNEL:
-            ret = nand_installer.install_kernel(force=_args.kernel_force)
-            if ret is False: _abort_install()
-
-        if _args.component == COMP_FS:
-            ret = nand_installer.install_fs(force=_args.fs_force)
-            if ret is False: _abort_install()
-
-        if _args.component == COMP_CMDLINE:
-            ret = nand_installer.install_cmdline(_args.cmdline,
-                                                 _args.gen_mtdparts,
-                                                 _args.mtd_id,
-                                                 _args.cmdline_force)
-            if ret is False: _abort_install()
-       
-        if _args.component == COMP_BOOTCMD:
-            ret = nand_installer.install_bootcmd(_args.bootcmd,
-                                                 _args.bootcmd_force)
-            if ret is False: _abort_install()
-       
         try:
+            ret = uboot.sync()
+            if ret is False: _abort_install()
+            
+            nand_installer = NandInstallerTFTP(uboot=uboot)
+            if _args.nand_blk_size:
+                nand_installer.nand_block_size = _args.nand_blk_size
+            if _args.nand_page_size:
+                nand_installer.nand_page_size = _args.nand_page_size
+            nand_installer.net_mode = _args.board_net_mode
+            if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
+                nand_installer.target_ipaddr = _args.board_ip_addr
+            nand_installer.host_ipaddr = _args.host_ip_addr
+            nand_installer.tftp_dir = _args.tftp_dir
+            nand_installer.tftp_port = _args.tftp_port
+            nand_installer.ram_load_addr = _args.ram_load_addr
+            nand_installer.dryrun = _args.dryrun
+            nand_installer.read_partitions(_args.mmap_file)
+            
+            comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
+            if _args.component in comp_requires_network:
+                ret = nand_installer.setup_uboot_network()
+                if ret is False: _abort_install()
+            
+            if _args.component == COMP_IPL:
+                ret = nand_installer.install_ipl(force=_args.ipl_force)
+                if ret is False: _abort_install()
+                
+            if _args.component == COMP_BOOTLOADER:
+                ret = nand_installer.install_bootloader()
+                if ret is False: _abort_install()
+                
+            if _args.component == COMP_KERNEL:
+                ret = nand_installer.install_kernel(force=_args.kernel_force)
+                if ret is False: _abort_install()
+    
+            if _args.component == COMP_FS:
+                ret = nand_installer.install_fs(force=_args.fs_force)
+                if ret is False: _abort_install()
+    
+            if _args.component == COMP_CMDLINE:
+                ret = nand_installer.install_cmdline(_args.cmdline,
+                                                     _args.gen_mtdparts,
+                                                     _args.mtd_id,
+                                                     _args.cmdline_force)
+                if ret is False: _abort_install()
+           
+            if _args.component == COMP_BOOTCMD:
+                ret = nand_installer.install_bootcmd(_args.bootcmd,
+                                                     _args.bootcmd_force)
+                if ret is False: _abort_install()
+       
+        
             _logger.debug("Finishing installation")
             if _args.component in comp_requires_network:
                 if uboot.get_env('autostart') == 'no':
                     uboot.set_env('autostart', 'yes')
                     uboot.save_env()
             uboot.cmd('echo Installation complete')
+            
         except rrutils.uboot.UbootTimeoutException as e:
             _logger.error(e)
             _abort_install()
