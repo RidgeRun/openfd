@@ -360,6 +360,12 @@ def _add_args_nand():
                        dest='ram_load_addr',
                        required=True)
     
+    _parser_nand.add_argument('--uboot-file',
+                       help='Path to a U-Boot file that can be loaded to RAM '
+                       'and drive the installation',
+                       metavar='<file>',
+                       dest='nand_uboot_file')
+    
     net_modes = [NandInstallerTFTP.MODE_STATIC, NandInstallerTFTP.MODE_DHCP]
     
     _parser_nand.add_argument('--board-net-mode',
@@ -518,6 +524,8 @@ def _check_args_nand():
     if _args.nand_page_size:
         _check_is_int(_args.nand_page_size, '--nand-page-size')
         _args.nand_page_size = int(_args.nand_page_size)
+    if _args.nand_uboot_file:
+        _check_is_file(_args.nand_uboot_file, '--uboot-file')
     _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
     _check_is_dir(_args.tftp_dir, '--tftp-dir')
     _check_is_int(_args.tftp_port, '--tftp-port')
@@ -651,9 +659,16 @@ def main():
             nand_installer.dryrun = _args.dryrun
             nand_installer.read_partitions(_args.mmap_file)
             
-            comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
+            comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
+                                     COMP_FS]
+            
             if _args.component in comp_requires_network:
                 ret = nand_installer.setup_uboot_network()
+                if ret is False: _abort_install()
+            
+            if _args.nand_uboot_file:
+                ret = nand_installer.load_uboot_to_ram(_args.nand_uboot_file,
+                                                       _args.ram_load_addr)
                 if ret is False: _abort_install()
             
             if _args.component == COMP_IPL:

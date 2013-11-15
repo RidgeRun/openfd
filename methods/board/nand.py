@@ -251,24 +251,22 @@ class NandInstaller(object):
         :param load_addr: Load address in RAM where to load the uboot image.
         """
         
-        ret = self._u.sync()
-        if ret is False: return False
+        self._l.info('Loading uboot to RAM')
         
         ret = self._check_icache()
         if ret is False: return False
         
-        self._l.info("Storing the current uboot's bootcmd")
+        self._l.debug("Storing the current uboot's bootcmd")
         prev_bootcmd = self._u.get_env('bootcmd')
         self._u.set_env('bootcmd', '')
         self._u.save_env()
         
-        self._l.info('Loading new uboot to RAM')
         ret = self._load_file_to_ram(img_filename, load_addr)
         if ret is False: return False
         
-        self._l.info('Running the new uboot')
+        self._l.debug('Running the new uboot')
         self._u.cmd('icache off')
-        self._u.cmd('go %s' % load_addr)
+        self._u.cmd('go %s' % load_addr, echo_timeout=None, prompt_timeout=None)
         time.sleep(2) # Give time to uboot to restart
         ret = self._u.sync()
         if ret is False:
@@ -276,10 +274,10 @@ class NandInstaller(object):
             return False
         
         if prev_bootcmd:
-            self._l.info('Restoring the previous uboot bootcmd')
+            self._l.debug('Restoring the previous uboot bootcmd')
             self._u.set_env('bootcmd', prev_bootcmd)
-        
-        self._u.save_env()
+            self._u.save_env()
+            
         return True
     
     def _md5sum(self, filename):
@@ -382,7 +380,7 @@ class NandInstaller(object):
         
         :returns: Returns true on success; false otherwise.
         """
-    
+        
         for part in self._partitions:
             if part.name == NandInstaller.names['bootloader']:
                 
