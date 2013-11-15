@@ -391,8 +391,7 @@ class NandInstaller(object):
                 if ret is False: return False
         
                 offset = part.start_blk * self.nand_block_size
-                img_size = os.path.getsize(part.image)
-                img_size_blk = self._bytes_to_blks(img_size)
+                img_size_blk = self._bytes_to_blks(os.path.getsize(part.image))
                 img_size_aligned = img_size_blk * self.nand_block_size
         
                 self._u.set_env('autostart', 'no')
@@ -502,15 +501,16 @@ class NandInstaller(object):
             if not mtd_device:
                 self._l.warning("Using default MTD Device: %s" %
                                     DEFAULT_NAND_MTDDEVICE)
-                mtd_device=DEFAULT_NAND_MTDDEVICE
+                mtd_device = DEFAULT_NAND_MTDDEVICE
             mtdparts = self._generate_mtdparts(mtd_device)
             cmdline += ' %s' % mtdparts
             self._u.set_env('mtdparts', mtdparts)
         self._l.debug("Verifying if cmdline installation is needed")
-        cmdline_on_board = self._u.get_env('bootargs')
-        if cmdline == cmdline_on_board and not force:
-            self._l.info("Kernel cmdline doesn't need to be installed")
-            return True
+        if not force:
+            cmdline_on_board = self._u.get_env('bootargs')        
+            if cmdline == cmdline_on_board and not force:
+                self._l.info("Kernel cmdline doesn't need to be installed")
+                return True
         self._u.set_env('bootargs', "'%s'" % cmdline)
         self._u.save_env()
         self._l.info("Kernel cmdline installation complete")
@@ -530,11 +530,12 @@ class NandInstaller(object):
         
         self._l.info("Installing bootcmd")
         bootcmd = bootcmd.strip()
-        self._l.debug("Verifying if bootcmd installation is needed")
-        bootcmd_on_board = self._u.get_env('bootcmd')        
-        if bootcmd == bootcmd_on_board and not force:
-            self._l.info("Uboot's bootcmd doesn't need to be installed")
-            return True
+        if not force:
+            self._l.debug("Verifying if bootcmd installation is needed")
+            bootcmd_on_board = self._u.get_env('bootcmd')
+            if bootcmd == bootcmd_on_board and not force:
+                self._l.info("Uboot's bootcmd doesn't need to be installed")
+                return True
         self._u.set_env('bootcmd', bootcmd)
         self._u.save_env()
         self._l.info("Bootcmd installation complete")

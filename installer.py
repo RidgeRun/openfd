@@ -705,7 +705,7 @@ def main():
                 if uboot.get_env('autostart') == 'no':
                     uboot.set_env('autostart', 'yes')
                     uboot.save_env()
-            uboot.cmd('echo Installation complete')
+            uboot.cmd('echo Installation complete', prompt_timeout=None)
             
         except rrutils.uboot.UbootTimeoutException as e:
             _logger.error(e)
