@@ -144,7 +144,7 @@ def _init_logging():
 # ==========================================================================
 
 def _clean_exit(code=0):
-    if uboot: uboot.close_comm()
+    if _uboot: _uboot.close_comm()
     if code != 0: _logger.debug('Exiting with code %d' % code)
     exit(code)
 
@@ -223,8 +223,8 @@ def _add_args():
                        default=False)
     
     _parser.add_argument('--dryrun',
-                       help='Sets the dryrun mode On (shell commands will be '
-                            'logged, but not executed)',
+                       help='Sets the dryrun mode On (system and uboot '
+                            'commands will be logged, but not executed)',
                        dest='dryrun',
                        action='store_true',
                        default=False)
