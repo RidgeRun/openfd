@@ -82,6 +82,7 @@ import methods
 import argparse
 import socket
 import serial
+import signal
 
 from methods.board.nand import NandInstallerTFTP
 
@@ -151,6 +152,9 @@ def _clean_exit(code=0):
 def _abort_install():
     _logger.error('Installation aborted')
     _clean_exit(-1)
+
+def _sigint_handler(signal, frame):
+    _abort_install()
 
 def _check_is_dir(dirname, arg):
     if not os.path.isdir(dirname):
@@ -572,6 +576,8 @@ def _check_args_nand_bootcmd():
 def main():
     global uboot
     global _args
+    signal.signal(signal.SIGINT, _sigint_handler)
+    signal.signal(signal.SIGTERM, _sigint_handler)
     _add_args()
     _add_args_nand()
     _add_args_sd()
