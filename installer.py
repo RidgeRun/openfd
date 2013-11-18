@@ -509,9 +509,12 @@ def _check_args_sd():
     _check_x_ok(_args.uflash_bin, '--uflash-bin')
     _check_is_file(_args.ubl_file, '--ubl-file')
     _check_is_file(_args.uboot_file, '--uboot-file')
+    _check_is_file(_args.kernel_file, '--kernel-file')
     _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
     _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
     _check_is_dir(_args.workdir, '--work-dir')
+    if _args.rootfs:
+        _check_is_dir(_args.rootfs, '--rootfs')
     _args.workdir = _args.workdir.rstrip('/') 
     if _args.rootfs:
         _check_is_dir(_args.rootfs, '--rootfs')
