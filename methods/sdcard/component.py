@@ -310,4 +310,9 @@ class ComponentInstaller(object):
             if self._e.check_call(cmd) != 0:
                 self._l.error('Failed installing rootfs into %s' % mount_point)
                 return False
+            
+            if self._e.check_call('sync') != 0:
+                self._l.error('Unable  to sync')
+                return False
+            
         return True

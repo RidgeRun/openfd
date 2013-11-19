@@ -206,31 +206,12 @@ class SDCardInstaller(object):
         size_cyl = self._d.size_b / geometry.CYLINDER_BYTE_SIZE
         return int(math.floor(size_cyl))
     
-    def _get_partition_suffix(self, partition_index):
-        """
-        This function returns a string with the standard partition numeric
-        suffix, depending on the type of device.
-        
-        For example, the first partition (index = 1) in device
-        /dev/sdb is going to have the suffix "1", so that one can compose
-        the complete partition's filename: /dev/sdb1. While a device like
-        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
-        filename for the first partition is "/dev/mmcblk0p1".  
-        """
-        
-        suffix = ''
-        if 'mmcblk' in self._d.name or 'loop' in self._d.name:
-            suffix = 'p' + str(partition_index)
-        else:
-            suffix = str(partition_index)
-        return suffix
-    
     def _get_partition_filename(self, partition_index):
         """
         Gets the complete filename for the partition (i.e. /dev/sdb1)
         """
         
-        p = self._d.name + self._get_partition_suffix(partition_index)    
+        p = self._d.name + self._d.partition_suffix(partition_index)    
         if self._mode == self.MODE_LOOPBACK:
             p = self._loopdevice_partitions[p]
         return p
@@ -378,6 +359,11 @@ class SDCardInstaller(object):
                                 (part.name, device_part))
                 return False
         
+            ret = self._e.check_call('sync')
+            if ret != 0:
+                self._l.error('Unable  to sync')
+                return False
+            
             partition_index += 1
         return True
 
@@ -493,7 +479,7 @@ class SDCardInstaller(object):
         partition_index = 1
         for part in self._partitions: 
             device_part = (self._d.name +
-                            self._get_partition_suffix(partition_index))
+                            self._d.partition_suffix(partition_index))
             
             cmd = 'sudo losetup -f'
             ret, free_device = self._e.check_output(cmd)
