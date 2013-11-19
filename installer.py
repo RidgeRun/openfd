@@ -104,6 +104,7 @@ _parser_nand_bootcmd = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
+_executer  = None
 _uboot = None
 
 # ==========================================================================
@@ -139,6 +140,11 @@ def _init_logging():
         level = rrutils.logger.CRITICAL
     _logger = rrutils.logger.get_global_logger(_program_name,
                                                 level=level)
+
+def _init_executer():
+    global _executer
+    _executer = rrutils.executer.get_global_executer(logger=_logger,
+                 dryrun=_args.dryrun, enable_colors=True, verbose=_args.verbose)
 
 # ==========================================================================
 # Functions
@@ -587,6 +593,7 @@ def main():
     _add_args_sd_img()
     _args = _parser.parse_args()
     _init_logging()
+    _init_executer()
     _check_args()
     
     mode = _args.mode

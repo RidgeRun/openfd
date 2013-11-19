@@ -73,8 +73,7 @@ class SDCardInstaller(object):
         """
         
         self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.Executer()
-        self._e.logger = self._l
+        self._e = rrutils.executer.get_global_executer()
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
         self._device = device

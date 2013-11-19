@@ -88,8 +88,7 @@ class NandInstaller(object):
         """
         
         self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.Executer()
-        self._e.logger = self._l
+        self._e = rrutils.executer.get_global_executer()
         self._u = uboot
         self._nand_block_size = nand_block_size
         self._nand_page_size = nand_page_size
@@ -313,7 +312,7 @@ class NandInstaller(object):
         if size_blks:
             if img_size_blks > size_blks:
                 self._l.warning("Using %s NAND blocks instead of %s for the "
-                            "%s partition" % (size_blks, size_blks, comp))
+                            "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self.nand_block_size
         

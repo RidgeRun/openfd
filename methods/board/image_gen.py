@@ -47,8 +47,7 @@ class NandImageGenerator(object):
         """
         self._bc_bin = bc_bin
         self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.Executer()
-        self._e.logger = self._l
+        self._e = rrutils.executer.get_global_executer()
         self._verbose = verbose
         self._dryrun = dryrun
         self._e.dryrun = dryrun

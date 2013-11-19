@@ -56,8 +56,7 @@ class ComponentInstaller(object):
         """
         
         self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.Executer()
-        self._e.logger = self._l
+        self._e = rrutils.executer.get_global_executer()
         self._workdir = workdir
         self._uflash_bin = uflash_bin
         self._ubl_file = ubl_file
