@@ -126,7 +126,7 @@ COMP_CMDLINE = "cmdline"
 COMP_BOOTCMD = "bootcmd"
 
 # ==========================================================================
-# Logging
+# Functions
 # ==========================================================================
 
 def _init_logging():
@@ -145,10 +145,6 @@ def _init_executer():
     global _executer
     _executer = rrutils.executer.get_global_executer(logger=_logger,
                  dryrun=_args.dryrun, enable_colors=True, verbose=_args.verbose)
-
-# ==========================================================================
-# Functions
-# ==========================================================================
 
 def _clean_exit(code=0):
     if _uboot: _uboot.close_comm()
