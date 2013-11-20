@@ -10,9 +10,8 @@ The installer's objective is to aid in the deployment of firmware
 to a target board in a variety of ways.
 
 Most of the steps required to prepare a bootable SD card, flash some NAND memory
-with U-Boot, and many other scenarios in which the engineer has to spend a lot
-of time executing manual steps to get the code in the board, can be simplified
-and automated using this installer.
+with U-Boot, and many other scenarios, can be simplified and automated using
+this installer.
 
 Installation modes
 ------------------
@@ -67,7 +66,7 @@ Examples
 
 The following examples are a very fast overview of how a successful run
 of the installer looks like. For more detailed information on how to use
-this installer, please refer to <here>.
+this installer, please refer to the `User Guide`_.
 
 **1. Flashing NAND - Leopard Board DM36x**
 
@@ -135,7 +134,6 @@ Command:
         --rootfs ~/images/fs/fs \
         --uboot-bootargs "...  mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3"
 
-
 Output:
 ::
     The following partitions from device /dev/sdb will be unmounted:
@@ -154,12 +152,18 @@ Output:
     Checking filesystems on /dev/sdb
     Installation complete
 
+User Guide
+==========
+
+.. toctree::
+   attached-board
+
 Code Documentation
 ==================
 
 .. toctree::
    :maxdepth: 2
-
+   
    modules
 
 Code Navigation
