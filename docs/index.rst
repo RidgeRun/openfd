@@ -27,13 +27,16 @@ The installer will deploy all the firmware to an SD card that can be used to
 boot your board. Optionally, you can also create an image file that you can
 use later to write to any SD card.
 
-Features
---------
+For a detailed explanation of each installation mode, please refer to the
+`User Guide`_.
 
-Main features are:
+Features Overview
+-----------------
+
+Main features:
 
 * Based on the concepts of a Memory Map and a Partition, the installer's main
-  input is a file "--mmap-file" which contains a list of partitions that
+  input is a file :option:`--mmap-file` which contains a list of partitions that
   specify a memory map for the device to install (SD card, NAND, etc.).
 * Dryrun support. The installer is able to run without executing any System
   or U-boot commands, this allows you to see what the installer would do
@@ -43,7 +46,7 @@ Main features are:
   can also run in non-interactive mode.
 * Robust communication with U-Boot (error handling, timeouts, etc.).
 * All parameters are received through command line arguments.
-* Supports logging.
+* Logging support.
 
 From a development point of view:
 
