@@ -60,7 +60,99 @@ Supported platforms
 
 The installer supports:
 
-* DM36x - LeopardBoard
+* DM36x - Leopard Board
+
+Examples
+--------
+
+The following examples are a very fast overview of how a successful run
+of the installer looks like. For more detailed information on how to use
+this installer, please refer to <here>.
+
+**1. Flashing NAND - Leopard Board DM36x**
+
+This example writes the *kernel* component to NAND. 
+
+Command:
+::
+    $ python installer.py \
+        nand \
+        --mmap-file ~/images/nand-mmap.config \
+        --serial-port "/dev/ttyUSB0" \
+        --serial-baud "115200" \
+        --ram-load-addr 0x82000000 \
+        --host-ip-addr 10.251.101.24 \
+        --tftp-dir "/srv/tftp" \
+        --tftp-port 69 \
+        --nand-blk-size 131072 \
+        --nand-page-size 2048 \
+        kernel 
+
+Output:
+::
+      Uboot <= 'echo sync'
+    Configuring uboot network
+      Uboot <= 'ping 10.251.101.24'
+      Uboot <= 'printenv serverip'
+    Installing kernel
+      Uboot <= 'printenv kmd5sum'
+      Uboot <= 'printenv koffset'
+      Uboot <= 'printenv ksize'
+      Uboot <= 'printenv kpartitionsize'
+      Uboot <= 'setenv autostart no'
+      Uboot <= 'tftp 0x82000000 kernel.uImage'
+      Uboot <= 'printenv filesize'
+      Uboot <= 'setenv autostart yes'
+      Uboot <= 'nand erase 0x400000 0x480000'
+      Uboot <= 'nand write 0x82000000 0x400000 0x420000'
+      Uboot <= 'setenv kmd5sum c0ef71c4d0d84e2f48ddce2bf2b85826'
+      Uboot <= 'setenv koffset 0x400000'
+      Uboot <= 'setenv ksize 0x420000'
+      Uboot <= 'setenv kpartitionsize 0x480000'
+      Uboot <= 'saveenv'
+    Kernel installation complete
+      Uboot <= 'printenv autostart'
+      Uboot <= 'echo Installation complete'
+    Installation complete
+
+**2. Creating a bootable SD - Leopard Board DM36x**
+
+The following example installs a bootable SD card for the Leopard Board DM36x.
+
+Command:
+::
+    $ python installer.py \
+        sd \ 
+        --mmap-file ~/images/sd-mmap.config \
+        --device "/dev/sdb" \
+        --kernel-file ~/images/kernel.uImage \
+        --uflash-bin ~/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash \
+        --ubl-file ~/images/ubl_DM36x_sdmmc.bin \
+        --uboot-file ~/images/bootloader \
+        --uboot-entry-addr 0x82000000 \
+        --uboot-load-addr 0x82000000 \
+        --work-dir ~/images \
+        --rootfs ~/images/fs/fs \
+        --uboot-bootargs "...  mem=83M root=/dev/mmcblk0p2 rootdelay=2 rootfstype=ext3"
+
+
+Output:
+::
+    The following partitions from device /dev/sdb will be unmounted:
+    /media/rootfs
+    /media/boot
+    
+    Do you want to continue [Y/n]: y
+    Creating partitions on /dev/sdb
+    You are about to repartition your device /dev/sdb (all your data will be lost)
+    Do you want to continue [Y/n]: y
+    Formatting partitions on /dev/sdb
+    Installing uboot
+    Installing uboot environment
+    Installing kernel
+    Installing rootfs
+    Checking filesystems on /dev/sdb
+    Installation complete
 
 Code Documentation
 ==================
