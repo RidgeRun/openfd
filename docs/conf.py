@@ -26,7 +26,7 @@ except KeyError:
     print 'Unable to obtain $DEVDIR from the environment.'
     exit(-1)
 
-sys.path.insert(0, devdir + '/installer/new/installer')
+sys.path.insert(0, devdir + '/installer/u-boot-installer/src')
 sys.path.insert(0, devdir + '/bsp/local/lib/python2.7/site-packages')
 
 # -- General configuration -----------------------------------------------------

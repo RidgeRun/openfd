@@ -13,8 +13,8 @@ fi
 echo "Documentation generator"
 echo "Copyright (C) 2013 RidgeRun (http://www.ridgerun.com)" 
 
-DOCS_DIR=$DEVDIR/installer/new/installer/docs
-SRC_DIR=$DEVDIR/installer/new/installer/
+DOCS_DIR=$DEVDIR/installer/u-boot-installer/src/docs
+SRC_DIR=$DEVDIR/installer/u-boot-installer/src
 
 # Generate .rst files
 sphinx-apidoc -o $DOCS_DIR $SRC_DIR
