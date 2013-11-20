@@ -156,7 +156,8 @@ def _abort_install():
     _clean_exit(-1)
 
 def _sigint_handler(signal, frame):
-    _abort_install()
+    _logger.error('\nInstallation interrupted')
+    _clean_exit(0)
 
 def _check_is_dir(dirname, arg):
     if not os.path.isdir(dirname):

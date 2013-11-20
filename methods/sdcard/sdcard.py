@@ -359,12 +359,14 @@ class SDCardInstaller(object):
                                 (part.name, device_part))
                 return False
         
+            partition_index += 1
+            
+        if self._partitions:
             ret = self._e.check_call('sync')
             if ret != 0:
                 self._l.error('Unable  to sync')
                 return False
-            
-            partition_index += 1
+        
         return True
 
     def format_sd(self):
