@@ -28,7 +28,7 @@ Uboot's prompt.
     Baudrate set to: 115200
     Port Settings are: 8NC0S0
     ...
-    U-Boot 2010.12-rc2 (Sep 26 2013 - 09:25:06)
+    U-Boot 2010.12-rc2 (Nov 19 2013 - 09:25:06)
     
     Cores: ARM 432 MHz
     DDR:   340 MHz
@@ -62,7 +62,7 @@ The installation to NAND supports installing these components:
 Additionally, you can use this installer to write some useful variables to
 U-Boot's environment.
 
-* Cmdline - writes the `bootargs` env variable, a.k.a as the kernel's cmdline.
+* Cmdline - writes the `bootargs` env variable, a.k.a the kernel's cmdline.
 * Bootcmd - writes the `bootcmd` env variable, useful to setup autoboot.
 
 Before anything, we have to setup the NAND memory map.
@@ -134,8 +134,8 @@ installing UBL ("User Boot Loader"), in the [bootloader] section you **should**
 install U-Boot, and typically you would install Linux in [kernel] and some
 filesystem in [fs].
 
-Save your memory map to a file "nand-mmap.config", and we will supply it to the
-installer as a CLI argument.
+Save your memory map to a file "nand-mmap.config", and we will supply the 
+filename to the installer as a CLI argument.
 
 .. hint:: There is a NAND partition for the "U-Boot environment". In the DM36x
   it typically starts at block 30 (see U-Boot's config variable
@@ -148,8 +148,8 @@ Calling the installer
 ~~~~~~~~~~~~~~~~~~~~~
 
 At any time, you can query the supported/required arguments for the installer
-using `-h` or `--help`. The installer has positional arguments, so you can use
-the help at different levels for a more detailed help.
+using `-h` or :option:`--help`. The installer has positional arguments, so you
+can use the help at different levels.
 ::
     installer.py -h
     installer.py nand -h

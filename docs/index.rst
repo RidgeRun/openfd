@@ -7,11 +7,13 @@ Installer documentation
 =======================
 
 The installer's objective is to aid in the deployment of firmware
-to a target board in a variety of ways.
+to a target board in a variety of ways. It is designed for boards that
+run `U-Boot <http://www.denx.de/wiki/U-Boot>`_ as their bootloader,  Embedded
+Linux as their kernel component, and requires a GNU/Linux host PC.
 
-Most of the steps required to prepare a bootable SD card, flash some NAND memory
-with U-Boot, and many other scenarios, can be simplified and automated using
-this installer.
+Most of the steps required to prepare a bootable SD card, flash programming,
+and many other deployment scenarios, can be simplified and automated using this
+installer.
 
 Installation modes
 ------------------
