@@ -236,6 +236,8 @@ class ComponentInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
+        self._l.info('Installing uboot environment')
+        
         if not os.path.isdir(mount_point) and not self._dryrun:
             self._l.error('Mount point %s does not exist' % mount_point)
             return False
@@ -254,17 +256,17 @@ class ComponentInstaller(object):
         
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         
-        # Uboot env file preparation
-        
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
         if not self._dryrun:
             with open(uenv_file, "w") as uenv:
-                uenv.write('bootargs=%s\n' % self._bootargs)
-                uenv.write('uenvcmd=echo Running uenvcmd ...; '
-                           'run loaduimage; '
-                           'bootm %s\n' % uboot_load_addr)
+                bootargs = 'bootargs=%s' % self._bootargs.strip()
+                uenvcmd = ('uenvcmd=echo Running uenvcmd ...; run loaduimage; '
+                           'bootm %s' % uboot_load_addr)
+                self._l.debug("  uEnv.txt <= '%s'" % bootargs)
+                uenv.write("%s\n" % bootargs)
+                self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)
+                uenv.write("%s\n" % uenvcmd)
         
-        self._l.info('Installing uboot environment')
         cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
         if self._e.check_call(cmd) != 0:
             self._l.error('Failed to install uboot env file.')

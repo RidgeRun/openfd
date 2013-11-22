@@ -706,21 +706,31 @@ class SDCardInstaller(object):
         fs_ok = True
         
         for partition_index in range(1,len(self._partitions)+1):
-            fs_state = ''
+            fs_state = []
             device_part = self._get_partition_filename(partition_index)
-            cmd = "sudo fsck -y " + device_part
+            cmd = 'sync'
+            if self._e.check_call(cmd) != 0:
+                self._l.error('Unable  to sync')
+                return False
+            cmd = "sudo fsck -y %s" % device_part
             ret = self._e.check_call(cmd)
-            if ret == 0 or ret == 1:
-                fs_state += fsck_outputs[ret]
+            if ret == 0:
+                fs_state.append(fsck_outputs[ret])
             else:
                 for i in range(len(fsck_outputs)):
                     key = 2 ** i
                     if ret & key:
-                        fs_state += fsck_outputs[key]
-                        fs_ok = False
-            self._l.debug('Filesystem in %s: %s' % (device_part, fs_state))
+                        try:
+                            fs_state.append(fsck_outputs[key])
+                            if key != 1: # keys not counted as fatal errors
+                                fs_ok = False
+                        except KeyError:
+                            pass
+                fs_states = ''.join("'%s', " % st for st in fs_state)
+                fs_states = fs_states.rstrip(', ')
+                self._l.debug("Filesystem check in %s: %s (see 'man fsck', exit "
+                              "code: %s)" % (device_part, fs_states, ret))
             if not fs_ok: break
-            
         return fs_ok
     
     def install_components(self):
