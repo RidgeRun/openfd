@@ -258,7 +258,6 @@ _uboot = None
 MODE_SD = 'sd'
 MODE_SD_IMG = 'sd-img'
 MODE_NAND = 'nand'
-MODE_LOOPBACK = 'loopback'
 
 # Components
 COMP_IPL = "ipl"
@@ -388,13 +387,7 @@ def _add_args_shared(subparser):
 
 def _add_args_sd_shared(subparser):
     _add_args_shared(subparser)
-    
-    subparser.add_argument('--device',
-                       help="Device to install",
-                       metavar='<dev>',
-                       dest='device',
-                       required=True)
-    
+
     subparser.add_argument('--kernel-file',
                        help='Path to the Kernel file to be installed.',
                        metavar='<file>',
@@ -453,6 +446,13 @@ def _add_args_sd_shared(subparser):
 def _add_args_sd():
     global _parser_sd
     _parser_sd = _subparsers.add_parser(MODE_SD)
+    
+    _parser_sd.add_argument('--device',
+                   help="Device to install",
+                   metavar='<dev>',
+                   dest='device',
+                   required=True)
+    
     _add_args_sd_shared(_parser_sd)
 
 def _add_args_sd_img():
@@ -462,14 +462,16 @@ def _add_args_sd_img():
     _add_args_sd_shared(_parser_sd_img)
     
     _parser_sd_img.add_argument('--image',
-                       help="The filename of the image to create in workdir",
+                       help="Filename of the SD card image to create",
                        metavar='<file>',
-                       dest='image')
+                       dest='image',
+                       required=True)
     
     _parser_sd_img.add_argument('--image-size-mb',
-                       help="Size in MB of the image file to create",
+                       help="Size in MB of the SD card image file to create",
                        metavar='<size>',
-                       dest='imagesize_mb')
+                       dest='imagesize_mb',
+                       required=True)
 
 def _add_args_nand():
     global _parser_nand
@@ -667,7 +669,7 @@ def _check_args_sd():
     
 def _check_args_sd_img():
     _check_args_sd()
-    _check_is_int(_args.imagesize_mb, '--image-size')
+    _check_is_int(_args.imagesize_mb, '--image-size-mb')
     _args.imagesize_mb = int(_args.imagesize_mb)
 
 def _check_args_nand():
@@ -718,6 +720,12 @@ def _check_args_nand_cmdline():
 def _check_args_nand_bootcmd():
     pass
 
+def _check_sudo():
+    ret = _executer.prompt_sudo()
+    if ret != 0:
+        _logger.error("Failed obtaining superuser access via sudo")
+        _clean_exit(-1)
+
 # ==========================================================================
 # Main logic
 # ==========================================================================
@@ -737,6 +745,10 @@ def main():
     _check_args()
     
     mode = _args.mode
+    
+    mode_requires_sudo = [MODE_SD, MODE_SD_IMG]
+    if mode in mode_requires_sudo:
+        _check_sudo() 
     
     if mode == MODE_SD or mode == MODE_SD_IMG:
         
@@ -771,8 +783,7 @@ def main():
             if ret is False: _abort_install()
         elif mode == MODE_SD_IMG:
             sd_installer.mode = sd_installer.MODE_LOOPBACK
-            ret = sd_installer.format_loopdevice(_args.workdir +
-                                                 _args.image, 
+            ret = sd_installer.format_loopdevice(_args.image, 
                                                  _args.imagesize_mb)
             if ret is False: _abort_install()
         

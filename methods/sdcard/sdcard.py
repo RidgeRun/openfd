@@ -433,7 +433,7 @@ class SDCardInstaller(object):
     def _create_image_file(self, image_name, image_size):
         """
         Creates the image file with a valid format and associates the file
-        with a loopdevice. 
+        with a loop device. 
         
         Returns true on success; false otherwise.
         """
@@ -591,14 +591,15 @@ class SDCardInstaller(object):
             cmd = 'sync'
             ret = self._e.check_call(cmd)
             if ret != 0:
-                self._l.error('unable  to sync loopdevice %s' %dev)
+                self._l.error('unable  to sync loop device %s' %dev)
                 return False
             cmd = 'sudo umount %s' % dev
             ret = self._e.check_call(cmd)
             if ret != 0:
-                self._l.error('Failed unmounting loopdevice %s' %dev)
+                self._l.error('Failed unmounting loop device %s' %dev)
                 return False
-            
+        
+        self._l.info('Checking filesystems on loop device')    
         ret = self._check_filesystems()
         if not ret:
             self._l.error('Failed image filesystem check')
