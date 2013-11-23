@@ -244,6 +244,7 @@ _parser_nand_kernel = None
 _parser_nand_fs = None
 _parser_nand_cmdline = None
 _parser_nand_bootcmd = None
+_parser_nand_mtdparts = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
@@ -266,6 +267,7 @@ COMP_KERNEL = "kernel"
 COMP_FS = "fs"
 COMP_CMDLINE = "cmdline"
 COMP_BOOTCMD = "bootcmd"
+COMP_MTDPARTS = "mtdparts"
 
 # ==========================================================================
 # Functions
@@ -558,6 +560,7 @@ def _add_args_nand():
     _add_args_nand_fs()
     _add_args_nand_cmdline()
     _add_args_nand_bootcmd()
+    _add_args_nand_mtdparts()
 
 def _add_args_nand_ipl():
     global _parser_nand_ipl 
@@ -608,18 +611,6 @@ def _add_args_nand_cmdline():
                        dest='cmdline',
                        required=True)
     
-    _parser_nand_cmdline.add_argument('--gen-mtdparts',
-                       help='Generates the mtdparts command line option',
-                       dest='gen_mtdparts',
-                       action='store_true',
-                       default=False)
-    
-    _parser_nand_cmdline.add_argument('--mtd-id',
-                       help="Unique id used in mapping driver/device (number "
-                       "of flash bank), only necessary when --gen-mtdparts",
-                       metavar='<id>',
-                       dest='mtd_id')
-    
     _parser_nand_cmdline.add_argument('--force',
                        help='Force component installation',
                        dest='cmdline_force',
@@ -640,6 +631,23 @@ def _add_args_nand_bootcmd():
     _parser_nand_bootcmd.add_argument('--force',
                        help='Force component installation',
                        dest='bootcmd_force',
+                       action='store_true',
+                       default=False)
+
+def _add_args_nand_mtdparts():
+    global _parser_nand_mtdparts 
+    _parser_nand_mtdparts = _subparsers_nand.add_parser(COMP_MTDPARTS,
+                                          help="U-Boots's mtdparts variable")
+    
+    _parser_nand_mtdparts.add_argument('--mtdparts',
+                       help="U-Boots's mtdparts variable",
+                       metavar='<mtdparts>',
+                       dest='mtdparts',
+                       required=True)
+    
+    _parser_nand_mtdparts.add_argument('--force',
+                       help='Force component installation',
+                       dest='mtdparts_force',
                        action='store_true',
                        default=False)
 
@@ -701,6 +709,8 @@ def _check_args_nand():
         _check_args_nand_cmdline()
     if _args.component == COMP_BOOTCMD:
         _check_args_nand_bootcmd()
+    if _args.component == COMP_MTDPARTS:
+        _check_args_nand_mtdparts()
 
 def _check_args_nand_ipl():
     pass
@@ -718,6 +728,9 @@ def _check_args_nand_cmdline():
     pass
 
 def _check_args_nand_bootcmd():
+    pass
+
+def _check_args_nand_mtdparts():
     pass
 
 def _check_sudo():
@@ -856,8 +869,6 @@ def main():
     
             if _args.component == COMP_CMDLINE:
                 ret = nand_installer.install_cmdline(_args.cmdline,
-                                                     _args.gen_mtdparts,
-                                                     _args.mtd_id,
                                                      _args.cmdline_force)
                 if ret is False: _abort_install()
            
@@ -865,7 +876,11 @@ def main():
                 ret = nand_installer.install_bootcmd(_args.bootcmd,
                                                      _args.bootcmd_force)
                 if ret is False: _abort_install()
-       
+                
+            if _args.component == COMP_MTDPARTS:
+                ret = nand_installer.install_mtdparts(_args.mtdparts,
+                                                      _args.mtdparts_force)
+                if ret is False: _abort_install()
         
             _logger.debug("Finishing installation")
             if _args.component in comp_requires_network:

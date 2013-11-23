@@ -40,7 +40,6 @@ DEFAULT_TFTP_PORT = 69
 DEFAULT_NAND_TIMEOUT = 60 # seconds
 DEFAULT_NAND_BLK_SIZE = 131072 # bytes
 DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
-DEFAULT_NAND_MTDDEVICE = 'davinci_nand.0'
 
 # ==========================================================================
 # Public Classes
@@ -472,16 +471,7 @@ class NandInstaller(object):
                                          part.start_blk, part.size_blks, force)
         return True
 
-    def _generate_mtdparts(self, mtd_device):
-        mtdparts = "mtdparts=%s:" % mtd_device
-        for part in self._partitions:
-            size_k = (part.size_blks * self.nand_block_size) / 1024
-            off_k = (part.start_blk * self.nand_block_size) / 1024
-            mtdparts += '%sk@%sk(%s),' % (size_k, off_k, part.name.upper())
-        return mtdparts.rstrip(',')
-
-    def install_cmdline(self, cmdline, gen_mtdparts=False,
-                        mtd_device=DEFAULT_NAND_MTDDEVICE, force=False):
+    def install_cmdline(self, cmdline, force=False):
         """
         Installs the kernel command line to uboot's environment. If the same
         command line has already been installed it will avoid re-installing it, 
@@ -495,15 +485,6 @@ class NandInstaller(object):
         
         self._l.info("Installing kernel cmdline")
         cmdline = cmdline.strip()
-        if gen_mtdparts:
-            self._l.debug("Generating mtdparts")
-            if not mtd_device:
-                self._l.warning("Using default MTD Device: %s" %
-                                    DEFAULT_NAND_MTDDEVICE)
-                mtd_device = DEFAULT_NAND_MTDDEVICE
-            mtdparts = self._generate_mtdparts(mtd_device)
-            cmdline += ' %s' % mtdparts
-            self._u.set_env('mtdparts', mtdparts)
         self._l.debug("Verifying if cmdline installation is needed")
         if not force:
             cmdline_on_board = self._u.get_env('bootargs')        
@@ -538,6 +519,31 @@ class NandInstaller(object):
         self._u.set_env('bootcmd', bootcmd)
         self._u.save_env()
         self._l.info("Bootcmd installation complete")
+        return True
+        
+    def install_mtdparts(self, mtdparts, force=False):
+        """
+        Installs mtdparts to uboot's environment. If the same mtdparts has
+        already been installed it will avoid re-installing it, unless `force`
+        is specified.
+
+        :param mtdparts: Mtdparts.
+        :param force: Forces the mtdparts installation.
+        :type force: boolean
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        self._l.info("Installing mtdparts")
+        mtdparts = mtdparts.strip()
+        if not force:
+            self._l.debug("Verifying if mtdparts installation is needed")
+            mtdparts_on_board = self._u.get_env('mtdparts')
+            if mtdparts == mtdparts_on_board and not force:
+                self._l.info("Uboot's mtdparts doesn't need to be installed")
+                return True
+        self._u.set_env('mtdparts', mtdparts)
+        self._u.save_env()
+        self._l.info("Mtdparts installation complete")
         return True
         
     def read_partitions(self, filename):
