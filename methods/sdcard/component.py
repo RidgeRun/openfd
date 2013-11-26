@@ -306,7 +306,7 @@ class ComponentInstaller(object):
         """
         
         if self._rootfs:
-            self._l.info('Installing rootfs')
+            self._l.info('Installing rootfs (this may take a while)')
             cmd = 'cd %s ; find . | sudo cpio -pdum %s' % (self._rootfs,
                                                            mount_point)
             if self._e.check_call(cmd) != 0:

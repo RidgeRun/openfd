@@ -403,7 +403,8 @@ class SDCardInstaller(object):
         if not self._create_partitions():
             return False
         
-        self._l.info('Formatting partitions on %s' % self._d.name)
+        self._l.info('Formatting partitions on %s (this may take a '
+                     'while)' % self._d.name)
         if not self._format_partitions():
             return False
         
