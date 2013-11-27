@@ -830,6 +830,7 @@ def main():
     if mode == MODE_NAND:
         
         uboot = rrutils.uboot.Uboot()
+        uboot.serial_logger = _logger
         uboot.dryrun = _args.dryrun
         
         try:
