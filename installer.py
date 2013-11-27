@@ -226,6 +226,7 @@ import argparse
 import socket
 import serial
 import signal
+import logging
 
 from methods.board.nand import NandInstallerTFTP
 
@@ -276,14 +277,26 @@ COMP_MTDPARTS = "mtdparts"
 def _init_logging():
     global _logger
     _program_name = os.path.basename(sys.argv[0])
-    rrutils.logger.basic_config(verbose=False)
-    level = rrutils.logger.INFO
+    _logger = rrutils.logger.get_global_logger(_program_name)
+    _logger.setLevel(logging.DEBUG)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(logging.Formatter('%(msg)s'))
     if _args.verbose:
-        level = rrutils.logger.DEBUG
+        streamhandler.setLevel(logging.DEBUG)
+    else:
+        streamhandler.setLevel(logging.INFO)
     if _args.quiet:
-        level = rrutils.logger.CRITICAL
-    _logger = rrutils.logger.get_global_logger(_program_name,
-                                                level=level)
+        streamhandler.setLevel(logging.CRITICAL)
+    _logger.addHandler(streamhandler)
+    if _args.log_filename:
+        filehandler = logging.FileHandler(_args.log_filename, mode='w')
+        filehandler.setLevel(logging.DEBUG)
+        if _args.verbose:
+            filehandler.setFormatter(logging.Formatter('%(levelname)s:'
+                                           '%(filename)s:%(lineno)s: %(msg)s'))
+        else:
+            filehandler.setFormatter(logging.Formatter('%(msg)s'))
+        _logger.addHandler(filehandler)
 
 def _init_executer():
     global _executer
@@ -372,6 +385,11 @@ def _add_args():
                        dest='quiet',
                        action='store_true',
                        default=False)
+    
+    _parser.add_argument('-l', '--log',
+                       help="Log to file",
+                       metavar='<file>',
+                       dest='log_filename')
     
     _parser.add_argument('--dryrun',
                        help='Sets the dryrun mode On (system and uboot '
