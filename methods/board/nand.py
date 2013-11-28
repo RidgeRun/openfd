@@ -11,7 +11,7 @@
 # into another programming language without prior written consent of 
 # RidgeRun, LLC.
 #
-# Serial communication operations to support the installer.
+# Operations on NAND to support the installer.
 #
 # ==========================================================================
 
@@ -761,7 +761,8 @@ class NandInstallerTFTP(NandInstaller):
         # Don't configure the network if we can reach the host already
         self._u.cmd('ping %s' % self._host_ipaddr, prompt_timeout=None)
         host_is_reachable = self._u.expect('is alive', timeout=2)[0]
-        if not host_is_reachable:
+        board_ipaddr = self._u.get_env('ipaddr')
+        if not host_is_reachable or not board_ipaddr:
             self._u.cancel_cmd()
             if self._net_mode == NandInstallerTFTP.MODE_STATIC:
                 self._u.set_env('ipaddr', self._target_ipaddr)
