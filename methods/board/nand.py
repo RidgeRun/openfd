@@ -69,7 +69,7 @@ class NandInstaller(object):
     }
     
     def __init__(self, uboot, loader, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, dryrun=False, interactive=True):
+                 ram_load_addr=None, dryrun=False):
         """
         :param uboot: :class:`Uboot` instance.
         :param nand_block_size: NAND block size (bytes). If not given, the
@@ -78,12 +78,9 @@ class NandInstaller(object):
             value will be obtained from uboot (once).
         :param ram_load_addr: RAM address to load components, in decimal or
             hexadecimal (`'0x'` prefix).
-        :param dryrun: Enable dryrun mode. System commands will be logged,
-            but not executed.
+        :param dryrun: Enable dryrun mode. System and uboot commands will be
+            logged, but not executed.
         :type dryrun: boolean
-        :param interactive: Enable interactive mode. The user will
-            be prompted before executing dangerous commands.
-        :type interactive: boolean
         """
         
         self._l = rrutils.logger.get_global_logger()
@@ -99,7 +96,6 @@ class NandInstaller(object):
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
         self._loader.dryrun = dryrun
-        self._interactive = interactive
         self._partitions = []
 
     def __set_nand_block_size(self, size):
@@ -213,16 +209,6 @@ class NandInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                      doc="""Enable dryrun mode. System commands will be
                      logged, but not executed.""")
-    
-    def __set_interactive(self, interactive):
-        self._interactive = interactive
-    
-    def __get_interactive(self):
-        return self._interactive
-    
-    interactive = property(__get_interactive, __set_interactive,
-                           doc="""Enable interactive mode. The user will
-                           be prompted before executing dangerous commands.""")
     
     def _bytes_to_blks(self, size_b):
         size_blks = (size_b / self.nand_block_size)
@@ -586,57 +572,3 @@ class NandInstaller(object):
                 if not inserted:
                     self._partitions.append(part)
         return True
-
-class NandInstallerTFTP(NandInstaller):
-    
-    #: Static networking mode.
-    MODE_STATIC = 'static'
-    
-    #: DHCP networking mode.
-    MODE_DHCP = 'dhcp'
-    
-    def __init__(self, uboot, loader, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, dryrun=False, interactive=True):
-        """
-        :param uboot: :class:`Uboot` instance.
-        :param nand_block_size: NAND block size (bytes). If not given, the
-            value will be obtained from uboot (once).
-        :param nand_page_size: NAND page size (bytes). If not given, the
-            value will be obtained from uboot (once).
-        :param ram_load_addr: RAM address to load components, in decimal or
-            hexadecimal (`'0x'` prefix).
-        :param dryrun: Enable dryrun mode. System commands will be logged,
-            but not executed.
-        :type dryrun: boolean
-        :param interactive: Enable interactive mode. The user will
-            be prompted before executing dangerous commands.
-        :type interactive: boolean
-        :param host_ipaddr: Host IP address.
-        :param target_ipaddr: Target IP address, only necessary
-            in :const:`MODE_STATIC`.
-        :param tftp_dir: TFTP root directory.
-        :param tftp_port: TFTP server port.
-        :type tftp_port: integer
-        :param net_mode: Networking mode. Possible values:
-            :const:`MODE_STATIC`, :const:`MODE_DHCP`.
-        """    
-        NandInstaller.__init__(self, uboot, nand_block_size, nand_page_size,
-                               ram_load_addr, dryrun, interactive)
-        self._loader = loader
-        
-    def __set_dryrun(self, dryrun):
-        self._dryrun = dryrun
-        self._e.dryrun = dryrun
-        self._u.dryrun = dryrun
-        self._loader.dryrun = dryrun
-    
-    def __get_dryrun(self):
-        return self._dryrun
-    
-    dryrun = property(__get_dryrun, __set_dryrun,
-                     doc="""Enable dryrun mode. System and uboot commands will
-                     be logged, but not executed.""")
-        
-    def _load_file_to_ram(self, filename, load_addr):
-        pass
-        
