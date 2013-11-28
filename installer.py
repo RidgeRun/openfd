@@ -228,7 +228,9 @@ import serial
 import signal
 import logging
 
-from methods.board.nand import NandInstallerTFTP
+from methods.board.nand import NandInstaller
+from methods.board.tftp import TftpLoader
+from methods.board.tftp import TftpException
 
 # ==========================================================================
 # Global variables
@@ -538,7 +540,7 @@ def _add_args_nand():
                        metavar='<file>',
                        dest='nand_uboot_file')
     
-    net_modes = [NandInstallerTFTP.MODE_STATIC, NandInstallerTFTP.MODE_DHCP]
+    net_modes = [TftpLoader.MODE_STATIC, TftpLoader.MODE_DHCP]
     
     _parser_nand.add_argument('--board-net-mode',
                        help="Networking mode: %s (default: dhcp)" %
@@ -546,7 +548,7 @@ def _add_args_nand():
                        metavar='<mode>',
                        choices=net_modes,
                        dest='board_net_mode',
-                       default=NandInstallerTFTP.MODE_DHCP)
+                       default=TftpLoader.MODE_DHCP)
 
     _parser_nand.add_argument('--board-ip-addr',
                        help="Board IPv4 address (only required in --board-net-"
@@ -713,7 +715,7 @@ def _check_args_nand():
     _args.tftp_port = int(_args.tftp_port)
     _check_is_int(_args.serial_baud, '--serial-baud')
     _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
-    if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
+    if _args.board_net_mode == TftpLoader.MODE_STATIC:
         _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
     if _args.component == COMP_IPL:
         _check_args_nand_ipl()
@@ -843,27 +845,33 @@ def main():
             ret = uboot.sync()
             if ret is False: _abort_install()
             
-            nand_installer = NandInstallerTFTP(uboot=uboot)
-            if _args.nand_blk_size:
-                nand_installer.nand_block_size = _args.nand_blk_size
-            if _args.nand_page_size:
-                nand_installer.nand_page_size = _args.nand_page_size
-            nand_installer.net_mode = _args.board_net_mode
-            if _args.board_net_mode == NandInstallerTFTP.MODE_STATIC:
-                nand_installer.target_ipaddr = _args.board_ip_addr
-            nand_installer.host_ipaddr = _args.host_ip_addr
-            nand_installer.tftp_dir = _args.tftp_dir
-            nand_installer.tftp_port = _args.tftp_port
-            nand_installer.ram_load_addr = _args.ram_load_addr
-            nand_installer.dryrun = _args.dryrun
-            nand_installer.read_partitions(_args.mmap_file)
+            tftp_loader = TftpLoader(uboot, _args.board_net_mode)
+            tftp_loader.tftp_dir = _args.tftp_dir
+            tftp_loader.tftp_port = _args.tftp_port
+            tftp_loader.host_ipaddr = _args.host_ip_addr
+            tftp_loader.net_mode = _args.board_net_mode
+            if _args.board_net_mode == TftpLoader.MODE_STATIC:
+                tftp_loader.board_ipaddr = _args.board_ip_addr
+            tftp_loader.dryrun = _args.dryrun
             
             comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
                                      COMP_FS]
             
             if _args.component in comp_requires_network:
-                ret = nand_installer.setup_uboot_network()
-                if ret is False: _abort_install()
+                try:
+                    tftp_loader.setup_uboot_network()
+                except TftpException as e:
+                    _logger.error(e)
+                    _abort_install()
+            
+            nand_installer = NandInstaller(uboot=uboot, loader=tftp_loader)
+            if _args.nand_blk_size:
+                nand_installer.nand_block_size = _args.nand_blk_size
+            if _args.nand_page_size:
+                nand_installer.nand_page_size = _args.nand_page_size
+            nand_installer.ram_load_addr = _args.ram_load_addr
+            nand_installer.dryrun = _args.dryrun
+            nand_installer.read_partitions(_args.mmap_file)
             
             if _args.nand_uboot_file:
                 ret = nand_installer.load_uboot_to_ram(_args.nand_uboot_file,

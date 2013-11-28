@@ -25,8 +25,8 @@ import time
 import ConfigParser
 import rrutils
 import rrutils.hexutils as hexutils
-from rrutils.uboot import UbootTimeoutException
 from partition import NandPartition
+import tftp
 
 # ==========================================================================
 # Constants
@@ -68,7 +68,7 @@ class NandInstaller(object):
         'filesystem': 'nand write'
     }
     
-    def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
+    def __init__(self, uboot, loader, nand_block_size=0, nand_page_size=0,
                  ram_load_addr=None, dryrun=False, interactive=True):
         """
         :param uboot: :class:`Uboot` instance.
@@ -89,6 +89,7 @@ class NandInstaller(object):
         self._l = rrutils.logger.get_global_logger()
         self._e = rrutils.executer.get_global_executer()
         self._u = uboot
+        self._loader = loader
         self._nand_block_size = nand_block_size
         self._nand_page_size = nand_page_size
         self._ram_load_addr = None
@@ -97,6 +98,7 @@ class NandInstaller(object):
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
+        self._loader.dryrun = dryrun
         self._interactive = interactive
         self._partitions = []
 
@@ -203,6 +205,7 @@ class NandInstaller(object):
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
+        self._loader.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -238,7 +241,11 @@ class NandInstaller(object):
         return True    
 
     def _load_file_to_ram(self, filename, load_addr):
-        raise NotImplementedError
+        try:
+            self._loader.load_file_to_ram(filename, load_addr)
+        except tftp.TftpException as e:
+            self._l.error(e)
+            return False
 
     def load_uboot_to_ram(self, img_filename, load_addr):
         """
@@ -588,10 +595,8 @@ class NandInstallerTFTP(NandInstaller):
     #: DHCP networking mode.
     MODE_DHCP = 'dhcp'
     
-    def __init__(self, uboot, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, dryrun=False, interactive=True,
-                 host_ipaddr='', target_ipaddr='', tftp_dir=DEFAULT_TFTP_DIR,
-                 tftp_port=DEFAULT_TFTP_PORT, net_mode=None):
+    def __init__(self, uboot, loader, nand_block_size=0, nand_page_size=0,
+                 ram_load_addr=None, dryrun=False, interactive=True):
         """
         :param uboot: :class:`Uboot` instance.
         :param nand_block_size: NAND block size (bytes). If not given, the
@@ -617,173 +622,21 @@ class NandInstallerTFTP(NandInstaller):
         """    
         NandInstaller.__init__(self, uboot, nand_block_size, nand_page_size,
                                ram_load_addr, dryrun, interactive)
-        self._tftp_dir = tftp_dir
-        self._tftp_port = tftp_port
-        self._net_mode = net_mode
-        self._host_ipaddr = host_ipaddr
-        self._target_ipaddr = target_ipaddr
-        self._is_network_setup = False
+        self._loader = loader
         
-    def __set_tftp_port(self, port):
-        self._tftp_port = port
+    def __set_dryrun(self, dryrun):
+        self._dryrun = dryrun
+        self._e.dryrun = dryrun
+        self._u.dryrun = dryrun
+        self._loader.dryrun = dryrun
     
-    def __get_tftp_port(self):
-        return self._tftp_port
+    def __get_dryrun(self):
+        return self._dryrun
     
-    tftp_port = property(__get_tftp_port, __set_tftp_port,
-                     doc="""TFTP server port.""")
-    
-    def __set_tftp_dir(self, directory):
-        self._tftp_dir = directory
-    
-    def __get_tftp_dir(self):
-        return self._tftp_dir
-    
-    tftp_dir = property(__get_tftp_dir, __set_tftp_dir,
-                     doc="""TFTP root directory.""")
-
-    def __set_net_mode(self, mode):
-        self._net_mode = mode
-    
-    def __get_net_mode(self):
-        return self._net_mode
-    
-    net_mode = property(__get_net_mode, __set_net_mode,
-                     doc="""Networking mode. Possible values:
-                     :const:`MODE_STATIC`, :const:`MODE_DHCP`.""")
-
-    def __set_target_ipaddr(self, ipaddr):
-        self._target_ipaddr = ipaddr
-    
-    def __get_target_ipaddr(self):
-        return self._target_ipaddr
-    
-    target_ipaddr = property(__get_target_ipaddr, __set_target_ipaddr,
-                     doc="""Target IP address, only necessary in
-                     :const:`MODE_STATIC`.""")
-
-    def __set_host_ipaddr(self, ipaddr):
-        self._host_ipaddr = ipaddr
-    
-    def __get_host_ipaddr(self):
-        return self._host_ipaddr
-    
-    host_ipaddr = property(__get_host_ipaddr, __set_host_ipaddr,
-                     doc="""Host IP address.""")
-
-    def _check_tftp_settings(self):
-        """
-        Checks TFTP settings in the host (dir and port).
-        """
+    dryrun = property(__get_dryrun, __set_dryrun,
+                     doc="""Enable dryrun mode. System and uboot commands will
+                     be logged, but not executed.""")
         
-        cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
-        ret = self._e.check_call(cmd)
-        if ret != 0:
-            self._l.error("Seems like you aren't running tftp udp server on "
-              "port %d, please check your server settings" % self._tftp_port)
-            return False
-        
-        return True
-
     def _load_file_to_ram(self, filename, load_addr):
-        if not self._is_network_setup:
-            self._l.error("Please setup uboot's network prior to any TFTP "
-                          "transfer")
-            return False
+        pass
         
-        # Copy the file to the host's TFTP directory
-        basename = os.path.basename(filename)
-        tftp_filename = '%s/%s' % (self._tftp_dir, basename)
-        cmd = 'cp %s %s' % (filename, tftp_filename)
-        ret, output = self._e.check_output(cmd)
-        if ret != 0:
-            self._l.error(output)
-            return False
-        
-        # Estimate a transfer timeout - 10 seconds per MB
-        size_b = os.path.getsize(tftp_filename)
-        one_mb = 1 << 20
-        transfer_timeout = ((size_b/one_mb) + 1) * 10
-        
-        if size_b == 0:
-            self._l.error("Size of file %s is 0" % filename)
-            return False
-        
-        # Transfer
-        hex_load_addr = hexutils.to_hex(load_addr)
-        self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
-                      "'%s'" % (tftp_filename, hex_load_addr))
-        cmd = 'tftp %s %s' % (hex_load_addr, basename)
-        try:
-            self._u.cmd(cmd, prompt_timeout=transfer_timeout)
-        except UbootTimeoutException:
-            self._u.cancel_cmd()
-            self._l.error("TFTP transfer failed from '%s:%s'." %
-                               (self._host_ipaddr, self._tftp_port))
-            return False
-        
-        filesize = self._u.get_env('filesize')
-        if filesize:
-            env_size_b = int(filesize, base=16)
-        else:
-            env_size_b = 0
-        if size_b != env_size_b and not self._dryrun:
-            self._l.error("Something went wrong during the transfer, the size "
-                "of file '%s' (%s) differs from the transferred bytes (%s)"
-                % (tftp_filename, size_b, env_size_b))
-            return False
-        
-        return True
-        
-    def setup_uboot_network(self):
-        """
-        Setup networking for uboot, based on the specified :func:`net_mode`.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        if self._is_network_setup:
-            return True
-        
-        if not self._net_mode:
-            self._l.error('Please provide a networking mode')
-            return False
-        
-        if (self._net_mode == NandInstallerTFTP.MODE_STATIC and 
-                not self._target_ipaddr):
-            self._l.error('No IP address specified for the target.')
-            return False
-        
-        self._l.info('Configuring uboot network')
-        ret = self._check_tftp_settings()
-        if ret is False: return False
-        
-        # Don't configure the network if we can reach the host already
-        self._u.cmd('ping %s' % self._host_ipaddr, prompt_timeout=None)
-        host_is_reachable = self._u.expect('is alive', timeout=2)[0]
-        board_ipaddr = self._u.get_env('ipaddr')
-        if not host_is_reachable or not board_ipaddr:
-            self._u.cancel_cmd()
-            if self._net_mode == NandInstallerTFTP.MODE_STATIC:
-                self._u.set_env('ipaddr', self._target_ipaddr)
-            elif self._net_mode == NandInstallerTFTP.MODE_DHCP:
-                self._u.set_env('autoload', 'no')
-                self._u.set_env('autostart', 'no')
-                self._u.cmd('dhcp', prompt_timeout=None)
-                # If dhcp failed at retry 3, stop and report the error
-                dhcp_error_line = 'BOOTP broadcast 3'
-                found_error, line = self._u.expect(dhcp_error_line, timeout=6)
-                if found_error and not self.dryrun:
-                    self._u.cancel_cmd()
-                    msg = ("Looks like your network doesn't have dhcp enabled "
-                           "or you don't have an ethernet link. ")
-                    if line:
-                        msg += "This is the log of the last line: %s" % line
-                    self._l.error(msg)
-                    return False
-                
-        if self._u.get_env('serverip') != self._host_ipaddr:
-            self._u.set_env('serverip', self._host_ipaddr)
-        
-        self._is_network_setup = True
-        return True
