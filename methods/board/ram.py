@@ -227,7 +227,7 @@ class TftpRamLoader(RamLoader):
                 % (tftp_filename, size_b, env_size_b))
 
     def load_file_to_ram_and_boot(self, filename, load_addr, boot_line,
-                                  boot_time=0):
+                                  boot_timeout=0):
         """
         Loads a file to RAM via TFTP.
         
@@ -235,7 +235,7 @@ class TftpRamLoader(RamLoader):
         :param load_addr: RAM address where to load the file.
         :param boot_line: This is the line to expect in the serial port to
             determine that boot has been reached.
-        :param boot_time: Boot time (in seconds) - time to wait for
+        :param boot_timeout: Max time (in seconds) to wait for
             :const:`boot_line`.
         :exception TftpException: Error configuring UBoot's network.
         """
@@ -266,9 +266,9 @@ class TftpRamLoader(RamLoader):
                                          "%s" % hex_load_addr)
         self._l.info("Booting from %s" % hex_load_addr)
         self._u.log_prefix = "  Serial"
-        booted = self._u.expect(boot_line, timeout=boot_time,
+        booted = self._u.expect(boot_line, timeout=boot_timeout,
                                 log_serial_output=True)[0]
         if not booted:
-            raise RamLoaderException("Failed to boot from addr %s" %
-                                         hex_load_addr)
+            raise RamLoaderException("Didn't encountered boot line '%s' "
+                                "after %s seconds" %(boot_line, boot_timeout))
         

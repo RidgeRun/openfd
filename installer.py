@@ -686,16 +686,29 @@ def _add_args_ram():
     global _parser_ram
     _parser_ram = _subparsers.add_parser(MODE_RAM)
 
-    _parser_ram.add_argument('--ram-file',
-                       help='Path to the file to load in RAM (at --ram-load-addr)',
+    _parser_ram.add_argument('--file',
+                       help='Path to the file to load in RAM (at --load-addr)',
                        metavar='<file>',
                        dest='ram_file',
                        required=True)
 
-    _parser_ram.add_argument('--ram-load-addr',
+    _parser_ram.add_argument('--load-addr',
                        help='RAM address to load the file (decimal or hex)',
                        metavar='<addr>',
                        dest='ram_load_addr',
+                       required=True)
+    
+    _parser_ram.add_argument('--boot-line',
+                       help="Line to expect in the serial port to determine "
+                       "that boot is complete",
+                       metavar='<line>',
+                       dest='ram_boot_line',
+                       required=True)
+    
+    _parser_ram.add_argument('--boot-timeout',
+                       help="Max time in seconds to wait for --boot-line",
+                       metavar='<s>',
+                       dest='ram_boot_timeout',
                        required=True)
    
     _add_args_serial_shared(_parser_ram)
@@ -792,8 +805,10 @@ def _check_args_nand_mtdparts():
     pass
 
 def _check_args_ram():
-    _check_is_file(_args.ram_file, '--ram-file')
-    _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
+    _check_is_file(_args.ram_file, '--file')
+    _check_is_valid_addr(_args.ram_load_addr, '--load-addr')
+    _check_is_int(_args.ram_boot_timeout, '--boot-timeout')
+    _args.ram_boot_timeout = int(_args.ram_boot_timeout)
     _check_args_serial()
     _check_args_tftp()
 
@@ -964,9 +979,9 @@ def main():
                 tftp_loader.setup_uboot_network()
                 _logger.info("Loading %s to RAM address %s" %
                              (_args.ram_file, _args.ram_load_addr))
-                boot_line = "Please press Enter to activate this console"
                 tftp_loader.load_file_to_ram_and_boot(_args.ram_file,
-                                  _args.ram_load_addr, boot_line, boot_time=60)
+                                  _args.ram_load_addr, _args.ram_boot_line,
+                                  boot_timeout=_args.ram_boot_timeout)
             
         except (UbootTimeoutException, RamLoaderException) as e:
             _logger.error(e)
