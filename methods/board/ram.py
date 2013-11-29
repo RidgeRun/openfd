@@ -35,11 +35,21 @@ DEFAULT_TFTP_PORT = 69
 # Public Classes
 # ==========================================================================
 
-class TftpException(Exception):
-    """TFTP related exceptions."""
+class RamLoader(object):
+    """Interface for objects that load images to RAM memory."""
+    
+    def load_file_to_ram(self):
+        raise NotImplementedError
+    
+    def load_file_to_ram_and_boot(self):
+        raise NotImplementedError
+
+class RamLoaderException(Exception):
+    """RAM loader exceptions."""
     pass
 
-class TftpLoader(object):
+class TftpRamLoader(RamLoader):
+    """Load images to RAM via TFTP."""
     
     #: Static networking mode.
     MODE_STATIC = 'static'
@@ -56,8 +66,8 @@ class TftpLoader(object):
         self._l = rrutils.logger.get_global_logger()
         self._e = rrutils.executer.get_global_executer()
         self._u = uboot
-        self._tftp_dir = DEFAULT_TFTP_DIR
-        self._tftp_port = DEFAULT_TFTP_PORT
+        self._dir = DEFAULT_TFTP_DIR
+        self._port = DEFAULT_TFTP_PORT
         self._net_mode = net_mode
         self._host_ipaddr = ''
         self._board_ipaddr = ''
@@ -75,23 +85,21 @@ class TftpLoader(object):
                      doc="""Enable dryrun mode. System and uboot commands will
                      be logged, but not executed.""")
 
-    def __set_tftp_port(self, port):
-        self._tftp_port = port
+    def __set_port(self, port):
+        self._port = port
     
-    def __get_tftp_port(self):
-        return self._tftp_port
+    def __get_port(self):
+        return self._port
     
-    tftp_port = property(__get_tftp_port, __set_tftp_port,
-                     doc="""TFTP server port.""")
+    port = property(__get_port, __set_port, doc="""TFTP server port.""")
     
-    def __set_tftp_dir(self, directory):
-        self._tftp_dir = directory
+    def __set_dir(self, directory):
+        self._dir = directory
     
-    def __get_tftp_dir(self):
-        return self._tftp_dir
+    def __get_dir(self):
+        return self._dir
     
-    tftp_dir = property(__get_tftp_dir, __set_tftp_dir,
-                     doc="""TFTP root directory.""")
+    dir = property(__get_dir, __set_dir, doc="""TFTP root directory.""")
 
     def __set_net_mode(self, mode):
         self._net_mode = mode
@@ -123,11 +131,11 @@ class TftpLoader(object):
                      doc="""Host IP address.""")
 
     def _check_tftp_settings(self):
-        cmd = 'netstat -an | grep udp | grep -q :%d' % self._tftp_port
+        cmd = 'netstat -an | grep udp | grep -q :%d' % self._port
         ret = self._e.check_call(cmd)
         if ret != 0:
-            raise TftpException("Seems like you aren't running tftp udp server "
-              "on port %d, please check your server settings" % self._tftp_port)
+            raise RamLoaderException("Seems like you aren't running tftp udp server "
+              "on port %d, please check your server settings" % self._port)
     
     def _setup_static(self):
         self._u.set_env('ipaddr', self._board_ipaddr)
@@ -145,7 +153,7 @@ class TftpLoader(object):
                    "or you don't have an ethernet link. ")
             if line:
                 msg += "This is the log of the last line: '%s'" % line
-            raise TftpException(msg)
+            raise RamLoaderException(msg)
         
     def setup_uboot_network(self):
         """
@@ -155,8 +163,8 @@ class TftpLoader(object):
         """
         
         self._l.info('Configuring uboot network')
-        if self._net_mode == TftpLoader.MODE_STATIC and not self._board_ipaddr:
-            raise TftpException('No IP address specified for the board.')
+        if self._net_mode == TftpRamLoader.MODE_STATIC and not self._board_ipaddr:
+            raise RamLoaderException('No IP address specified for the board.')
         self._check_tftp_settings()
         # Don't configure the network if we have an IP address and we can reach
         # the host already
@@ -165,12 +173,16 @@ class TftpLoader(object):
         host_is_reachable = self._u.expect('is alive', timeout=2)[0]
         if not host_is_reachable or not board_ipaddr:
             self._u.cancel_cmd()
-            if self._net_mode == TftpLoader.MODE_STATIC:
+            if self._net_mode == TftpRamLoader.MODE_STATIC:
                 self._setup_static()
-            elif self._net_mode == TftpLoader.MODE_DHCP:
+            elif self._net_mode == TftpRamLoader.MODE_DHCP:
                 self._setup_dhcp()
         if self._u.get_env('serverip') != self._host_ipaddr:
             self._u.set_env('serverip', self._host_ipaddr)
+
+    def _transfer_timeout(self, size_b):
+        one_mb = 1 << 20
+        return ((size_b/one_mb) + 1) * 10
 
     def load_file_to_ram(self, filename, load_addr):
         """
@@ -183,30 +195,26 @@ class TftpLoader(object):
         
         # Copy the file to the host's TFTP directory
         basename = os.path.basename(filename)
-        tftp_filename = '%s/%s' % (self._tftp_dir, basename)
+        tftp_filename = '%s/%s' % (self._dir, basename)
         cmd = 'cp %s %s' % (filename, tftp_filename)
         ret, output = self._e.check_output(cmd)
         if ret != 0:
-            raise TftpException(output)
-        
-        # Estimate a transfer timeout - 10 seconds per MB
-        size_b = os.path.getsize(tftp_filename)
-        one_mb = 1 << 20
-        transfer_timeout = ((size_b/one_mb) + 1) * 10
-        if size_b == 0:
-            raise TftpException("Size of file %s is 0" % filename)
+            raise RamLoaderException(output)
         
         # Transfer
+        size_b = os.path.getsize(tftp_filename)
+        if size_b == 0:
+            raise RamLoaderException("Size of file %s is 0" % filename)
         hex_load_addr = hexutils.to_hex(load_addr)
         self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
                       "'%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
         try:
-            self._u.cmd(cmd, prompt_timeout=transfer_timeout)
+            self._u.cmd(cmd, prompt_timeout=self._transfer_timeout(size_b))
         except UbootTimeoutException:
             self._u.cancel_cmd()
-            raise TftpException("TFTP transfer failed from '%s:%s'." %
-                               (self._host_ipaddr, self._tftp_port))
+            raise RamLoaderException("TFTP transfer failed from '%s:%s'." %
+                               (self._host_ipaddr, self._port))
         
         filesize = self._u.get_env('filesize')
         if filesize:
@@ -214,6 +222,58 @@ class TftpLoader(object):
         else:
             env_size_b = 0
         if size_b != env_size_b and not self._dryrun:
-            raise TftpException("Something went wrong during the transfer, the size "
+            raise RamLoaderException("Something went wrong during the transfer, the size "
                 "of file '%s' (%s) differs from the transferred bytes (%s)"
                 % (tftp_filename, size_b, env_size_b))
+
+    def load_file_to_ram_and_boot(self, filename, load_addr, boot_line,
+                                  boot_time=0):
+        """
+        Loads a file to RAM via TFTP.
+        
+        :param filename: File to load.
+        :param load_addr: RAM address where to load the file.
+        :param boot_line: This is the line to expect in the serial port to
+            determine that boot has been reached.
+        :param boot_time: Boot time (in seconds) - time to wait for
+            :const:`boot_line`.
+        :exception TftpException: Error configuring UBoot's network.
+        """
+        
+        # Copy the file to the host's TFTP directory
+        basename = os.path.basename(filename)
+        tftp_filename = '%s/%s' % (self._dir, basename)
+        cmd = 'cp %s %s' % (filename, tftp_filename)
+        ret, output = self._e.check_output(cmd)
+        if ret != 0:
+            raise RamLoaderException(output)
+        
+        self._u.set_env('autostart', 'yes')
+        
+        # Transfer
+        size_b = os.path.getsize(tftp_filename)
+        if size_b == 0:
+            raise RamLoaderException("Size of file %s is 0" % filename)
+        hex_load_addr = hexutils.to_hex(load_addr)
+        self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
+                      "'%s'" % (tftp_filename, hex_load_addr))
+        cmd = 'tftp %s %s' % (hex_load_addr, basename)
+        try:
+            self._u.cmd(cmd, prompt_timeout=None)
+            autobooting = self._u.expect("Automatic boot of image at addr",
+                                      timeout=self._transfer_timeout(size_b),
+                                      log_serial_output=True)[0]
+            if not autobooting:
+                raise RamLoaderException("Didn't detect Autoboot from addr "
+                                             "%s" % load_addr)
+            self._u.log_prefix = "  Serial"
+            booted = self._u.expect(boot_line, timeout=boot_time,
+                                    log_serial_output=True)[0]
+            if not booted:
+                raise RamLoaderException("Failed to boot from addr %s" %
+                                             load_addr)
+        except UbootTimeoutException:
+            self._u.cancel_cmd()
+            raise RamLoaderException("TFTP transfer failed from '%s:%s'." %
+                               (self._host_ipaddr, self._port))
+        
