@@ -258,22 +258,17 @@ class TftpRamLoader(RamLoader):
         self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
                       "'%s'" % (tftp_filename, hex_load_addr))
         cmd = 'tftp %s %s' % (hex_load_addr, basename)
-        try:
-            self._u.cmd(cmd, prompt_timeout=None)
-            autobooting = self._u.expect("Automatic boot of image at addr",
-                                      timeout=self._transfer_timeout(size_b),
-                                      log_serial_output=True)[0]
-            if not autobooting:
-                raise RamLoaderException("Didn't detect Autoboot from addr "
-                                             "%s" % load_addr)
-            self._u.log_prefix = "  Serial"
-            booted = self._u.expect(boot_line, timeout=boot_time,
-                                    log_serial_output=True)[0]
-            if not booted:
-                raise RamLoaderException("Failed to boot from addr %s" %
-                                             load_addr)
-        except UbootTimeoutException:
-            self._u.cancel_cmd()
-            raise RamLoaderException("TFTP transfer failed from '%s:%s'." %
-                               (self._host_ipaddr, self._port))
+        self._u.cmd(cmd, prompt_timeout=None)
+        autobooting = self._u.expect("Automatic boot of image at addr",
+                                  timeout=self._transfer_timeout(size_b))[0]
+        if not autobooting:
+            raise RamLoaderException("Didn't detect Autoboot from addr "
+                                         "%s" % hex_load_addr)
+        self._l.info("Booting from %s" % hex_load_addr)
+        self._u.log_prefix = "  Serial"
+        booted = self._u.expect(boot_line, timeout=boot_time,
+                                log_serial_output=True)[0]
+        if not booted:
+            raise RamLoaderException("Failed to boot from addr %s" %
+                                         hex_load_addr)
         
