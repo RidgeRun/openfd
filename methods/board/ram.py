@@ -11,7 +11,7 @@
 # into another programming language without prior written consent of 
 # RidgeRun, LLC.
 #
-# TFTP related operations to support the installer.
+# RAM loading operations to support the installer.
 #
 # ==========================================================================
 
