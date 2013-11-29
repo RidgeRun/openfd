@@ -228,9 +228,11 @@ import serial
 import signal
 import logging
 
+from rrutils import Uboot
+from rrutils import UbootTimeoutException
 from methods.board.nand import NandInstaller
-from methods.board.tftp import TftpLoader
-from methods.board.tftp import TftpException
+from methods.board.ram import TftpRamLoader
+from methods.board.ram import RamLoaderException
 
 # ==========================================================================
 # Global variables
@@ -248,6 +250,7 @@ _parser_nand_fs = None
 _parser_nand_cmdline = None
 _parser_nand_bootcmd = None
 _parser_nand_mtdparts = None
+_parser_ram = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
@@ -262,6 +265,7 @@ _uboot = None
 MODE_SD = 'sd'
 MODE_SD_IMG = 'sd-img'
 MODE_NAND = 'nand'
+MODE_RAM = 'ram'
 
 # Components
 COMP_IPL = "ipl"
@@ -495,6 +499,57 @@ def _add_args_sd_img():
                        dest='imagesize_mb',
                        required=True)
 
+def _add_args_serial_shared(subparser):
+    
+    subparser.add_argument('--serial-port',
+                       help="Device name or port number for serial communica"
+                       "tion with U-Boot (i.e. '/dev/ttyS0')",
+                       metavar='<port>',
+                       dest='serial_port',
+                       required=True)
+    
+    subparser.add_argument('--serial-baud',
+                       help="Baud rate (default: 115200)",
+                       metavar='<baud>',
+                       dest='serial_baud',
+                       default=115200)
+
+def _add_args_tftp_shared(subparser):
+      
+    net_modes = [TftpRamLoader.MODE_STATIC, TftpRamLoader.MODE_DHCP]
+    
+    subparser.add_argument('--board-net-mode',
+                       help="Networking mode: %s (default: dhcp)" %
+                       ''.join('%s|' % mode for mode in net_modes).rstrip('|'),
+                       metavar='<mode>',
+                       choices=net_modes,
+                       dest='board_net_mode',
+                       default=TftpRamLoader.MODE_DHCP)
+
+    subparser.add_argument('--board-ip-addr',
+                       help="Board IPv4 address (only required in --board-net-"
+                       "mode=static)",
+                       metavar='<addr>',
+                       dest='board_ip_addr')
+    
+    subparser.add_argument('--host-ip-addr',
+                       help="Host IPv4 address",
+                       metavar='<addr>',
+                       dest='host_ip_addr',
+                       required=True)
+
+    subparser.add_argument('--tftp-dir',
+                       help="TFTP server root directory",
+                       metavar='<dir>',
+                       dest='tftp_dir',
+                       required=True)
+
+    subparser.add_argument('--tftp-port',
+                       help="TFTP server port (default: 69)",
+                       metavar='<port>',
+                       dest='tftp_port',
+                       default=69)
+
 def _add_args_nand():
     global _parser_nand
     global _subparsers_nand
@@ -515,18 +570,7 @@ def _add_args_nand():
                        metavar='<size>',
                        dest='nand_page_size')
     
-    _parser_nand.add_argument('--serial-port',
-                       help="Device name or port number for serial communica"
-                       "tion with U-Boot (i.e. '/dev/ttyS0')",
-                       metavar='<port>',
-                       dest='serial_port',
-                       required=True)
-    
-    _parser_nand.add_argument('--serial-baud',
-                       help="Baud rate (default: 115200)",
-                       metavar='<baud>',
-                       dest='serial_baud',
-                       default=115200)
+    _add_args_serial_shared(_parser_nand)
     
     _parser_nand.add_argument('--ram-load-addr',
                        help='RAM address to load components (decimal or hex)',
@@ -539,41 +583,8 @@ def _add_args_nand():
                        'and drive the installation',
                        metavar='<file>',
                        dest='nand_uboot_file')
-    
-    net_modes = [TftpLoader.MODE_STATIC, TftpLoader.MODE_DHCP]
-    
-    _parser_nand.add_argument('--board-net-mode',
-                       help="Networking mode: %s (default: dhcp)" %
-                       ''.join('%s|' % mode for mode in net_modes).rstrip('|'),
-                       metavar='<mode>',
-                       choices=net_modes,
-                       dest='board_net_mode',
-                       default=TftpLoader.MODE_DHCP)
-
-    _parser_nand.add_argument('--board-ip-addr',
-                       help="Board IPv4 address (only required in --board-net-"
-                       "mode=static)",
-                       metavar='<addr>',
-                       dest='board_ip_addr')
-    
-    _parser_nand.add_argument('--host-ip-addr',
-                       help="Host IPv4 address",
-                       metavar='<addr>',
-                       dest='host_ip_addr',
-                       required=True)
-
-    _parser_nand.add_argument('--tftp-dir',
-                       help="TFTP server root directory",
-                       metavar='<dir>',
-                       dest='tftp_dir',
-                       required=True)
-
-    _parser_nand.add_argument('--tftp-port',
-                       help="TFTP server port (default: 69)",
-                       metavar='<port>',
-                       dest='tftp_port',
-                       default=69)
-    
+  
+    _add_args_tftp_shared(_parser_nand)
     _add_args_nand_ipl()
     _add_args_nand_bootloader()
     _add_args_nand_kernel()
@@ -671,6 +682,25 @@ def _add_args_nand_mtdparts():
                        action='store_true',
                        default=False)
 
+def _add_args_ram():
+    global _parser_ram
+    _parser_ram = _subparsers.add_parser(MODE_RAM)
+
+    _parser_ram.add_argument('--ram-file',
+                       help='Path to the file to load in RAM (at --ram-load-addr)',
+                       metavar='<file>',
+                       dest='ram_file',
+                       required=True)
+
+    _parser_ram.add_argument('--ram-load-addr',
+                       help='RAM address to load the file (decimal or hex)',
+                       metavar='<addr>',
+                       dest='ram_load_addr',
+                       required=True)
+   
+    _add_args_serial_shared(_parser_ram)
+    _add_args_tftp_shared(_parser_ram)
+    
 def _check_args():
     if _args.mode == MODE_SD:
         _check_args_sd()
@@ -678,6 +708,8 @@ def _check_args():
         _check_args_sd_img()
     elif _args.mode == MODE_NAND:
         _check_args_nand()
+    elif _args.mode == MODE_RAM:
+        _check_args_ram()
     
 def _check_args_sd():    
     _check_is_file(_args.mmap_file, '--mmap-file')
@@ -700,6 +732,17 @@ def _check_args_sd_img():
     _check_is_int(_args.imagesize_mb, '--image-size-mb')
     _args.imagesize_mb = int(_args.imagesize_mb)
 
+def _check_args_serial():
+    _check_is_int(_args.serial_baud, '--serial-baud')
+
+def _check_args_tftp():
+    _check_is_dir(_args.tftp_dir, '--tftp-dir')
+    _check_is_int(_args.tftp_port, '--tftp-port')
+    _args.tftp_port = int(_args.tftp_port)
+    _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
+    if _args.board_net_mode == TftpRamLoader.MODE_STATIC:
+        _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
+
 def _check_args_nand():
     if _args.nand_blk_size:
         _check_is_int(_args.nand_blk_size, '--nand-blk-size')
@@ -710,13 +753,8 @@ def _check_args_nand():
     if _args.nand_uboot_file:
         _check_is_file(_args.nand_uboot_file, '--uboot-file')
     _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
-    _check_is_dir(_args.tftp_dir, '--tftp-dir')
-    _check_is_int(_args.tftp_port, '--tftp-port')
-    _args.tftp_port = int(_args.tftp_port)
-    _check_is_int(_args.serial_baud, '--serial-baud')
-    _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
-    if _args.board_net_mode == TftpLoader.MODE_STATIC:
-        _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
+    _check_args_serial()
+    _check_args_tftp()
     if _args.component == COMP_IPL:
         _check_args_nand_ipl()
     if _args.component == COMP_BOOTLOADER:
@@ -753,6 +791,12 @@ def _check_args_nand_bootcmd():
 def _check_args_nand_mtdparts():
     pass
 
+def _check_args_ram():
+    _check_is_file(_args.ram_file, '--ram-file')
+    _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
+    _check_args_serial()
+    _check_args_tftp()
+
 def _check_sudo():
     ret = _executer.prompt_sudo()
     if ret != 0:
@@ -764,7 +808,7 @@ def _check_sudo():
 # ==========================================================================
 
 def main():
-    global uboot
+    global _uboot
     global _args
     signal.signal(signal.SIGINT, _sigint_handler)
     signal.signal(signal.SIGTERM, _sigint_handler)
@@ -772,6 +816,7 @@ def main():
     _add_args_nand()
     _add_args_sd()
     _add_args_sd_img()
+    _add_args_ram()
     _args = _parser.parse_args()
     _init_logging()
     _init_executer()
@@ -829,98 +874,105 @@ def main():
         ret = sd_installer.release_device()
         if ret is False: _abort_install()
         
-    if mode == MODE_NAND:
+    if mode == MODE_NAND or mode == MODE_RAM:
         
-        uboot = rrutils.uboot.Uboot()
-        uboot.serial_logger = _logger
-        uboot.dryrun = _args.dryrun
+        _uboot = Uboot()
+        _uboot.serial_logger = _logger
+        _uboot.dryrun = _args.dryrun
         
         try:
-            ret = uboot.open_comm(port=_args.serial_port, baud=_args.serial_baud)
+            ret = _uboot.open_comm(port=_args.serial_port, baud=_args.serial_baud)
             if ret is False: _abort_install()
         except serial.SerialException:
             _abort_install()
         
         try:
-            ret = uboot.sync()
+            ret = _uboot.sync()
             if ret is False: _abort_install()
             
-            tftp_loader = TftpLoader(uboot, _args.board_net_mode)
-            tftp_loader.tftp_dir = _args.tftp_dir
-            tftp_loader.tftp_port = _args.tftp_port
+            tftp_loader = TftpRamLoader(_uboot, _args.board_net_mode)
+            tftp_loader.dir = _args.tftp_dir
+            tftp_loader.port = _args.tftp_port
             tftp_loader.host_ipaddr = _args.host_ip_addr
             tftp_loader.net_mode = _args.board_net_mode
-            if _args.board_net_mode == TftpLoader.MODE_STATIC:
+            if _args.board_net_mode == TftpRamLoader.MODE_STATIC:
                 tftp_loader.board_ipaddr = _args.board_ip_addr
             tftp_loader.dryrun = _args.dryrun
             
-            comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
+            if mode == MODE_NAND:
+                
+                comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
                                      COMP_FS]
             
-            if _args.component in comp_requires_network:
-                try:
+                if _args.component in comp_requires_network:
                     tftp_loader.setup_uboot_network()
-                except TftpException as e:
-                    _logger.error(e)
-                    _abort_install()
             
-            nand_installer = NandInstaller(uboot=uboot, loader=tftp_loader)
-            if _args.nand_blk_size:
-                nand_installer.nand_block_size = _args.nand_blk_size
-            if _args.nand_page_size:
-                nand_installer.nand_page_size = _args.nand_page_size
-            nand_installer.ram_load_addr = _args.ram_load_addr
-            nand_installer.dryrun = _args.dryrun
-            nand_installer.read_partitions(_args.mmap_file)
-            
-            if _args.nand_uboot_file:
-                ret = nand_installer.load_uboot_to_ram(_args.nand_uboot_file,
-                                                       _args.ram_load_addr)
-                if ret is False: _abort_install()
-            
-            if _args.component == COMP_IPL:
-                ret = nand_installer.install_ipl(force=_args.ipl_force)
-                if ret is False: _abort_install()
+                nand_installer = NandInstaller(uboot=_uboot, loader=tftp_loader)
+                if _args.nand_blk_size:
+                    nand_installer.nand_block_size = _args.nand_blk_size
+                if _args.nand_page_size:
+                    nand_installer.nand_page_size = _args.nand_page_size
+                nand_installer.ram_load_addr = _args.ram_load_addr
+                nand_installer.dryrun = _args.dryrun
+                nand_installer.read_partitions(_args.mmap_file)
                 
-            if _args.component == COMP_BOOTLOADER:
-                ret = nand_installer.install_bootloader()
-                if ret is False: _abort_install()
+                if _args.nand_uboot_file:
+                    ret = nand_installer.load_uboot_to_ram(_args.nand_uboot_file,
+                                                           _args.ram_load_addr)
+                    if ret is False: _abort_install()
                 
-            if _args.component == COMP_KERNEL:
-                ret = nand_installer.install_kernel(force=_args.kernel_force)
-                if ret is False: _abort_install()
-    
-            if _args.component == COMP_FS:
-                ret = nand_installer.install_fs(force=_args.fs_force)
-                if ret is False: _abort_install()
-    
-            if _args.component == COMP_CMDLINE:
-                ret = nand_installer.install_cmdline(_args.cmdline,
-                                                     _args.cmdline_force)
-                if ret is False: _abort_install()
-           
-            if _args.component == COMP_BOOTCMD:
-                ret = nand_installer.install_bootcmd(_args.bootcmd,
-                                                     _args.bootcmd_force)
-                if ret is False: _abort_install()
-                
-            if _args.component == COMP_MTDPARTS:
-                ret = nand_installer.install_mtdparts(_args.mtdparts,
-                                                      _args.mtdparts_force)
-                if ret is False: _abort_install()
+                if _args.component == COMP_IPL:
+                    ret = nand_installer.install_ipl(force=_args.ipl_force)
+                    if ret is False: _abort_install()
+                    
+                if _args.component == COMP_BOOTLOADER:
+                    ret = nand_installer.install_bootloader()
+                    if ret is False: _abort_install()
+                    
+                if _args.component == COMP_KERNEL:
+                    ret = nand_installer.install_kernel(force=_args.kernel_force)
+                    if ret is False: _abort_install()
         
-            _logger.debug("Finishing installation")
-            if _args.component in comp_requires_network:
-                if uboot.get_env('autostart') == 'no':
-                    uboot.set_env('autostart', 'yes')
-                    uboot.save_env()
-            uboot.cmd('echo Installation complete', prompt_timeout=None)
+                if _args.component == COMP_FS:
+                    ret = nand_installer.install_fs(force=_args.fs_force)
+                    if ret is False: _abort_install()
+        
+                if _args.component == COMP_CMDLINE:
+                    ret = nand_installer.install_cmdline(_args.cmdline,
+                                                         _args.cmdline_force)
+                    if ret is False: _abort_install()
+               
+                if _args.component == COMP_BOOTCMD:
+                    ret = nand_installer.install_bootcmd(_args.bootcmd,
+                                                         _args.bootcmd_force)
+                    if ret is False: _abort_install()
+                    
+                if _args.component == COMP_MTDPARTS:
+                    ret = nand_installer.install_mtdparts(_args.mtdparts,
+                                                          _args.mtdparts_force)
+                    if ret is False: _abort_install()
             
-        except rrutils.uboot.UbootTimeoutException as e:
+                _logger.debug("Finishing installation")
+                if _args.component in comp_requires_network:
+                    if _uboot.get_env('autostart') == 'no':
+                        _uboot.set_env('autostart', 'yes')
+                        _uboot.save_env()
+                        
+                _uboot.cmd('echo Installation complete', prompt_timeout=None)
+                        
+            if mode == MODE_RAM:
+                tftp_loader.setup_uboot_network()
+                _logger.info("Loading %s to RAM address %s" %
+                             (_args.ram_file, _args.ram_load_addr))
+                boot_line = "Please press Enter to activate this console"
+                tftp_loader.load_file_to_ram_and_boot(_args.ram_file,
+                                  _args.ram_load_addr, boot_line, boot_time=60)
+            
+        except (UbootTimeoutException, RamLoaderException) as e:
             _logger.error(e)
             _abort_install()
             
-        uboot.close_comm()
+        _uboot.close_comm()
         
     _logger.info('Installation complete')
     _clean_exit(0)

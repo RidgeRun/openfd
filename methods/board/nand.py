@@ -26,7 +26,7 @@ import ConfigParser
 import rrutils
 import rrutils.hexutils as hexutils
 from partition import NandPartition
-import tftp
+import ram
 
 # ==========================================================================
 # Constants
@@ -72,6 +72,7 @@ class NandInstaller(object):
                  ram_load_addr=None, dryrun=False):
         """
         :param uboot: :class:`Uboot` instance.
+        :param loader: :class:`RamLoader` instance.
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
         :param nand_page_size: NAND page size (bytes). If not given, the
@@ -229,7 +230,7 @@ class NandInstaller(object):
     def _load_file_to_ram(self, filename, load_addr):
         try:
             self._loader.load_file_to_ram(filename, load_addr)
-        except tftp.TftpException as e:
+        except ram.RamLoaderException as e:
             self._l.error(e)
             return False
 

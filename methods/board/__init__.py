@@ -1,3 +1,3 @@
 from nand import *
-from tftp import *
+from ram import *
 from partition import *
