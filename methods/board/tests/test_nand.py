@@ -179,15 +179,20 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     def install_cmdline(self):
         print "---- Installing cmdline ----"
         # cmdline for ubifs
-        cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs"
-        gen_mtdparts = True
-        ret = self.inst.install_cmdline(cmdline, gen_mtdparts=gen_mtdparts)
+        cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
+        ret = self.inst.install_env_variable('bootargs', cmdline)
         self.assertTrue(ret)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
         bootcmd = "'nboot 0x82000000 0 ${koffset}'"
-        ret = self.inst.install_bootcmd(bootcmd)
+        ret = self.inst.install_env_variable('bootcmd', bootcmd)
+        self.assertTrue(ret)
+        
+    def install_mtdparts(self):
+        print "---- Installing mtdparts ----"
+        mtdparts = "mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
+        ret = self.inst.install_env_variable('mtdparts', mtdparts)
         self.assertTrue(ret)
 
 # ==========================================================================
@@ -216,7 +221,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_fs()
 
     def test_install_cmdline(self):
-        test_cmdline = False
+        test_cmdline = True
         if test_cmdline:
             self.install_cmdline()
             
@@ -224,6 +229,11 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         test_bootcmd = False
         if test_bootcmd:
             self.install_bootcmd()
+            
+    def test_install_mtdparts(self):
+        test_mtdparts = False
+        if test_mtdparts:
+            self.install_mtdparts()
             
     def test_install_all(self):
         install_all = False
@@ -235,6 +245,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_fs()
             self.install_cmdline()
             self.install_bootcmd()
+            self.install_mtdparts()
             self.uboot.set_env('autostart', 'yes')
             self.uboot.save_env()
             self.uboot.cmd('echo Installation complete')

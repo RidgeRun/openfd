@@ -465,81 +465,37 @@ class NandInstaller(object):
                                          part.start_blk, part.size_blks, force)
         return True
 
-    def install_cmdline(self, cmdline, force=False):
+    def install_env_variable(self, variable, value, force=False):
         """
-        Installs the kernel command line to uboot's environment. If the same
-        command line has already been installed it will avoid re-installing it, 
-        unless `force` is specified.
-
-        :param cmdline: Kernel command line.
-        :param force: Forces the kernel command line installation.
-        :type force: boolean
-        :returns: Returns true on success; false otherwise.
-        """
-        
-        self._l.info("Installing kernel cmdline")
-        cmdline = cmdline.strip()
-        self._l.debug("Verifying if cmdline installation is needed")
-        if not force:
-            cmdline_on_board = self._u.get_env('bootargs')        
-            if cmdline == cmdline_on_board and not force:
-                self._l.info("Kernel cmdline doesn't need to be installed")
-                return True
-        self._u.set_env('bootargs', "'%s'" % cmdline)
-        self._u.save_env()
-        self._l.info("Kernel cmdline installation complete")
-        return True
-
-    def install_bootcmd(self, bootcmd, force=False):
-        """
-        Installs the boot command (`bootcmd`) to uboot's environment. If the
-        same boot command has already been installed it will avoid
-        re-installing it, unless `force` is specified.
-
-        :param bootcmd: Boot command.
-        :param force: Forces the boot command installation.
-        :type force: boolean
-        :returns: Returns true on success; false otherwise.
-        """
-        
-        self._l.info("Installing bootcmd")
-        bootcmd = bootcmd.strip()
-        if not force:
-            self._l.debug("Verifying if bootcmd installation is needed")
-            bootcmd_on_board = self._u.get_env('bootcmd')
-            if bootcmd == bootcmd_on_board and not force:
-                self._l.info("Uboot's bootcmd doesn't need to be installed")
-                return True
-        self._u.set_env('bootcmd', bootcmd)
-        self._u.save_env()
-        self._l.info("Bootcmd installation complete")
-        return True
-        
-    def install_mtdparts(self, mtdparts, force=False):
-        """
-        Installs mtdparts to uboot's environment. If the same mtdparts has
+        Installs a variable in uboot's environment. If the same variable has
         already been installed it will avoid re-installing it, unless `force`
         is specified.
 
-        :param mtdparts: Mtdparts.
-        :param force: Forces the mtdparts installation.
+        :param variable: Uboot's environment variable to install (i.e. bootargs,
+            bootcmd, mtdparts, etc.).
+        :param value: Value to set in the environment variable.
+        :param force: Forces the installation.
         :type force: boolean
         :returns: Returns true on success; false otherwise.
         """
         
-        self._l.info("Installing mtdparts")
-        mtdparts = mtdparts.strip()
+        self._l.info("Installing %s" % variable)
+        value = value.strip()
         if not force:
-            self._l.debug("Verifying if mtdparts installation is needed")
-            mtdparts_on_board = self._u.get_env('mtdparts')
-            if mtdparts == mtdparts_on_board and not force:
-                self._l.info("Uboot's mtdparts doesn't need to be installed")
+            self._l.debug("Verifying if %s installation is needed" % variable)
+            value_on_board = self._u.get_env(variable)
+            if value == value_on_board:
+                self._l.info("Uboot's %s doesn't need to be installed" %
+                             variable)
                 return True
-        self._u.set_env('mtdparts', mtdparts)
+        if ' ' in value:
+            self._u.set_env(variable, "'%s'" % value)
+        else:
+            self._u.set_env(variable, value)
         self._u.save_env()
-        self._l.info("Mtdparts installation complete")
+        self._l.info("%s installation complete" % variable.capitalize())
         return True
-        
+
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
