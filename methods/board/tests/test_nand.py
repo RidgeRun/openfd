@@ -23,24 +23,27 @@ import check_env
 sys.path.insert(1, os.path.abspath('..'))
 
 import rrutils
-from nand import NandInstallerTFTP
+from nand import NandInstaller
+from ram import TftpRamLoader
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
 if not devdir: sys.exit(-1)
 
-#test_host_ip_addr = '10.251.101.24'
-test_host_ip_addr = '192.168.1.110'
+test_host_ip_addr = '10.251.101.24'
+#test_host_ip_addr = '192.168.1.110'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 test_mmap_file = '%s/images/nand-mmap.config' % devdir
+test_tftp_dir = '/srv/tftp'
 
 class NandInstallerTFTPTestCase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        verbose = False
+        verbose = True
         logger = rrutils.logger.get_global_logger('NandInstaller')
+        logger.setLevel(logging.DEBUG)
         streamhandler = logging.StreamHandler()
         streamhandler.setFormatter(logging.Formatter('%(msg)s'))
         if verbose:
@@ -53,26 +56,30 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         
         dryrun = False
         
-        self._uboot = rrutils.uboot.Uboot()
-        self._uboot.dryrun = dryrun
-        ret = self._uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
+        self.uboot = rrutils.uboot.Uboot()
+        self.uboot.serial_logger = rrutils.logger.get_global_logger()
+        self.uboot.dryrun = dryrun
+        ret = self.uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
-        ret = self._uboot.sync()
+        ret = self.uboot.sync()
         self.assertTrue(ret)
         
-        self._inst = NandInstallerTFTP(uboot=self._uboot)
-        self._inst.net_mode = NandInstallerTFTP.MODE_DHCP
-        self._inst.host_ipaddr = test_host_ip_addr
-        self._inst.tftp_dir = '/srv/tftp'
-        self._inst.tftp_port = 69
-        self._inst.ram_load_addr = test_ram_load_addr
-        self._inst.dryrun = dryrun
+        self.loader = TftpRamLoader(self.uboot, TftpRamLoader.MODE_DHCP)
+        self.loader.dir = test_tftp_dir
+        self.loader.port = 69
+        self.loader.host_ipaddr = test_host_ip_addr
+        self.loader.dryrun = dryrun
         
-        ret = self._inst.read_partitions(test_mmap_file)
+        self.inst = NandInstaller(uboot=self.uboot, loader=self.loader)
+        self.inst.ram_load_addr = test_ram_load_addr
+        self.inst.verbose = True
+        self.inst.dryrun = dryrun
+        
+        ret = self.inst.read_partitions(test_mmap_file)
         self.assertTrue(ret)
         
     def tearDown(self):
-        self._uboot.close_comm()
+        self.uboot.close_comm()
     
 # ==========================================================================
 # Test cases - Others 
@@ -83,58 +90,58 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         test_nbs = False
         if test_nbs:
             # Set a value manually
-            self._inst.nand_block_size = 15
-            self.assertEqual(self._inst.nand_block_size, 15)
+            self.inst.nand_block_size = 15
+            self.assertEqual(self.inst.nand_block_size, 15)
             # Force to query uboot - block size = 128 KB for a leo dm368
-            self._inst.nand_block_size = 0
-            self.assertEqual(self._inst.nand_block_size, 131072)
+            self.inst.nand_block_size = 0
+            self.assertEqual(self.inst.nand_block_size, 131072)
         
     def test_nand_page_size(self):
         print "---- test_nand_page_size ----"
         test_nps = False
         if test_nps:
             # Set a value manually
-            self._inst.nand_page_size = 15
-            self.assertEqual(self._inst.nand_page_size, 15)
+            self.inst.nand_page_size = 15
+            self.assertEqual(self.inst.nand_page_size, 15)
             # Force to query uboot - page size = 0x800 (2048) for a leo dm368
-            self._inst.nand_page_size = 0
-            self.assertEqual(self._inst.nand_page_size, 2048)
+            self.inst.nand_page_size = 0
+            self.assertEqual(self.inst.nand_page_size, 2048)
     
     def test_tftp_settings(self):
         print "---- test_tftp_settings ----"
         test_tftp = False
         if test_tftp:
-            ret = self._inst._check_tftp_settings()
+            ret = self.inst._check_tftp_settings()
             self.assertTrue(ret)
 
     def test_tftp_dhcp(self):
         print "---- test_dhcp ----"
         test_dhcp = False
         if test_dhcp:
-            ret = self._inst.setup_uboot_network()
+            ret = self.inst.setup_uboot_network()
             self.assertTrue(ret)
 
     def test_load_file_to_ram(self):
         print "---- test_load_to_ram ----"
         test_load_to_ram = False
         if test_load_to_ram:
-            ret = self._inst.setup_uboot_network()
+            ret = self.inst.setup_uboot_network()
             self.assertTrue(ret)
             boot_img = "%s/images/bootloader" % devdir
-            ret = self._inst._load_file_to_ram(boot_img, test_uboot_load_addr)
+            ret = self.inst._load_file_to_ram(boot_img, test_uboot_load_addr)
             self.assertTrue(ret)
     
     def test_read_partitions(self):
         print "---- test_nand_block_size ----"
         test_read_part = False
         if test_read_part:
-            self._inst.read_partitions('%s/images/nand-mmap.config' % devdir)
+            self.inst.read_partitions('%s/images/nand-mmap.config' % devdir)
     
     def test_mtdparts(self):
         print "---- test_mtdparts ----"
         test_mtd_parts = False
         if test_mtd_parts:
-            self._inst._generate_mtdparts('davinci_nand.0')
+            self.inst._generate_mtdparts('davinci_nand.0')
     
 # ==========================================================================
 # Install methods
@@ -142,32 +149,31 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             
     def setup_network(self):
         print "---- Setting up network ----"
-        ret = self._inst.setup_uboot_network()
-        self.assertTrue(ret)
-        self._uboot.set_env('autostart', 'yes')
-        self._uboot.save_env()
+        self.loader.setup_uboot_network()
+        self.uboot.set_env('autostart', 'yes')
+        self.uboot.save_env()
     
     def load_uboot(self):
         print "---- Loading uboot to RAM ----"
         uboot_img = "%s/images/bootloader" % devdir
-        ret = self._inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
+        ret = self.inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
         self.assertTrue(ret)
             
     def install_bootloader(self):
         print "---- Installing bootloader ----"
-        ret = self._inst.install_ipl()
+        ret = self.inst.install_ipl()
         self.assertTrue(ret)
-        ret = self._inst.install_bootloader()
+        ret = self.inst.install_bootloader()
         self.assertTrue(ret)
     
     def install_kernel(self):
         print "---- Installing kernel ----"
-        ret = self._inst.install_kernel(force=True)
+        ret = self.inst.install_kernel(force=True)
         self.assertTrue(ret)
     
     def install_fs(self):
         print "---- Installing fs ----"
-        ret = self._inst.install_fs(force=True)
+        ret = self.inst.install_fs(force=True)
         self.assertTrue(ret)
     
     def install_cmdline(self):
@@ -175,13 +181,13 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         # cmdline for ubifs
         cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs"
         gen_mtdparts = True
-        ret = self._inst.install_cmdline(cmdline, gen_mtdparts=gen_mtdparts)
+        ret = self.inst.install_cmdline(cmdline, gen_mtdparts=gen_mtdparts)
         self.assertTrue(ret)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
         bootcmd = "'nboot 0x82000000 0 ${koffset}'"
-        ret = self._inst.install_bootcmd(bootcmd)
+        ret = self.inst.install_bootcmd(bootcmd)
         self.assertTrue(ret)
 
 # ==========================================================================
@@ -229,9 +235,9 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_fs()
             self.install_cmdline()
             self.install_bootcmd()
-            self._uboot.set_env('autostart', 'yes')
-            self._uboot.save_env()
-            self._uboot.cmd('echo Installation complete')
+            self.uboot.set_env('autostart', 'yes')
+            self.uboot.save_env()
+            self.uboot.cmd('echo Installation complete')
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
