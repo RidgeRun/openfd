@@ -46,7 +46,6 @@ class RamLoader(object):
 
 class RamLoaderException(Exception):
     """RAM loader exceptions."""
-    pass
 
 class TftpRamLoader(RamLoader):
     """Load images to RAM via TFTP."""
@@ -159,7 +158,7 @@ class TftpRamLoader(RamLoader):
         """
         Setup networking for uboot, based on the specified :func:`net_mode`.
         
-        :exception TftpException: Error configuring UBoot's network.
+        :exception RamLoaderException: Error configuring UBoot's network.
         """
         
         self._l.info('Configuring uboot network')
@@ -191,7 +190,7 @@ class TftpRamLoader(RamLoader):
         
         :param filename: File to load.
         :param load_addr: RAM address where to load the file.
-        :exception TftpException: Error configuring UBoot's network.
+        :exception RamLoaderException: Error loading to RAM.
         """
         
         # Copy the file to the host's TFTP directory
@@ -234,11 +233,11 @@ class TftpRamLoader(RamLoader):
         
         :param filename: File to load.
         :param load_addr: RAM address where to load the file.
-        :param boot_line: This is the line to expect in the serial port to
-            determine that boot has been reached.
-        :param boot_timeout: Max time (in seconds) to wait for
+        :param boot_line: Line to expect in the serial port to determine that
+            boot has been reached.
+        :param boot_timeout: Timeout (in seconds) to wait for
             :const:`boot_line`.
-        :exception TftpException: Error configuring UBoot's network.
+        :exception RamLoaderException: Error loading to RAM or booting.
         """
         
         # Copy the file to the host's TFTP directory
