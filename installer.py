@@ -35,6 +35,7 @@ import time
 from rrutils import Uboot
 from rrutils import UbootTimeoutException
 from methods.board.nand import NandInstaller
+from methods.board.ram import RamLoader
 from methods.board.ram import TftpRamLoader
 from methods.board.ram import RamLoaderException
 
@@ -55,6 +56,7 @@ _parser_nand_cmdline = None
 _parser_nand_bootcmd = None
 _parser_nand_mtdparts = None
 _parser_ram = None
+_parser_env = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
@@ -70,6 +72,7 @@ MODE_SD = 'sd'
 MODE_SD_IMG = 'sd-img'
 MODE_NAND = 'nand'
 MODE_RAM = 'ram'
+MODE_ENV = 'env'
 
 # Components
 COMP_IPL = "ipl"
@@ -123,7 +126,7 @@ def _init_executer():
                  dryrun=_args.dryrun, enable_colors=True, verbose=_args.verbose)
 
 def _clean_exit(code=0):
-    if _uboot: _uboot.close_comm()
+    _close_uboot()
     if code != 0: _logger.debug('Exiting with code %d' % code)
     exit(code)
 
@@ -168,6 +171,23 @@ def _check_is_valid_ipv4(ip, arg):
     except socket.error:
         _logger.error('Invalid IP address on %s: %s' % (arg, ip))
         _abort_install()
+
+def _setup_uboot():
+    global _uboot
+    _uboot = Uboot()
+    _uboot.serial_logger = _logger
+    _uboot.dryrun = _args.dryrun
+    try:
+        ret = _uboot.open_comm(port=_args.serial_port, baud=_args.serial_baud)
+        if ret is False: _abort_install()
+        ret = _uboot.sync()
+        if ret is False: _abort_install()
+    except (serial.SerialException, UbootTimeoutException) as e:
+            _logger.error(e)
+            _abort_install()
+
+def _close_uboot():
+    if _uboot: _uboot.close_comm()
 
 # ==========================================================================
 # Command line arguments
@@ -527,6 +547,30 @@ def _add_args_ram():
     _add_args_serial_shared(_parser_ram)
     _add_args_tftp_shared(_parser_ram)
     
+def _add_args_env():
+    global _parser_env
+    _parser_env = _subparsers.add_parser(MODE_ENV)
+    
+    _parser_env.add_argument('--variable',
+                       help="U-Boot's environment variable",
+                       metavar='<var>',
+                       dest='env_variable',
+                       required=True)
+
+    _parser_env.add_argument('--value',
+                       help="Value to set in --variable",
+                       metavar='<value>',
+                       dest='env_value',
+                       required=True)
+    
+    _parser_env.add_argument('--force',
+                       help='Force variable installation',
+                       dest='env_force',
+                       action='store_true',
+                       default=False)
+    
+    _add_args_serial_shared(_parser_env)
+    
 def _check_args():
     if _args.mode == MODE_SD:
         _check_args_sd()
@@ -625,6 +669,9 @@ def _check_args_ram():
     _check_args_serial()
     _check_args_tftp()
 
+def _check_args_env():
+    _check_args_serial()
+
 def _check_sudo():
     ret = _executer.prompt_sudo()
     if ret != 0:
@@ -645,6 +692,7 @@ def main():
     _add_args_sd()
     _add_args_sd_img()
     _add_args_ram()
+    _add_args_env()
     _args = _parser.parse_args()
     _init_logging()
     _init_executer()
@@ -703,21 +751,8 @@ def main():
         if ret is False: _abort_install()
         
     if mode == MODE_NAND or mode == MODE_RAM:
-        
-        _uboot = Uboot()
-        _uboot.serial_logger = _logger
-        _uboot.dryrun = _args.dryrun
-        
+        _setup_uboot()
         try:
-            ret = _uboot.open_comm(port=_args.serial_port, baud=_args.serial_baud)
-            if ret is False: _abort_install()
-        except serial.SerialException:
-            _abort_install()
-        
-        try:
-            ret = _uboot.sync()
-            if ret is False: _abort_install()
-            
             tftp_loader = TftpRamLoader(_uboot, _args.board_net_mode)
             tftp_loader.dir = _args.tftp_dir
             tftp_loader.port = _args.tftp_port
@@ -799,8 +834,19 @@ def main():
         except (UbootTimeoutException, RamLoaderException) as e:
             _logger.error(e)
             _abort_install()
-            
-        _uboot.close_comm()
+        _close_uboot()
+        
+    if mode == MODE_ENV:
+        _setup_uboot()
+        try:
+            nand_installer = NandInstaller(uboot=_uboot, loader=RamLoader())
+            nand_installer.dryrun = _args.dryrun
+            nand_installer.install_env_variable(_args.env_variable,
+                                        _args.env_value, _args.env_force)
+        except UbootTimeoutException as e:
+            _logger.error(e)
+            _abort_install()
+        _close_uboot()
         
     _logger.info('Installation complete')
     _clean_exit(0)
