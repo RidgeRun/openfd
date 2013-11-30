@@ -227,6 +227,7 @@ import socket
 import serial
 import signal
 import logging
+import time
 
 from rrutils import Uboot
 from rrutils import UbootTimeoutException
@@ -295,7 +296,7 @@ def _init_logging():
         streamhandler.setLevel(logging.CRITICAL)
     _logger.addHandler(streamhandler)
     if _args.log_filename:
-        filehandler = logging.FileHandler(_args.log_filename, mode='w')
+        filehandler = logging.FileHandler(_args.log_filename, mode='a')
         filehandler.setLevel(logging.DEBUG)
         if _args.verbose:
             filehandler.setFormatter(logging.Formatter('%(levelname)s:'
@@ -303,6 +304,15 @@ def _init_logging():
         else:
             filehandler.setFormatter(logging.Formatter('%(msg)s'))
         _logger.addHandler(filehandler)
+        _logger.debug('-' * 80)
+        _logger.debug('Log date: %s' % time.strftime("%Y%m%d %H:%M:%S"))
+        command = ''
+        for arg in sys.argv:
+            if ' ' in arg:
+                command += ' "%s"' % arg
+            else:
+                command += ' %s' % arg
+        _logger.debug('Command: %s' % command)
 
 def _init_executer():
     global _executer
