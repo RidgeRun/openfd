@@ -52,9 +52,6 @@ _parser_nand_ipl = None
 _parser_nand_bootloader = None
 _parser_nand_kernel = None
 _parser_nand_fs = None
-_parser_nand_cmdline = None
-_parser_nand_bootcmd = None
-_parser_nand_mtdparts = None
 _parser_ram = None
 _parser_env = None
 _subparsers = None
@@ -79,9 +76,6 @@ COMP_IPL = "ipl"
 COMP_BOOTLOADER = "bootloader"
 COMP_KERNEL = "kernel"
 COMP_FS = "fs"
-COMP_CMDLINE = "cmdline"
-COMP_BOOTCMD = "bootcmd"
-COMP_MTDPARTS = "mtdparts"
 
 # ==========================================================================
 # Functions
@@ -422,9 +416,6 @@ def _add_args_nand():
     _add_args_nand_bootloader()
     _add_args_nand_kernel()
     _add_args_nand_fs()
-    _add_args_nand_cmdline()
-    _add_args_nand_bootcmd()
-    _add_args_nand_mtdparts()
 
 def _add_args_nand_ipl():
     global _parser_nand_ipl 
@@ -461,57 +452,6 @@ def _add_args_nand_fs():
     _parser_nand_fs.add_argument('--force',
                        help='Force component installation',
                        dest='fs_force',
-                       action='store_true',
-                       default=False)
-
-def _add_args_nand_cmdline():
-    global _parser_nand_cmdline 
-    _parser_nand_cmdline = _subparsers_nand.add_parser(COMP_CMDLINE,
-                                                  help="Kernel's command line")
-    
-    _parser_nand_cmdline.add_argument('--cmdline',
-                       help="Kernel's command line",
-                       metavar='<cmdline>',
-                       dest='cmdline',
-                       required=True)
-    
-    _parser_nand_cmdline.add_argument('--force',
-                       help='Force component installation',
-                       dest='cmdline_force',
-                       action='store_true',
-                       default=False)
-
-def _add_args_nand_bootcmd():
-    global _parser_nand_bootcmd 
-    _parser_nand_bootcmd = _subparsers_nand.add_parser(COMP_BOOTCMD,
-                                          help="U-Boots's bootcmd variable")
-    
-    _parser_nand_bootcmd.add_argument('--bootcmd',
-                       help="U-Boots's bootcmd variable",
-                       metavar='<bootcmd>',
-                       dest='bootcmd',
-                       required=True)
-    
-    _parser_nand_bootcmd.add_argument('--force',
-                       help='Force component installation',
-                       dest='bootcmd_force',
-                       action='store_true',
-                       default=False)
-
-def _add_args_nand_mtdparts():
-    global _parser_nand_mtdparts 
-    _parser_nand_mtdparts = _subparsers_nand.add_parser(COMP_MTDPARTS,
-                                          help="U-Boots's mtdparts variable")
-    
-    _parser_nand_mtdparts.add_argument('--mtdparts',
-                       help="U-Boots's mtdparts variable",
-                       metavar='<mtdparts>',
-                       dest='mtdparts',
-                       required=True)
-    
-    _parser_nand_mtdparts.add_argument('--force',
-                       help='Force component installation',
-                       dest='mtdparts_force',
                        action='store_true',
                        default=False)
 
@@ -633,12 +573,6 @@ def _check_args_nand():
         _check_args_nand_kernel()
     if _args.component == COMP_FS:
         _check_args_nand_fs()
-    if _args.component == COMP_CMDLINE:
-        _check_args_nand_cmdline()
-    if _args.component == COMP_BOOTCMD:
-        _check_args_nand_bootcmd()
-    if _args.component == COMP_MTDPARTS:
-        _check_args_nand_mtdparts()
 
 def _check_args_nand_ipl():
     pass
@@ -650,15 +584,6 @@ def _check_args_nand_kernel():
     pass
 
 def _check_args_nand_fs():
-    pass
-
-def _check_args_nand_cmdline():
-    pass
-
-def _check_args_nand_bootcmd():
-    pass
-
-def _check_args_nand_mtdparts():
     pass
 
 def _check_args_ram():
@@ -798,21 +723,6 @@ def main():
         
                 if _args.component == COMP_FS:
                     ret = nand_installer.install_fs(force=_args.fs_force)
-                    if ret is False: _abort_install()
-        
-                if _args.component == COMP_CMDLINE:
-                    ret = nand_installer.install_cmdline(_args.cmdline,
-                                                         _args.cmdline_force)
-                    if ret is False: _abort_install()
-               
-                if _args.component == COMP_BOOTCMD:
-                    ret = nand_installer.install_bootcmd(_args.bootcmd,
-                                                         _args.bootcmd_force)
-                    if ret is False: _abort_install()
-                    
-                if _args.component == COMP_MTDPARTS:
-                    ret = nand_installer.install_mtdparts(_args.mtdparts,
-                                                          _args.mtdparts_force)
                     if ret is False: _abort_install()
             
                 _logger.debug("Finishing installation")
