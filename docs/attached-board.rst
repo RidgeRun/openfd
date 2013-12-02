@@ -42,7 +42,7 @@ Uboot's prompt.
     DM368 LEOPARD #
     
 3. Close your terminal session (in this case *termnet*), so that the installer
-can communicate with U-Boot through the serial port.
+can communicate with U-Boot through the available serial port.
 ::
     DM368 LEOPARD # 
     termnet>>quit
@@ -54,16 +54,10 @@ Installing to NAND
 
 The installation to NAND supports installing these components:
 
-* IPL: The *Initial Program Loader*, or UBL in the case of the DM36x.
-* Bootloader: U-Boot.
+* IPL: The *Initial Program Loader*, or UBL in the case of the DM36x
+* Bootloader: U-Boot
 * Kernel
 * Filesystem
-
-Additionally, you can use this installer to write some useful variables to
-U-Boot's environment.
-
-* Cmdline - writes the `bootargs` env variable, a.k.a the kernel's cmdline.
-* Bootcmd - writes the `bootcmd` env variable, useful to setup autoboot.
 
 Before anything, we have to setup the NAND memory map.
 
@@ -71,10 +65,10 @@ Creating the NAND Memory Map
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Take into account the following parameters for NAND memory in the DM36x Leopard
-Board:
+Board. You can obtain this information by issuing the `nand info` command
+in U-Boot.
 
 * NAND block size: 128Kb (131072 bytes, or 0x20000 in hex)
-* Nand page size: 2Kb (2048 bytes, or 0x0800 in hex)
 
 This is important as you will setup your memory map specifying how much NAND
 blocks you want for each partition.
@@ -129,10 +123,10 @@ Note that there is an intentional correspondence between the section names:
 install. **These section names can't be changed**, but still you can name a
 partition by it's friendly name (i.e. 'uboot').
 
-In the case of the [ipl] section, for a DM368x you may be interested in
-installing UBL ("User Boot Loader"), in the [bootloader] section you **should**
-install U-Boot, and typically you would install Linux in [kernel] and some
-filesystem in [fs].
+In the case of the [ipl] section, for a DM368x we will install UBL ("User Boot
+Loader"), in the [bootloader] section we will install U-Boot, and typically
+you would install Linux in [kernel] and some filesystem in [fs] (like a `ubifs`
+or `jffs2` filesystem).
 
 Save your memory map to a file "nand-mmap.config", and we will supply the 
 filename to the installer as a CLI argument.
@@ -164,6 +158,8 @@ General arguments
 .................
 
 The installer's general arguments are as follows:
+::
+    installer.py --help
 
 * :option:`-y, --assume-yes`: Automatic 'yes' to prompts; runs non-interactively.
 * :option:`-v, --verbose`: Verbose output (useful for debugging).
@@ -175,11 +171,13 @@ NAND arguments
 ..............
 
 For NAND installation, several general arguments are required.
-
+::
+    installer.py nand --help
+    
 * :option:`--mmap-file`: Path to the memory map file that we created in the
   `Creating the NAND Memory Map`_ section.
-* :option:`--nand-blk-size`: The NAND block size (131072 for the DM36x)
-* :option:`--nand-page-size`: The NAND page size (2048 for the DM36x)
+* :option:`--nand-blk-size`: The NAND block size (131072 for the DM36x).
+* :option:`--nand-page-size`: The NAND page size (2048 for the DM36x).
 * :option:`--ram-load-addr`: RAM address to load components (hex or decimal).
   Before writing an image to NAND, the installer will first transfer your image
   via TFTP to RAM. This address indicates where in RAM the images will be
@@ -210,66 +208,47 @@ board's IP:
 * :option:`--board-net-mode`: Set to "`static`".
 * :option:`--board-ip-addr`: The static IP address for your board. 
 
-Example:
+Example of the general arguments for NAND installation:
 ::
     $ python installer.py \
         nand \
         --mmap-file ~/images/nand-mmap.config \
-        --serial-port "/dev/ttyUSB0" \
-        --serial-baud "115200" \
+        --serial-port /dev/ttyUSB0
         --ram-load-addr 0x82000000 \
         --host-ip-addr 10.251.101.24 \
-        --tftp-dir "/srv/tftp" \
-        --tftp-port 69 \
+        --tftp-dir /srv/tftp \
         --nand-blk-size 131072 \
-        --nand-page-size 2048 \
+        --nand-page-size 2048
 
 .. warning:: This installer uses TFTP to transfer the images to the board. It has
   been experienced that such transfer is very slow when your host PC is
-  connected to the network via WiFi, we recommend that you plug your host
-  PC to the network via ethernet.
+  connected to the network via WiFi, we recommend that you plug both your host
+  PC and your board to the network via ethernet.
 
 Per component arguments
-............................
+.......................
 
-Most of the components does not required any additional arguments, and most of
-them just implement the :option:`--force` switch that can be used to tell the
-installer to force the component installation. For most components, after
+Most of the components does not required any additional arguments, all the 
+required information regarding components is provided by the
+:option:`--mmap-file` (see `Creating the NAND Memory Map`_).
+
+All components, except the bootloader, implement the :option:`--force` switch
+that can be used to force the component installation. This is because after
 installing the image to NAND the installer will save in uboot's environment
 some variables that record the partition's `offset`, `size`, and `md5sum` to
-avoid re-installing the image if it is not necessary.
+avoid re-installing the component's image if it's not necessary.
 
-For example purposes, these command would install the IPL partition to NAND:
+This command installs the kernel partition to NAND:
 ::
     $ python installer.py \
         --verbose \
         nand \
         --mmap-file ~/images/nand-mmap.config \
-        --serial-port "/dev/ttyUSB0" \
-        --serial-baud "115200" \
+        --serial-port /dev/ttyUSB0
         --ram-load-addr 0x82000000 \
         --host-ip-addr 10.251.101.24 \
-        --tftp-dir "/srv/tftp" \
-        --tftp-port 69 \
+        --tftp-dir /srv/tftp \
         --nand-blk-size 131072 \
         --nand-page-size 2048 \
-        ipl \
-        --force
-
-And this command would install the bootcmd to U-Boot's env:
-::
-    $ python installer.py \
-        --verbose \
-        nand \
-        --mmap-file ~/images/nand-mmap.config \
-        --serial-port "/dev/ttyUSB0" \
-        --serial-baud "115200" \
-        --ram-load-addr 0x82000000 \
-        --host-ip-addr 10.251.101.24 \
-        --tftp-dir "/srv/tftp" \
-        --tftp-port 69 \
-        --nand-blk-size 131072 \
-        --nand-page-size 2048 \
-        bootcmd \
-        --bootcmd "nboot 0x82000000 0 0x400000"
+        kernel \
         --force

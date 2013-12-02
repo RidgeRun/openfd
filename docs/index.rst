@@ -6,14 +6,14 @@
 Installer documentation
 =======================
 
-The installer's objective is to aid in the deployment of firmware
-to a target board in a variety of ways. It is designed for boards that
-run `U-Boot <http://www.denx.de/wiki/U-Boot>`_ as their bootloader,  Embedded
-Linux as their kernel component, and requires a GNU/Linux host PC.
+The installer is a tool that helps developers to deploy their firmware
+to a target board in a variety of ways. Most of the steps required to prepare a
+bootable SD card, flash programming, and other deployment scenarios, can be
+simplified and automated using this installer.
 
-Most of the steps required to prepare a bootable SD card, flash programming,
-and many other deployment scenarios, can be simplified and automated using this
-installer.
+It is designed for boards that run `U-Boot <http://www.denx.de/wiki/U-Boot>`_ 
+as their bootloader, Embedded Linux as their kernel component, and requires a
+GNU/Linux host PC.
 
 Installation modes
 ------------------
@@ -21,9 +21,12 @@ Installation modes
 **1. Attached board on communication port**
 
 In this mode, the board is attached to a serial port in your computer, i.e.
-`/dev/ttyUSB0`, and the installer interacts with U-Boot through that port. 
+`/dev/ttyUSB0`, and the installer interacts with U-Boot through that port. This
+mode is useful to transfer images to RAM memory, that can be then flashed to
+some NAND or NOR flash memory, or actually booting them immediately from RAM
+(useful in a development environment). 
  
-**2. Deploy all the firmware to an SD card.**
+**2. Deploy all the firmware to an SD card**
 
 The installer will deploy all the firmware to an SD card that can be used to
 boot your board. Optionally, you can also create an image file that you can
@@ -42,7 +45,7 @@ Main features:
   specify a memory map for the device to install (SD card, NAND, etc.).
 * Dryrun support. The installer is able to run without executing any System
   or U-boot commands, this allows you to see what the installer would do
-  before actually running it.
+  before the actual deployment.
 * Runs interactively (and non-interactively). Configurable to prompt the user
   before executing a dangerous operation (like repartitioning your SD card) but
   can also run in non-interactive mode.
@@ -57,12 +60,12 @@ From a development point of view:
 * Test cases use the `pyunit <http://pyunit.sourceforge.net/>`_ framework.
 * Well documented with `Sphinx <http://sphinx-doc.org/>`_.
 * Makes use of the `rr-python-utils <https://github.com/RidgeRun/rr-python-utils>`_ 
-  for general utilities.
+  package for general utilities.
 
 Supported platforms
 -------------------
 
-The installer supports:
+TI DaVinci™ supported platforms:
 
 * DM36x - Leopard Board
 
@@ -82,12 +85,10 @@ Command:
     $ python installer.py \
         nand \
         --mmap-file ~/images/nand-mmap.config \
-        --serial-port "/dev/ttyUSB0" \
-        --serial-baud "115200" \
+        --serial-port /dev/ttyUSB0 \
         --ram-load-addr 0x82000000 \
         --host-ip-addr 10.251.101.24 \
-        --tftp-dir "/srv/tftp" \
-        --tftp-port 69 \
+        --tftp-dir /srv/tftp \
         --nand-blk-size 131072 \
         --nand-page-size 2048 \
         kernel 
@@ -119,7 +120,7 @@ Output:
       Uboot <= 'echo Installation complete'
     Installation complete
 
-**2. Creating a bootable SD - Leopard Board DM36x**
+**2. Creating a bootable SD card - Leopard Board DM36x**
 
 The following example installs a bootable SD card for the Leopard Board DM36x.
 
@@ -128,7 +129,7 @@ Command:
     $ python installer.py \
         sd \ 
         --mmap-file ~/images/sd-mmap.config \
-        --device "/dev/sdb" \
+        --device /dev/sdb \
         --kernel-file ~/images/kernel.uImage \
         --uflash-bin ~/u-boot-2010.12-rc2-psp03.01.01.39/src/tools/uflash/uflash \
         --ubl-file ~/images/ubl_DM36x_sdmmc.bin \
