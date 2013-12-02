@@ -70,9 +70,9 @@ The installer's general arguments are:
 ::
     installer.py --help
 
-* :option:`-y, --assume-yes`: Automatic 'yes' to prompts; runs non-interactively.
-* :option:`-v, --verbose`: Verbose output (useful for debugging).
-* :option:`-q, --quiet`: Quiet output (takes precedence over :option:`--verbose`:)
+* :option:`-y, --assume-yes`: Automatic 'yes' to prompts; runs non-interactively
+* :option:`-v, --verbose`: Verbose output (useful for debugging)
+* :option:`-q, --quiet`: Quiet output (takes precedence over :option:`--verbose`)
 * :option:`--dryrun`: Sets the dryrun mode On (system and uboot commands will be
   logged, but not executed) 
 
@@ -91,9 +91,8 @@ Before anything, we have to setup the NAND memory map.
 Creating the NAND Memory Map
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Take into account the following parameters for NAND memory in the DM36x Leopard
-Board. You can obtain this information by issuing the '`nand info`' command
-in U-Boot.
+Take into account the NAND block size in the DM36x Leopard Board. You can obtain
+this information by issuing the '`nand info`' command in U-Boot.
 
 * NAND block size: 128Kb (131072 bytes, or 0x20000 in hex)
 
@@ -133,6 +132,7 @@ A memory map file that implements the layout above, using the
     size_blks = 3
     image = ~/images/bootloader.nandbin
     
+in U-Boot.
     [kernel]
     name = kernel
     start_blk = 32
@@ -159,10 +159,10 @@ Save your memory map to a file "nand-mmap.config", and we will supply the
 filename to the installer as a CLI argument.
 
 .. note:: The process of generating images for any component is outside the
-          the scope of this document.        
+          scope of this document.        
 
-.. warning:: There is a NAND partition for the "U-Boot environment". In the DM36x
-  it typically starts at block 30 (see U-Boot's config variable
+.. warning:: There is a protected NAND partition for the "U-Boot environment".
+  In the DM36x it typically starts at block 30 (see U-Boot's config variable
   `CONFIG_ENV_OFFSET`) and has a size of 2 blocks. Don't write on top of it.
 
 NAND arguments

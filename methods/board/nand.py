@@ -46,6 +46,9 @@ DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
 # ==========================================================================
 
 class NandInstaller(object):
+    """
+    Install components to NAND memory.
+    """
     
     names = {
         'ipl': 'ubl',
