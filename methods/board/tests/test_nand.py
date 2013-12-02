@@ -25,6 +25,7 @@ sys.path.insert(1, os.path.abspath('..'))
 import rrutils
 from nand import NandInstaller
 from ram import TftpRamLoader
+from env import EnvInstaller
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
@@ -69,6 +70,9 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self.loader.port = 69
         self.loader.host_ipaddr = test_host_ip_addr
         self.loader.dryrun = dryrun
+        
+        self.env_inst = EnvInstaller(uboot=self.uboot)
+        self.env_inst.dryrun = dryrun
         
         self.inst = NandInstaller(uboot=self.uboot, loader=self.loader)
         self.inst.ram_load_addr = test_ram_load_addr
@@ -180,19 +184,19 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         print "---- Installing cmdline ----"
         # cmdline for ubifs
         cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
-        ret = self.inst.install_env_variable('bootargs', cmdline)
+        ret = self.env_inst.install_variable('bootargs', cmdline)
         self.assertTrue(ret)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
         bootcmd = "'nboot 0x82000000 0 ${koffset}'"
-        ret = self.inst.install_env_variable('bootcmd', bootcmd)
+        ret = self.env_inst.install_variable('bootcmd', bootcmd)
         self.assertTrue(ret)
         
     def install_mtdparts(self):
         print "---- Installing mtdparts ----"
         mtdparts = "mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
-        ret = self.inst.install_env_variable('mtdparts', mtdparts)
+        ret = self.env_inst.install_variable('mtdparts', mtdparts, force=True)
         self.assertTrue(ret)
 
 # ==========================================================================
@@ -221,7 +225,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_fs()
 
     def test_install_cmdline(self):
-        test_cmdline = True
+        test_cmdline = False
         if test_cmdline:
             self.install_cmdline()
             

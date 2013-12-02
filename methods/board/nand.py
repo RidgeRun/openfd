@@ -208,8 +208,8 @@ class NandInstaller(object):
         return self._dryrun
     
     dryrun = property(__get_dryrun, __set_dryrun,
-                     doc="""Enable dryrun mode. System commands will be
-                     logged, but not executed.""")
+                     doc="""Enable dryrun mode. System and uboot commands will
+                     be logged, but not executed.""")
     
     def _bytes_to_blks(self, size_b):
         size_blks = (size_b / self.nand_block_size)
@@ -463,37 +463,6 @@ class NandInstaller(object):
             if part.name == NandInstaller.names['filesystem']:
                 return self._install_img(part.image, 'filesystem', 'fs',
                                          part.start_blk, part.size_blks, force)
-        return True
-
-    def install_env_variable(self, variable, value, force=False):
-        """
-        Installs a variable in uboot's environment. If the same variable has
-        already been installed it will avoid re-installing it, unless `force`
-        is specified.
-
-        :param variable: Uboot's environment variable to install (i.e. bootargs,
-            bootcmd, mtdparts, etc.).
-        :param value: Value to set in the environment variable.
-        :param force: Forces the installation.
-        :type force: boolean
-        :returns: Returns true on success; false otherwise.
-        """
-        
-        self._l.info("Installing %s" % variable)
-        value = value.strip()
-        if not force:
-            self._l.debug("Verifying if %s installation is needed" % variable)
-            value_on_board = self._u.get_env(variable)
-            if value == value_on_board:
-                self._l.info("Uboot's %s doesn't need to be installed" %
-                             variable)
-                return True
-        if ' ' in value:
-            self._u.set_env(variable, "'%s'" % value)
-        else:
-            self._u.set_env(variable, value)
-        self._u.save_env()
-        self._l.info("%s installation complete" % variable.capitalize())
         return True
 
     def read_partitions(self, filename):

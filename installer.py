@@ -35,9 +35,9 @@ import time
 from rrutils import Uboot
 from rrutils import UbootTimeoutException
 from methods.board.nand import NandInstaller
-from methods.board.ram import RamLoader
 from methods.board.ram import TftpRamLoader
 from methods.board.ram import RamLoaderException
+from methods.board.env import EnvInstaller
 
 # ==========================================================================
 # Global variables
@@ -749,9 +749,9 @@ def main():
     if mode == MODE_ENV:
         _setup_uboot()
         try:
-            nand_installer = NandInstaller(uboot=_uboot, loader=RamLoader())
-            nand_installer.dryrun = _args.dryrun
-            nand_installer.install_env_variable(_args.env_variable,
+            env_installer = EnvInstaller(uboot=_uboot)
+            env_installer.dryrun = _args.dryrun
+            env_installer.install_variable(_args.env_variable,
                                         _args.env_value, _args.env_force)
         except UbootTimeoutException as e:
             _logger.error(e)
