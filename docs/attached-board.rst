@@ -49,6 +49,33 @@ can communicate with U-Boot through the available serial port.
 
 At this point you are ready to execute the installer.
 
+Calling the installer
+~~~~~~~~~~~~~~~~~~~~~
+
+At any time, you can query the supported/required arguments for the installer
+using `-h` or :option:`--help`. The installer has positional arguments, so you
+can use the help at different levels.
+::
+    installer.py --help
+    installer.py nand --help
+    installer.py nand kernel --help
+    installer.py env --help
+    installer.py sd --help
+    ...
+
+General arguments
+.................
+
+The installer's general arguments are:
+::
+    installer.py --help
+
+* :option:`-y, --assume-yes`: Automatic 'yes' to prompts; runs non-interactively.
+* :option:`-v, --verbose`: Verbose output (useful for debugging).
+* :option:`-q, --quiet`: Quiet output (takes precedence over :option:`--verbose`:)
+* :option:`--dryrun`: Sets the dryrun mode On (system and uboot commands will be
+  logged, but not executed) 
+
 Installing to NAND
 ^^^^^^^^^^^^^^^^^^
 
@@ -65,7 +92,7 @@ Creating the NAND Memory Map
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Take into account the following parameters for NAND memory in the DM36x Leopard
-Board. You can obtain this information by issuing the `nand info` command
+Board. You can obtain this information by issuing the '`nand info`' command
 in U-Boot.
 
 * NAND block size: 128Kb (131072 bytes, or 0x20000 in hex)
@@ -73,7 +100,7 @@ in U-Boot.
 This is important as you will setup your memory map specifying how much NAND
 blocks you want for each partition.
 
-For each NAND partition you should specify (at least):
+For each NAND partition you should specify:
 
 * `name`: a friendly name, like 'uboot'
 * `start_blk`: the starting NAND block of the partition
@@ -125,47 +152,18 @@ partition by it's friendly name (i.e. 'uboot').
 
 In the case of the [ipl] section, for a DM368x we will install UBL ("User Boot
 Loader"), in the [bootloader] section we will install U-Boot, and typically
-you would install Linux in [kernel] and some filesystem in [fs] (like a `ubifs`
-or `jffs2` filesystem).
+you would install Linux in [kernel] and some filesystem image in [fs] (like a
+`ubifs` or `jffs2` filesystem).
 
 Save your memory map to a file "nand-mmap.config", and we will supply the 
 filename to the installer as a CLI argument.
 
-.. hint:: There is a NAND partition for the "U-Boot environment". In the DM36x
+.. note:: The process of generating images for any component is outside the
+          the scope of this document.        
+
+.. warning:: There is a NAND partition for the "U-Boot environment". In the DM36x
   it typically starts at block 30 (see U-Boot's config variable
   `CONFIG_ENV_OFFSET`) and has a size of 2 blocks. Don't write on top of it.
-
-.. note:: This documentation does not refer to the process of generating images
-          for any component.
-
-Calling the installer
-~~~~~~~~~~~~~~~~~~~~~
-
-At any time, you can query the supported/required arguments for the installer
-using `-h` or :option:`--help`. The installer has positional arguments, so you
-can use the help at different levels.
-::
-    installer.py -h
-    installer.py nand -h
-    installer.py nand ipl -h
-    installer.py nand bootloader -h
-    installer.py nand kernel -h
-    installer.py nand fs -h
-    installer.py nand cmdline -h
-    installer.py nand bootcmd -h
-
-General arguments
-.................
-
-The installer's general arguments are as follows:
-::
-    installer.py --help
-
-* :option:`-y, --assume-yes`: Automatic 'yes' to prompts; runs non-interactively.
-* :option:`-v, --verbose`: Verbose output (useful for debugging).
-* :option:`-q, --quiet`: Quiet output (takes precedence over :option:`--verbose`:)
-* :option:`--dryrun`: Sets the dryrun mode On (system and uboot commands will be
-  logged, but not executed) 
 
 NAND arguments
 ..............
@@ -186,14 +184,14 @@ For NAND installation, several general arguments are required.
   RAM and drive the installation. Use this in case that you want the installer
   to communicate with a known U-Boot, which is different than the U-Boot
   currently installed in the board. If specified, the installer will first
-  load this U-Boot to RAM, execute it, and then install any specified component.
-  Note that this U-Boot image won't be written to NAND.
+  load this U-Boot to RAM, execute it, and then continue installing any
+  specified component. Note that this U-Boot image won't be written to NAND.
 
 Serial port settings:
 
 * :option:`--serial-port`: Device name or port number for serial communication
   (i.e. `/dev/ttyUSB0`)
-* :option:`--serial-baud`: Baud rate for the serial port (default 115200).
+* :option:`--serial-baud`: Baud rate for the serial port (default 115200)
 
 Network settings:
 
@@ -208,7 +206,7 @@ board's IP:
 * :option:`--board-net-mode`: Set to "`static`".
 * :option:`--board-ip-addr`: The static IP address for your board. 
 
-Example of the general arguments for NAND installation:
+Example of general arguments for NAND installation:
 ::
     $ python installer.py \
         nand \
@@ -238,7 +236,7 @@ installing the image to NAND the installer will save in uboot's environment
 some variables that record the partition's `offset`, `size`, and `md5sum` to
 avoid re-installing the component's image if it's not necessary.
 
-This command installs the kernel partition to NAND:
+As example, this command installs the kernel partition to NAND:
 ::
     $ python installer.py \
         --verbose \
@@ -251,4 +249,32 @@ This command installs the kernel partition to NAND:
         --nand-blk-size 131072 \
         --nand-page-size 2048 \
         kernel \
+        --force
+
+Installing a variable in Uboot's Environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The installer also provides means to install a variable in Uboot's environment.
+::
+    installer.py env --help
+
+* :option:`--variable`: U-Boot's environment variable to install
+* :option:`--value`: Value to set in :option:`--variable`
+* :option:`--force`: Force the variable installation
+
+Serial port settings:
+
+* :option:`--serial-port`: Device name or port number for serial communication
+  (i.e. `/dev/ttyUSB0`)
+* :option:`--serial-baud`: Baud rate for the serial port (default 115200)
+
+As example, this command installs the `mtdparts` U-Boot environment variable,
+corresponding to the memory map described in the `Creating the NAND Memory Map`_
+section:
+::
+    $ python installer.py \
+        env \
+        --serial-port /dev/ttyUSB0
+        --variable mtdparts \
+        --value mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS) \
         --force
