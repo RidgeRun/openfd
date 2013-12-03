@@ -21,5 +21,6 @@ setup(name='openrfd',
       version='0.0.1',
       description='RidgeRun Firmware Installer',
       url='https://github.com/RidgeRun/u-boot-installer',
-      packages=['openrfd/methods', 'openrfd/methods.board', 'openrfd/methods.sdcard'],
+      packages=['openrfd', 'openrfd/methods', 'openrfd/methods.board',
+                'openrfd/methods.sdcard'],
       scripts=['openrfd/openrfd'])

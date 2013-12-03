@@ -41,7 +41,7 @@ import time
 from rrutils import Uboot
 from rrutils import UbootTimeoutException
 from openrfd.methods.sdcard import ComponentInstaller
-from openrfd.methods.sdcard import SdCardInstaller
+from openrfd.methods.sdcard import SDCardInstaller
 from openrfd.methods.board.nand import NandInstaller
 from openrfd.methods.board.ram import TftpRamLoader
 from openrfd.methods.board.ram import RamLoaderException
