@@ -18,17 +18,6 @@ import sys, os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #sys.path.insert(0, os.path.abspath('.'))
 
-devdir=''
-try:
-    if os.environ['DEVDIR']:
-        devdir = os.environ['DEVDIR'] 
-except KeyError:
-    print 'Unable to obtain $DEVDIR from the environment.'
-    exit(-1)
-
-sys.path.insert(0, devdir + '/installer/u-boot-installer/src')
-sys.path.insert(0, devdir + '/bsp/local/lib/python2.7/site-packages')
-
 import mock, sys
 MOCK_MODULES = ['distutils.core']
 for mod_name in MOCK_MODULES:
@@ -57,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Installer'
-copyright = u'2013, RidgeRun Engineering LLC'
+copyright = u'2012-2013, OpenFD Community'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -80,7 +69,7 @@ release = '0.1'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build', '**tests**']
+exclude_patterns = ['_build', '**tests**', '**setup**']
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 #default_role = None
@@ -200,7 +189,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'Installer.tex', u'Installer Documentation',
-   u'RidgeRun Engineering LLC', 'manual'),
+   u'OpenFD Community', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -230,7 +219,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'installer', u'Installer Documentation',
-     [u'RidgeRun Engineering LLC'], 1)
+     [u'OpenFD Community'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -243,8 +232,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Installer', u'Installer Documentation',
-   u'RidgeRun Engineering LLC', 'Installer', 'One line description of project.',
+  ('index', 'OpenFD', u'OpenFD Documentation',
+   u'OpenFD Community', 'OpenFD', 'Open Firmware Deployer.',
    'Miscellaneous'),
 ]
 
