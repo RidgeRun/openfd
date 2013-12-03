@@ -17,9 +17,9 @@
 
 from distutils.core import setup
 
-setup(name='rrfi',
-      version='1.0',
+setup(name='openrfd',
+      version='0.0.1',
       description='RidgeRun Firmware Installer',
       url='https://github.com/RidgeRun/u-boot-installer',
       packages=['methods', 'methods.board', 'methods.sdcard'],
-      scripts=['rrfi'])
+      scripts=['openrfd'])

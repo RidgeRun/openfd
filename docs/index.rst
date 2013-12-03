@@ -158,6 +158,21 @@ Output:
     Checking filesystems on /dev/sdb
     Installation complete
 
+Installation
+============
+
+1. Install Python pip:
+
+    sudo apt-get install python-pip
+    
+2. Install rr-python-utils:
+
+    sudo pip install git+https://github.com/RidgeRun/rr-python-utils.git#egg=rrutils
+    
+3. Install the installer (if you'll forgive the repetition):
+
+    sudo pip install git+https://github.com/RidgeRun/u-boot-installer.git#egg=openrfd
+
 User Guide
 ==========
 

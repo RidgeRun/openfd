@@ -92,7 +92,7 @@ Creating the NAND Memory Map
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Take into account the NAND block size in the DM36x Leopard Board. You can obtain
-this information by issuing the '`nand info`' command in U-Boot.
+this information by issuing the `nand info` command in U-Boot.
 
 * NAND block size: 128Kb (131072 bytes, or 0x20000 in hex)
 
