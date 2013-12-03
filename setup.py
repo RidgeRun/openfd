@@ -21,4 +21,5 @@ setup(name='rrfi',
       version='1.0',
       description='RidgeRun Firmware Installer',
       url='https://github.com/RidgeRun/u-boot-installer',
-      packages=['methods', 'methods.board', 'methods.sdcard'])
+      packages=['methods', 'methods.board', 'methods.sdcard'],
+      scripts=['rrfi'])
