@@ -41,34 +41,34 @@ Uboot's prompt.
     Hit any key to stop autoboot:  0 
     DM368 LEOPARD #
     
-3. Close your terminal session (in this case *termnet*), so that the installer
-can communicate with U-Boot through the available serial port.
+3. Close your terminal session (in this case *termnet*), so that OpenFD can
+communicate with U-Boot through the available serial port.
 ::
     DM368 LEOPARD # 
     termnet>>quit
 
-At this point you are ready to execute the installer.
+At this point you are ready to execute the `openfd` command.
 
-Calling the installer
-~~~~~~~~~~~~~~~~~~~~~
+Calling OpenFD
+~~~~~~~~~~~~~~
 
-At any time, you can query the supported/required arguments for the installer
-using `-h` or :option:`--help`. The installer has positional arguments, so you
+At any time, you can query the supported/required arguments using `-h` or
+:option:`--help`. The installer has positional arguments, so you
 can use the help at different levels.
 ::
-    installer.py --help
-    installer.py nand --help
-    installer.py nand kernel --help
-    installer.py env --help
-    installer.py sd --help
+    openfd --help
+    openfd nand --help
+    openfd nand kernel --help
+    openfd env --help
+    openfd sd --help
     ...
 
-General arguments
-.................
+General CLI arguments
+.....................
 
-The installer's general arguments are:
+General arguments are:
 ::
-    installer.py --help
+    openfd --help
 
 * :option:`-y, --assume-yes`: Automatic 'yes' to prompts; runs non-interactively
 * :option:`-v, --verbose`: Verbose output (useful for debugging)
@@ -156,7 +156,7 @@ you would install Linux in [kernel] and some filesystem image in [fs] (like a
 `ubifs` or `jffs2` filesystem).
 
 Save your memory map to a file "nand-mmap.config", and we will supply the 
-filename to the installer as a CLI argument.
+filename to OpenFD as a CLI argument.
 
 .. note:: The process of generating images for any component is outside the
           scope of this document.        
@@ -170,20 +170,20 @@ NAND arguments
 
 For NAND installation, several general arguments are required.
 ::
-    installer.py nand --help
+    openfd nand --help
     
 * :option:`--mmap-file`: Path to the memory map file that we created in the
   `Creating the NAND Memory Map`_ section.
 * :option:`--nand-blk-size`: The NAND block size (131072 for the DM36x).
 * :option:`--nand-page-size`: The NAND page size (2048 for the DM36x).
 * :option:`--ram-load-addr`: RAM address to load components (hex or decimal).
-  Before writing an image to NAND, the installer will first transfer your image
+  Before writing an image to NAND, OpenFD will first transfer your image
   via TFTP to RAM. This address indicates where in RAM the images will be
   transferred to.
 * :option:`--uboot-file`: (Optional) Path to a U-Boot file that can be loaded to
-  RAM and drive the installation. Use this in case that you want the installer
+  RAM and drive the installation. Use this in case that you want OpenFD
   to communicate with a known U-Boot, which is different than the U-Boot
-  currently installed in the board. If specified, the installer will first
+  currently installed in the board. If specified, the OpenFD will first
   load this U-Boot to RAM, execute it, and then continue installing any
   specified component. Note that this U-Boot image won't be written to NAND.
 
@@ -208,7 +208,7 @@ board's IP:
 
 Example of general arguments for NAND installation:
 ::
-    $ python installer.py \
+    $ openfd \
         nand \
         --mmap-file ~/images/nand-mmap.config \
         --serial-port /dev/ttyUSB0
@@ -218,7 +218,7 @@ Example of general arguments for NAND installation:
         --nand-blk-size 131072 \
         --nand-page-size 2048
 
-.. warning:: This installer uses TFTP to transfer the images to the board. It has
+.. warning:: OpenFD uses TFTP to transfer the images to the board. It has
   been experienced that such transfer is very slow when your host PC is
   connected to the network via WiFi, we recommend that you plug both your host
   PC and your board to the network via ethernet.
@@ -232,13 +232,13 @@ required information regarding components is provided by the
 
 All components, except the bootloader, implement the :option:`--force` switch
 that can be used to force the component installation. This is because after
-installing the image to NAND the installer will save in uboot's environment
+installing the image to NAND OpenFD will save in uboot's environment
 some variables that record the partition's `offset`, `size`, and `md5sum` to
 avoid re-installing the component's image if it's not necessary.
 
 As example, this command installs the kernel partition to NAND:
 ::
-    $ python installer.py \
+    $ openfd \
         --verbose \
         nand \
         --mmap-file ~/images/nand-mmap.config \
@@ -254,9 +254,9 @@ As example, this command installs the kernel partition to NAND:
 Installing a variable in Uboot's Environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The installer also provides means to install a variable in Uboot's environment.
+OpenFD also provides means to install a variable in Uboot's environment.
 ::
-    installer.py env --help
+    openfd env --help
 
 * :option:`--variable`: U-Boot's environment variable to install
 * :option:`--value`: Value to set in :option:`--variable`
@@ -272,7 +272,7 @@ As example, this command installs the `mtdparts` U-Boot environment variable,
 corresponding to the memory map described in the `Creating the NAND Memory Map`_
 section:
 ::
-    $ python installer.py \
+    $ openfd \
         env \
         --serial-port /dev/ttyUSB0
         --variable mtdparts \

@@ -1,19 +1,26 @@
-.. Installer documentation master file, created by
+.. OpenFD documentation master file, created by
    sphinx-quickstart on Mon Aug 26 16:21:47 2013.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Installer documentation
-=======================
+OpenFD documentation
+====================
 
-The installer is a tool that helps developers to deploy their firmware
-to a target board in a variety of ways. Most of the steps required to prepare a
-bootable SD card, flash programming, and other deployment scenarios, can be
-simplified and automated using this installer.
+OpenFD (Open Firmware Deployer) is an open source tool that helps developers to
+deploy their firmware to a target board in a variety of ways. Most of the steps
+required to prepare a bootable SD card, flash programming, and other deployment
+scenarios, can be simplified and automated using OpenFD.
 
 It is designed for boards that run `U-Boot <http://www.denx.de/wiki/U-Boot>`_ 
 as their bootloader, Embedded Linux as their kernel component, and requires a
 GNU/Linux host PC.
+
+Supported platforms
+-------------------
+
+TI DaVinci™ supported platforms:
+
+* DM36x - Leopard Board
 
 Installation modes
 ------------------
@@ -21,16 +28,15 @@ Installation modes
 **1. Attached board on communication port**
 
 In this mode, the board is attached to a serial port in your computer, i.e.
-`/dev/ttyUSB0`, and the installer interacts with U-Boot through that port. This
+`/dev/ttyUSB0`, and OpenFD interacts with U-Boot through that port. This
 mode is useful to transfer images to RAM memory, that can be then flashed to
 some NAND or NOR flash memory, or actually booting them immediately from RAM
 (useful in a development environment). 
  
 **2. Deploy all the firmware to an SD card**
 
-The installer will deploy all the firmware to an SD card that can be used to
-boot your board. Optionally, you can also create an image file that you can
-use later to write to any SD card.
+All the firmware to an SD card that can be used to boot your board. Optionally,
+you can also create an image file that you can use later to write to any SD card.
 
 For a detailed explanation of each installation mode, please refer to the
 `User Guide`_.
@@ -40,17 +46,17 @@ Features Overview
 
 Main features:
 
-* Based on the concepts of a Memory Map and a Partition, the installer's main
+* Based on the concepts of a Memory Map and a Partition, OpenFD's main
   input is a file :option:`--mmap-file` which contains a list of partitions that
   specify a memory map for the device to install (SD card, NAND, etc.).
-* Dryrun support. The installer is able to run without executing any System
-  or U-boot commands, this allows you to see what the installer would do
-  before the actual deployment.
+* All parameters are received through command line arguments.
 * Runs interactively (and non-interactively). Configurable to prompt the user
   before executing a dangerous operation (like repartitioning your SD card) but
   can also run in non-interactive mode.
+* Dryrun support. OpenFD is able to run without executing any System
+  or U-boot commands, this allows you to see what OpenFD would do
+  before the actual deployment.
 * Robust communication with U-Boot (error handling, timeouts, etc.).
-* All parameters are received through command line arguments.
 * Logging support.
 
 From a development point of view:
@@ -62,19 +68,11 @@ From a development point of view:
 * Makes use of the `rr-python-utils <https://github.com/RidgeRun/rr-python-utils>`_ 
   package for general utilities.
 
-Supported platforms
--------------------
-
-TI DaVinci™ supported platforms:
-
-* DM36x - Leopard Board
-
 Examples
 --------
 
-The following examples are a very fast overview of how a successful run
-of the installer looks like. For more detailed information on how to use
-this installer, please refer to the `User Guide`_.
+The following examples are a very fast overview of how a successful OpenFD run
+looks like. For detailed information, please refer to the `User Guide`_.
 
 **1. Flashing NAND - Leopard Board DM36x**
 
@@ -82,7 +80,7 @@ This example writes the *kernel* component to NAND.
 
 Command:
 ::
-    $ python installer.py \
+    $ openfd \
         nand \
         --mmap-file ~/images/nand-mmap.config \
         --serial-port /dev/ttyUSB0 \
@@ -126,7 +124,7 @@ The following example installs a bootable SD card for the Leopard Board DM36x.
 
 Command:
 ::
-    $ python installer.py \
+    $ openfd \
         sd \ 
         --mmap-file ~/images/sd-mmap.config \
         --device /dev/sdb \
@@ -169,7 +167,7 @@ Installation
 
     sudo pip install git+https://github.com/RidgeRun/rr-python-utils.git#egg=rrutils
     
-3. Install the installer (if you'll forgive the repetition):
+3. Install OpenFD:
 
     sudo pip install git+https://github.com/RidgeRun/u-boot-installer.git#egg=openrfd
 
