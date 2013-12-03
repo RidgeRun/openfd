@@ -31,7 +31,6 @@ this installer.
 import os
 import sys
 import rrutils
-import methods
 import argparse
 import socket
 import serial
@@ -41,10 +40,12 @@ import time
 
 from rrutils import Uboot
 from rrutils import UbootTimeoutException
-from methods.board.nand import NandInstaller
-from methods.board.ram import TftpRamLoader
-from methods.board.ram import RamLoaderException
-from methods.board.env import EnvInstaller
+from openrfd.methods.sdcard import ComponentInstaller
+from openrfd.methods.sdcard import SdCardInstaller
+from openrfd.methods.board.nand import NandInstaller
+from openrfd.methods.board.ram import TftpRamLoader
+from openrfd.methods.board.ram import RamLoaderException
+from openrfd.methods.board.env import EnvInstaller
 
 # ==========================================================================
 # Global variables
@@ -640,7 +641,7 @@ def main():
         
         # Components installer
         
-        comp_installer = methods.sdcard.ComponentInstaller()
+        comp_installer = ComponentInstaller()
         comp_installer.uflash_bin = _args.uflash_bin
         comp_installer.ubl_file =_args.ubl_file
         comp_installer.uboot_file = _args.uboot_file
@@ -653,7 +654,7 @@ def main():
         
         # SDCard installer
     
-        sd_installer = methods.sdcard.SDCardInstaller(comp_installer)
+        sd_installer = SDCardInstaller(comp_installer)
         sd_installer.interactive = _args.interactive
         sd_installer.dryrun = _args.dryrun
         
