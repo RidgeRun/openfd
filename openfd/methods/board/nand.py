@@ -22,10 +22,9 @@
 import os
 import re
 import time
-import ConfigParser
 import rrutils
 import rrutils.hexutils as hexutils
-from partition import NandPartition
+from nand_partition import read_nand_partitions
 import ram
 
 # ==========================================================================
@@ -244,6 +243,7 @@ class NandInstaller(object):
         
         :param img_filename: Path to the uboot image file.
         :param load_addr: Load address in RAM where to load the uboot image.
+        :returns: Returns true on success; false otherwise.
         """
         
         self._l.info('Loading uboot to RAM')
@@ -477,27 +477,4 @@ class NandInstaller(object):
         """
         
         self._partitions[:] = []
-        self._l.debug('Reading file %s' % filename)
-        config = ConfigParser.RawConfigParser()
-        config.readfp(open(filename))
-        for section in config.sections():
-            if config.has_option(section, 'name'):
-                part = NandPartition(config.get(section, 'name'))
-                if config.has_option(section, 'start_blk'):
-                    part.start_blk = int(config.get(section, 'start_blk'))
-                if config.has_option(section, 'size_blks'):
-                    part.size_blks = int(config.get(section, 'size_blks'))
-                if config.has_option(section, 'filesystem'):
-                    part.filesystem = config.get(section, 'filesystem')
-                if config.has_option(section, 'image'):
-                    part.image = config.get(section, 'image')
-                # insert ordered by start blk
-                inserted = False
-                for i in range(0, len(self._partitions)):
-                    if self._partitions[i].start_blk > part.start_blk:
-                        self._partitions.insert(i, part)
-                        inserted = True
-                        break
-                if not inserted:
-                    self._partitions.append(part)
-        return True
+        self._partitions = read_nand_partitions(filename)
