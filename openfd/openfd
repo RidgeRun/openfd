@@ -28,24 +28,15 @@ this installer.
 # Imports
 # ==========================================================================
 
-import os
 import sys
-import rrutils
 import argparse
 import socket
-import serial
 import signal
 import logging
-import time
 
-from rrutils import Uboot
-from rrutils import UbootTimeoutException
-from openfd.methods.sdcard import ComponentInstaller
-from openfd.methods.sdcard import SDCardInstaller
-from openfd.methods.board.nand import NandInstaller
-from openfd.methods.board.ram import TftpRamLoader
-from openfd.methods.board.ram import RamLoaderException
-from openfd.methods.board.env import EnvInstaller
+import openfd.utils as utils
+from openfd.methods.board import *
+from openfd.methods.sdcard import *
 
 # ==========================================================================
 # Global variables
@@ -65,7 +56,6 @@ _parser_env = None
 _subparsers = None
 _subparsers_nand = None
 _logger  = None
-_executer  = None
 _uboot = None
 
 # ==========================================================================
@@ -92,7 +82,7 @@ COMP_FS = "fs"
 def _init_logging():
     global _logger
     _program_name = os.path.basename(sys.argv[0])
-    _logger = rrutils.logger.get_global_logger(_program_name)
+    _logger = utils.logger.init_global_logger(_program_name)
     _logger.setLevel(logging.DEBUG)
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(logging.Formatter('%(msg)s'))
@@ -123,9 +113,8 @@ def _init_logging():
         _logger.debug('Command: %s' % command)
 
 def _init_executer():
-    global _executer
-    _executer = rrutils.executer.get_global_executer(logger=_logger,
-                 dryrun=_args.dryrun, enable_colors=True, verbose=_args.verbose)
+    utils.executer.init_global_executer(dryrun=_args.dryrun,
+                                    enable_colors=True, verbose=_args.verbose)
 
 def _clean_exit(code=0):
     _close_uboot()
@@ -163,7 +152,7 @@ def _check_is_int(val, arg):
         _abort_install()
 
 def _check_is_valid_addr(addr, arg):
-    if not rrutils.hexutils.is_valid_addr(addr):
+    if not utils.hexutils.is_valid_addr(addr):
         _logger.error('Invalid address on %s: %s' % (arg, addr))
         _abort_install()
 
@@ -606,7 +595,7 @@ def _check_args_env():
     _check_args_serial()
 
 def _check_sudo():
-    ret = _executer.prompt_sudo()
+    ret = utils.get_global_executer().prompt_sudo()
     if ret != 0:
         _logger.error("Failed obtaining superuser access via sudo")
         _clean_exit(-1)
