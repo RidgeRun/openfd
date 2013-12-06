@@ -78,9 +78,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self.inst.ram_load_addr = test_ram_load_addr
         self.inst.verbose = True
         self.inst.dryrun = dryrun
-        
-        ret = self.inst.read_partitions(test_mmap_file)
-        self.assertTrue(ret)
+        self.inst.read_partitions(test_mmap_file)
         
     def tearDown(self):
         self.uboot.close_comm()
@@ -211,7 +209,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_bootloader()
             
     def test_install_kernel(self):
-        test_install_k = False
+        test_install_k = True
         if test_install_k:
             self.setup_network()
             self.load_uboot()
