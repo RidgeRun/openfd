@@ -26,7 +26,8 @@ from partition import Partition
 import component
 import geometry
 import ConfigParser
-import rrutils
+import openfd.utils
+from device import Device
 
 # ==========================================================================
 # Public Classes
@@ -72,11 +73,11 @@ class SDCardInstaller(object):
         :type interactive: boolean
         """
         
-        self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.get_global_executer()
+        self._l = openfd.utils.logger.get_global_logger()
+        self._e = openfd.utils.executer.get_global_executer()
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
-        self._d = rrutils.device.Device(device)
+        self._d = Device(device)
         self._mode = mode
         self._dryrun = dryrun
         self._e.dryrun = dryrun

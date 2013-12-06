@@ -21,8 +21,8 @@
 # ==========================================================================
 
 import os
-import rrutils
-import rrutils.hexutils as hexutils
+import openfd.utils as utils
+import openfd.utils.hexutils as hexutils
 
 # ==========================================================================
 # Public Classes
@@ -55,8 +55,8 @@ class ComponentInstaller(object):
         :type dryrun: boolean
         """
         
-        self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.get_global_executer()
+        self._l = utils.logger.get_global_logger()
+        self._e = utils.executer.get_global_executer()
         self._workdir = workdir
         self._uflash_bin = uflash_bin
         self._ubl_file = ubl_file
