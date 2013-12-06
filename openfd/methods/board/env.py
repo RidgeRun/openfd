@@ -19,7 +19,7 @@
 # Imports
 # ==========================================================================
 
-import rrutils
+import openfd.utils as utils
 
 # ==========================================================================
 # Public Classes
@@ -36,10 +36,9 @@ class EnvInstaller(object):
         :type dryrun: boolean
         """
         
-        self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.get_global_executer()
+        self._l = utils.logger.get_global_logger()
+        self._e = utils.executer.get_global_executer()
         self._u = uboot
-        
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun

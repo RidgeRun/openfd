@@ -22,8 +22,8 @@
 import os
 import re
 import time
-import rrutils
-import rrutils.hexutils as hexutils
+import openfd.utils as utils
+import openfd.utils.hexutils as hexutils
 from nand_partition import read_nand_partitions
 import ram
 
@@ -86,8 +86,8 @@ class NandInstaller(object):
         :type dryrun: boolean
         """
         
-        self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.get_global_executer()
+        self._l = utils.logger.get_global_logger()
+        self._e = utils.executer.get_global_executer()
         self._u = uboot
         self._loader = loader
         self._nand_block_size = nand_block_size

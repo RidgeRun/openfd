@@ -1,3 +1,4 @@
+from uboot import *
 from nand import *
 from nand_partition import *
 from nand_external import *

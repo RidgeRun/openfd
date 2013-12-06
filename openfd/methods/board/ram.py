@@ -20,9 +20,9 @@
 # ==========================================================================
 
 import os
-import rrutils
-from rrutils import hexutils
-from rrutils import UbootTimeoutException
+import openfd.utils as utils
+import openfd.utils.hexutils as hexutils
+from uboot import UbootTimeoutException
 
 # ==========================================================================
 # Constants
@@ -62,8 +62,8 @@ class TftpRamLoader(RamLoader):
         :param net_mode: Networking mode. Possible values:
             :const:`MODE_STATIC`, :const:`MODE_DHCP`.
         """
-        self._l = rrutils.logger.get_global_logger()
-        self._e = rrutils.executer.get_global_executer()
+        self._l = utils.logger.get_global_logger()
+        self._e = utils.executer.get_global_executer()
         self._u = uboot
         self._dir = DEFAULT_TFTP_DIR
         self._port = DEFAULT_TFTP_PORT
