@@ -22,7 +22,7 @@
 
 import os
 import math
-from partition import Partition
+from sdcard_partition import SDCardPartition
 import component
 import geometry
 import ConfigParser
@@ -253,9 +253,9 @@ class SDCardInstaller(object):
             # Map the partition's filesystem to a type that the 'mount'
             # command understands
             part_type = None        
-            if part.filesystem == Partition.FILESYSTEM_VFAT:
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
                 part_type = 'vfat'
-            elif part.filesystem == Partition.FILESYSTEM_EXT3:
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 part_type = 'ext3'
             
             # Now mount
@@ -342,9 +342,9 @@ class SDCardInstaller(object):
             
             # Format
             cmd = ''
-            if part.filesystem == Partition.FILESYSTEM_VFAT:
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
                 cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (device_part, part.name)
-            elif part.filesystem == Partition.FILESYSTEM_EXT3:
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 cmd = 'sudo mkfs.ext3 %s -L %s'  % (device_part, part.name)
             else:
                 msg = ("Can't format partition %s, unknown filesystem: %s" %
@@ -652,7 +652,7 @@ class SDCardInstaller(object):
             part = None
             
             if config.has_option(section, 'name'):
-                part = Partition(config.get(section, 'name'))
+                part = SDCardPartition(config.get(section, 'name'))
             
             if part:
                 if config.has_option(section, 'start'):
@@ -755,28 +755,28 @@ class SDCardInstaller(object):
             
             for component in part.components:
                 
-                if component == Partition.COMPONENT_BOOTLOADER:
+                if component == SDCardPartition.COMPONENT_BOOTLOADER:
                     ret = self._comp_installer.install_uboot(self._d.name)
                     if ret is False: return False
                     
                     ret =  self._comp_installer.install_uboot_env(mount_point)
                     if ret is False: return False
                     
-                elif component == Partition.COMPONENT_KERNEL:
+                elif component == SDCardPartition.COMPONENT_KERNEL:
                     ret = self._comp_installer.install_kernel(mount_point)
                     if ret is False: return False
                     
-                elif component == Partition.COMPONENT_ROOTFS:
+                elif component == SDCardPartition.COMPONENT_ROOTFS:
                     if self._comp_installer.rootfs is None:
                         # This is valid because rootfs argument is optional
                         msg = ('No directory specified for "%s", omitting...' %
-                                   (Partition.COMPONENT_ROOTFS))
+                                   (SDCardPartition.COMPONENT_ROOTFS))
                         self._l.info(msg)
                     else:
                         ret = self._comp_installer.install_rootfs(mount_point)
                         if ret is False: return False
                 
-                elif component == Partition.COMPONENT_BLANK:
+                elif component == SDCardPartition.COMPONENT_BLANK:
                     pass
                 
                 else:

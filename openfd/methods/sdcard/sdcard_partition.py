@@ -20,7 +20,7 @@
 # Classes
 # ==========================================================================
 
-class Partition(object):
+class SDCardPartition(object):
     """ Class that represents a file system partition. """
     
     # Common partition types definitions that can be used in combination
@@ -163,20 +163,3 @@ class Partition(object):
                           :const:`COMPONENT_KERNEL`,
                           :const:`COMPONENT_ROOTFS`,
                           :const:`COMPONENT_BLANK`.""")
-    
-    def __str__(self):
-        _str  = ''
-        _str += 'Name:       ' + self._name + '\n'
-        _str += 'Start:      ' + str(self._start) + '\n'
-        _str += 'Size:       ' + str(self._size) + '\n'
-        _str += 'Bootable:   ' + ('Yes' if self._bootable else 'No') + '\n'
-        _str += 'Type:       ' + self._type + '\n'
-        _str += 'Filesystem: ' + self._filesystem + '\n'
-        if self._components:
-            _str += 'Components:\n'
-            for comp in self._components:
-                _str += '  - ' + comp + '\n'
-            _str += '\n'
-        else:
-            _str += 'Components: none\n'
-        return _str
