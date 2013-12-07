@@ -19,10 +19,11 @@ import os, sys
 import logging
 import unittest
 import check_env
+from openfd.boards import dm36x_leopard
 
 sys.path.insert(1, os.path.abspath('..'))
 
-import rrutils
+import openfd.utils as utils
 import openfd.boards.board_factory as board_factory
 from openfd.methods.board.nand_external import ExternalInstaller
 from openfd.boards.board_factory import BoardFactory
@@ -36,7 +37,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         verbose = True
-        logger = rrutils.logger.get_global_logger('NandInstaller')
+        logger = utils.logger.init_global_logger('NandInstaller')
         logger.setLevel(logging.DEBUG)
         streamhandler = logging.StreamHandler()
         streamhandler.setFormatter(logging.Formatter('%(msg)s'))
@@ -47,7 +48,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
         logger.addHandler(streamhandler)
         
     def setUp(self):
-        board = BoardFactory().make(board_factory.DM36X_LEOPARD)
+        board = BoardFactory().make(dm36x_leopard.BOARD_NAME)
         self.inst = ExternalInstaller(board=board)
         
     def tearDown(self):
