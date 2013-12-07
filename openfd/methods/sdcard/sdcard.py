@@ -22,10 +22,10 @@
 
 import os
 import math
-from sdcard_partition import SDCardPartition
+from openfd.storage.partition import SDCardPartition
+from openfd.storage.partition import read_sdcard_partitions
 import component
 import geometry
-import ConfigParser
 import openfd.utils
 from device import Device
 
@@ -625,7 +625,7 @@ class SDCardInstaller(object):
             elif self.mode == SDCardInstaller.MODE_LOOPBACK:
                 return self._release_loopdevice()
         return True
-
+    
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
@@ -634,50 +634,9 @@ class SDCardInstaller(object):
         :returns: Returns true on success; false otherwise.  
         """
         
-        # Reset the partitions list
-        
         self._partitions[:] = []
+        self._partitions = read_sdcard_partitions(filename)
         
-        if not os.path.exists(filename):
-            self._l.error('File %s does not exist' % filename)
-            return False
-        
-        self._l.debug('Reading file %s' % filename)
-        
-        config = ConfigParser.RawConfigParser()
-        config.readfp(open(filename))
-        
-        for section in config.sections():
-            
-            part = None
-            
-            if config.has_option(section, 'name'):
-                part = SDCardPartition(config.get(section, 'name'))
-            
-            if part:
-                if config.has_option(section, 'start'):
-                    part.start = config.get(section, 'start')
-                    
-                if config.has_option(section, 'size'):
-                    part.size = config.get(section, 'size')
-                    
-                if config.has_option(section, 'bootable'):
-                    part.bootable = config.getboolean(section, 'bootable')
-                
-                if config.has_option(section, 'type'):
-                    part.type = config.get(section, 'type')
-                    
-                if config.has_option(section, 'filesystem'):
-                    part.filesystem = config.get(section, 'filesystem')
-                
-                if config.has_option(section, 'components'):
-                    components = config.get(section, 'components')
-                    components = components.strip(', ')
-                    part.components = components.replace(' ','').split(',')
-                
-                self._partitions.append(part)
-        return True
-    
     def _check_filesystems(self):
         """
         Checks the integrity of the filesystems in the given device. Upon 

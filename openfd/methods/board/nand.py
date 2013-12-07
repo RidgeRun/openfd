@@ -24,7 +24,7 @@ import re
 import time
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
-from nand_partition import read_nand_partitions
+from openfd.storage.partition import read_nand_partitions
 import ram
 
 # ==========================================================================

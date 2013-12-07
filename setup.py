@@ -22,5 +22,6 @@ setup(name='openfd',
       description='Open Firmware Installer',
       url='https://github.com/RidgeRun/u-boot-installer',
       packages=['openfd', 'openfd/boards', 'openfd/utils', 'openfd/methods',
-                'openfd/methods.board', 'openfd/methods.sdcard'],
+                'openfd/methods.board', 'openfd/methods.sdcard',
+                'openfd/storage'],
       scripts=['openfd/openfd'])
