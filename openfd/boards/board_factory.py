@@ -19,13 +19,7 @@
 # Imports
 # ==========================================================================
 
-from dm36x_leopard import Dm36xLeopard
-
-# ==========================================================================
-# Imports
-# ==========================================================================
-
-DM36X_LEOPARD = 'dm36x-leopard'
+import dm36x_leopard
 
 # ==========================================================================
 # Public Classes
@@ -36,7 +30,7 @@ class BoardFactoryException(Exception):
 
 class BoardFactory(object):
     """Factory for `Board` objects."""
-        
+    
     def make(self, name):
         """
         Creates a Board instance.
@@ -44,6 +38,8 @@ class BoardFactory(object):
         :param name: Board's name.
         :returns: Returns a concrete `Board` instance according to name.
         """
-        if name == DM36X_LEOPARD: return Dm36xLeopard()
+        
+        if name == dm36x_leopard.BOARD_NAME:
+            return dm36x_leopard.Dm36xLeopard()
         else: raise BoardFactoryException("Don't know which Board instance " 
                                           "to create with name '%s'" % name)

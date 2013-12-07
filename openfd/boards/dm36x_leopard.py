@@ -17,6 +17,8 @@
 
 from board import Board
 
+BOARD_NAME = 'dm36x-leopard'
+
 class Dm36xLeopard(Board):
     mach_description = "Leopard Board DM36x"
     ipl_name = "ubl"
