@@ -7,11 +7,11 @@ echo
 
 echo  ====== Installing @PREBOOTLOADER@...
 echo
-fatload mmc 0 ${loadaddr} @IPLIMAGE@
-@FLASH_ERASE_CMD@ @IPL_OFFSET@ @IPL_PSIZE@
-@FLASH_PRE_IPL_CMD@
-@FLASH_WRITE_IPL_CMD@ ${loadaddr} @IPL_OFFSET@ @IPL_PSIZE@
-@FLASH_POST_IPL_CMD@
+fatload mmc 0 ${loadaddr} ${ipl_image}
+${ipl_erase_cmd} ${ipl_erase_offset} ${ipl_erase_size}
+${ipl_pre_write_cmd}
+${ipl_write_cmd} ${loadaddr} ${ipl_write_offset} ${ipl_write_size}
+${ipl_post_write_cmd}
 echo
 echo  ====== Installing U-boot...
 echo

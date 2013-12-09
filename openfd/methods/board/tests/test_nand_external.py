@@ -24,13 +24,14 @@ from openfd.boards import dm36x_leopard
 sys.path.insert(1, os.path.abspath('..'))
 
 import openfd.utils as utils
-import openfd.boards.board_factory as board_factory
 from openfd.methods.board.nand_external import ExternalInstaller
 from openfd.boards.board_factory import BoardFactory
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
 if not devdir: sys.exit(-1)
+
+test_mmap_file = '%s/images/nand-mmap.config' % devdir
 
 class ExternalInstallerTestCase(unittest.TestCase):
     
@@ -50,6 +51,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
     def setUp(self):
         board = BoardFactory().make(dm36x_leopard.BOARD_NAME)
         self.inst = ExternalInstaller(board=board)
+        self.inst.read_partitions(test_mmap_file)
         
     def tearDown(self):
         pass
@@ -58,8 +60,17 @@ class ExternalInstallerTestCase(unittest.TestCase):
         print 'test_write'
         in_file = 'external.txt.in'
         out_file = 'external.txt.out'
-        self.inst._general_substitions()
+        self.inst._general_substitutions()
         self.inst.write(in_file, out_file)
+        self.inst.read_partitions(test_mmap_file)
+
+    def test_install_ipl(self):
+        self.inst.install_ipl()
+        in_file = 'external.txt.in'
+        out_file = 'external_ipl.txt.out'
+        self.inst.write(in_file, out_file)
+        
+
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 

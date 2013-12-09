@@ -21,6 +21,11 @@ BOARD_NAME = 'dm36x-leopard'
 
 class Dm36xLeopard(Board):
     mach_description = "Leopard Board DM36x"
+    nand_block_size = 131072
+    nand_page_size = 2048
     ipl_name = "ubl"
-    ipl_nand_write_cmd = "nand write.ubl"
-    ipl_nand_erase_cmd = "nand erase"
+    ipl_erase_cmd = "nand erase"
+    ipl_pre_write_cmd = ""
+    ipl_write_cmd = "nand write.ubl"
+    ipl_post_write_cmd = ""
+    
