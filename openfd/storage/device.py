@@ -25,7 +25,26 @@ import openfd.utils as utils
 # Public classes
 # ==========================================================================
 
+class DeviceGeometry(object):
+    """Geometry for a given device."""
+    
+    #: Heads in the unit.
+    heads = 255.0
+    
+    #: Sectors in the unit.
+    sectors = 63.0
+    
+    #: Sector byte size.
+    sector_byte_size = 512.0
+    
+    #: Cylinder byte size: 255 * 63 * 512 = 8225280 bytes.
+    cylinder_byte_size = 8225280.0
+    
+    #: String used to represent the max available size of a given storage device.
+    full_size = "-"
+
 class Device(object):
+    """Representation of a device, like /dev/sda or /dev/sdb or so. """
 
     def __init__(self, device, dryrun=False):
         self._device = device

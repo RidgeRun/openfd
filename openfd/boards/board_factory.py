@@ -41,5 +41,6 @@ class BoardFactory(object):
         
         if name == dm36x_leopard.BOARD_NAME:
             return dm36x_leopard.Dm36xLeopard()
-        else: raise BoardFactoryException("Don't know which Board instance " 
+        else:
+            raise BoardFactoryException("Don't know which Board instance " 
                                           "to create with name '%s'" % name)

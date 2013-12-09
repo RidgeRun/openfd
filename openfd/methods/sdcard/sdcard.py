@@ -24,10 +24,10 @@ import os
 import math
 from openfd.storage.partition import SDCardPartition
 from openfd.storage.partition import read_sdcard_partitions
+from openfd.storage.device import Device
+from openfd.storage.device import DeviceGeometry
 import component
-import geometry
 import openfd.utils
-from device import Device
 
 # ==========================================================================
 # Public Classes
@@ -78,6 +78,7 @@ class SDCardInstaller(object):
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
         self._d = Device(device)
+        self._d.geometry = DeviceGeometry()
         self._mode = mode
         self._dryrun = dryrun
         self._e.dryrun = dryrun
@@ -191,7 +192,7 @@ class SDCardInstaller(object):
         # Leave room for the MBR
         min_cyl_size = 1
         for part in self._partitions:
-            if part.size == geometry.FULL_SIZE:
+            if part.size == self._d.geometry.full_size:
                 # If size is unspecified, at least estimate 1 cylinder for
                 # that partition
                 min_cyl_size += 1
@@ -204,7 +205,7 @@ class SDCardInstaller(object):
         Returns the given device size, in cylinders.
         """
         
-        size_cyl = self._d.size_b / geometry.CYLINDER_BYTE_SIZE
+        size_cyl = self._d.size_b / self._d.geometry.cylinder_byte_size
         return int(math.floor(size_cyl))
     
     def _get_partition_filename(self, partition_index):
@@ -307,8 +308,8 @@ class SDCardInstaller(object):
         # Create the partitions        
         cmd = ('sudo sfdisk -D' +
               ' -C' + str(cylinders) +
-              ' -H' + str(int(geometry.HEADS)) +
-              ' -S' + str(int(geometry.SECTORS)) +
+              ' -H' + str(int(self._d.geometry.heads)) +
+              ' -S' + str(int(self._d.geometry.sectors)) +
               ' '   + self._d.name + ' << EOF\n')
         for part in self._partitions:
             cmd += str(part.start) + ','
@@ -419,11 +420,11 @@ class SDCardInstaller(object):
         """
         
         size_b = int(image_size_mb) << 20
-        size_cyl = size_b / geometry.CYLINDER_BYTE_SIZE
+        size_cyl = size_b / self._d.geometry.cylinder_byte_size
         
         if size_cyl < self._min_total_cyl_size():
             size_needed_b = (self._min_total_cyl_size() *
-                                geometry.CYLINDER_BYTE_SIZE)
+                                self._d.geometry.cylinder_byte_size)
             size_needed_mb = int(size_needed_b) >> 20
             self._l.error('Image size of %s MB is too small to hold the '
                    'partitions, the image must be bigger than %s MB to '
@@ -495,12 +496,13 @@ class SDCardInstaller(object):
             
             free_device = free_device.rstrip('\n')
             self._loopdevice_partitions[device_part] = free_device
-            offset = int(part.start) * int(geometry.CYLINDER_BYTE_SIZE)
-            if part.size == geometry.FULL_SIZE:
+            offset = int(part.start) * int(self._d.geometry.cylinder_byte_size)
+            if part.size == self._d.geometry.FULL_SIZE:
                 cmd = 'sudo losetup -o %s %s %s' % (offset, free_device,
                                                         image_name)
             else:
-                part_size = int(int(part.size)*geometry.CYLINDER_BYTE_SIZE)
+                part_size = int(int(part.size) * 
+                                    self._d.geometry.cylinder_byte_size)
                 cmd = ('sudo losetup -o %s --sizelimit %s %s %s'
                            % (offset, part_size, free_device, image_name))
                 
