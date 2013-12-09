@@ -41,6 +41,7 @@ class ExternalInstaller(object):
         self._subs['mach_desc'] = self._board.mach_description
     
     def write(self, in_file, out_file):
+        self._general_substitutions()
         with open(in_file, 'r') as in_f:
             t = Template(in_f.read())
             with open(out_file, 'w') as out_f: 
@@ -52,7 +53,8 @@ class ExternalInstaller(object):
             size_blks += 1
         return size_blks
                 
-    def _install_img(self, filename, comp, cmds, start_blk, size_blks=0):
+    def _install_img(self, filename, comp, comp_name, cmds, start_blk,
+                     size_blks=0):
         offset = start_blk * self._board.nand_block_size
         img_size_blks = self._bytes_to_blks(os.path.getsize(filename))
         img_size_aligned = img_size_blks * self._board.nand_block_size
@@ -63,6 +65,7 @@ class ExternalInstaller(object):
                             "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self._board.nand_block_size
+        self._subs['%s_name' % comp] = comp_name
         self._subs['%s_image' % comp] = os.path.basename(filename)
         self._subs['%s_erase_cmd' % comp] = cmds['erase']
         self._subs['%s_erase_offset' % comp] = hex(offset)
@@ -74,7 +77,6 @@ class ExternalInstaller(object):
         self._subs['%s_post_write_cmd' % comp] = cmds['post_write']
     
     def install_ipl(self):
-        self._subs['ipl_image'] = self._board.mach_description
         for part in self._partitions:
             if part.name == self._board.ipl_name:
                 cmds = {
@@ -83,8 +85,8 @@ class ExternalInstaller(object):
                     'write': self._board.ipl_write_cmd,
                     'post_write': self._board.ipl_post_write_cmd
                 }
-                self._install_img(part.image, 'ipl', cmds, part.start_blk,
-                                  part.size_blks)
+                self._install_img(part.image, 'ipl', self._board.ipl_name, cmds,
+                                  part.start_blk, part.size_blks)
 
     def read_partitions(self, filename):
         """

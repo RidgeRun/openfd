@@ -5,7 +5,7 @@ askenv dummy "  Press any key to continue..." 1
 echo
 echo
 
-echo  ====== Installing @PREBOOTLOADER@...
+echo  ====== Installing ${ipl_name}...
 echo
 fatload mmc 0 ${loadaddr} ${ipl_image}
 ${ipl_erase_cmd} ${ipl_erase_offset} ${ipl_erase_size}
