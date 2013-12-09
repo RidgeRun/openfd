@@ -13,11 +13,13 @@ ${ipl_pre_write_cmd}
 ${ipl_write_cmd} ${loadaddr} ${ipl_write_offset} ${ipl_write_size}
 ${ipl_post_write_cmd}
 echo
-echo  ====== Installing U-boot...
+echo  ====== Installing ${bootloader_name}...
 echo
-fatload mmc 0 ${loadaddr} @UBOOTIMAGE@
-@FLASH_ERASE_CMD@ @UBOOT_OFFSET@ @UBOOT_PSIZE@
-@FLASH_WRITE_IPL_CMD@ ${loadaddr} @UBOOT_OFFSET@ @UBOOT_PSIZE@
+fatload mmc 0 ${loadaddr} ${bootloader_image}
+${bootloader_erase_cmd} ${bootloader_erase_offset} ${bootloader_erase_size}
+${bootloader_pre_write_cmd}
+${bootloader_write_cmd} ${loadaddr} ${bootloader_write_offset} ${bootloader_write_size}
+${bootloader_post_write_cmd}
 echo
 echo  ====== Installing Kernel...
 echo

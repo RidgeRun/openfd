@@ -88,6 +88,19 @@ class ExternalInstaller(object):
                 self._install_img(part.image, 'ipl', self._board.ipl_name, cmds,
                                   part.start_blk, part.size_blks)
 
+    def install_bootloader(self):
+        for part in self._partitions:
+            if part.name == self._board.bootloader_name:
+                cmds = {
+                    'erase': self._board.bootloader_erase_cmd,
+                    'pre_write': self._board.bootloader_pre_write_cmd,
+                    'write': self._board.bootloader_write_cmd,
+                    'post_write': self._board.bootloader_post_write_cmd
+                }
+                name = self._board.bootloader_name
+                self._install_img(part.image, 'bootloader', name, cmds,
+                                  part.start_blk, part.size_blks)
+
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.

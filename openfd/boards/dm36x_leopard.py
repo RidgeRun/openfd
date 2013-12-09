@@ -28,4 +28,8 @@ class Dm36xLeopard(Board):
     ipl_pre_write_cmd = ""
     ipl_write_cmd = "nand write.ubl"
     ipl_post_write_cmd = ""
-    
+    bootloader_name = "uboot"
+    bootloader_erase_cmd = "nand erase"
+    bootloader_pre_write_cmd = ""
+    bootloader_write_cmd = "nand write.ubl"
+    bootloader_post_write_cmd = ""
