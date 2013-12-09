@@ -33,3 +33,8 @@ class Dm36xLeopard(Board):
     bootloader_pre_write_cmd = ""
     bootloader_write_cmd = "nand write.ubl"
     bootloader_post_write_cmd = ""
+    kernel_name = "kernel"
+    kernel_erase_cmd = "nand erase"
+    kernel_pre_write_cmd = ""
+    kernel_write_cmd = "nand write"
+    kernel_post_write_cmd = ""

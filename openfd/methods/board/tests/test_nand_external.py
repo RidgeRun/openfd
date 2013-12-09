@@ -62,6 +62,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
     def test_install(self):
         self.inst.install_ipl()
         self.inst.install_bootloader()
+        self.inst.install_kernel()
         self.inst.write(test_in_file, test_out_file) 
 
 if __name__ == '__main__':

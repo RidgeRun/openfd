@@ -21,14 +21,13 @@ ${bootloader_pre_write_cmd}
 ${bootloader_write_cmd} ${loadaddr} ${bootloader_write_offset} ${bootloader_write_size}
 ${bootloader_post_write_cmd}
 echo
-echo  ====== Installing Kernel...
+echo  ====== Installing ${kernel_name}...
 echo
-fatload mmc 0 ${loadaddr} kernel.uImage
-@FLASH_ERASE_CMD@ @KERNEL_OFFSET@ @KERNEL_PSIZE@
-@FLASH_WRITE_CMD@ ${loadaddr} @KERNEL_OFFSET@ @KERNEL_SIZE@
-setenv kerneloffset @KERNEL_OFFSET@
-setenv ksize @KERNEL_SIZE@
-setenv kernelmd5sum @KERNEL_CHECKSUM@
+fatload mmc 0 ${loadaddr} ${kernel_image}
+${kernel_erase_cmd} ${kernel_erase_offset} ${kernel_erase_size}
+${kernel_pre_write_cmd}
+${kernel_write_cmd} ${loadaddr} ${kernel_write_offset} ${kernel_write_size}
+${kernel_post_write_cmd}
 echo
 echo  ====== Installing File System...
 echo

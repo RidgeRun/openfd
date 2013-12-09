@@ -100,6 +100,19 @@ class ExternalInstaller(object):
                 name = self._board.bootloader_name
                 self._install_img(part.image, 'bootloader', name, cmds,
                                   part.start_blk, part.size_blks)
+                
+    def install_kernel(self):
+        for part in self._partitions:
+            if part.name == self._board.kernel_name:
+                cmds = {
+                    'erase': self._board.kernel_erase_cmd,
+                    'pre_write': self._board.kernel_pre_write_cmd,
+                    'write': self._board.kernel_write_cmd,
+                    'post_write': self._board.kernel_post_write_cmd
+                }
+                name = self._board.kernel_name
+                self._install_img(part.image, 'kernel', name, cmds,
+                                  part.start_blk, part.size_blks)
 
     def read_partitions(self, filename):
         """
