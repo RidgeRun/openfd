@@ -40,6 +40,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         verbose = True
+        dryrun = False
         logger = utils.logger.init_global_logger('NandInstaller')
         logger.setLevel(logging.DEBUG)
         streamhandler = logging.StreamHandler()
@@ -49,6 +50,8 @@ class ExternalInstallerTestCase(unittest.TestCase):
         else:
             streamhandler.setLevel(logging.INFO)
         logger.addHandler(streamhandler)
+        utils.executer.init_global_executer(dryrun=dryrun, enable_colors=False,
+                                            verbose=verbose)
         
     def setUp(self):
         board = BoardFactory().make(dm36x_leopard.BOARD_NAME)

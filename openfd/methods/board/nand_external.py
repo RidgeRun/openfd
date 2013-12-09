@@ -20,6 +20,7 @@
 # ==========================================================================
 
 import os
+import openfd.utils as utils
 from string import Template
 from openfd.storage.partition import read_nand_partitions  
 
@@ -32,10 +33,25 @@ class ExternalInstaller(object):
     Install components to NAND memory.
     """
 
-    def __init__(self, board):
+    def __init__(self, board, dryrun=False):
         self._subs = {}
         self._board = board
         self._partitions = []
+        self._e = utils.executer.get_global_executer()
+        self._e.dryrun = dryrun
+        self._dryrun = dryrun
+        
+    
+    def __set_dryrun(self, dryrun):
+        self._dryrun = dryrun
+        self._e.dryrun = dryrun
+    
+    def __get_dryrun(self):
+        return self._dryrun
+    
+    dryrun = property(__get_dryrun, __set_dryrun,
+                     doc="""Enable dryrun mode. System commands will be logged,
+                     but not executed.""")
     
     def _general_substitutions(self):
         self._subs['mach_desc'] = self._board.mach_description
@@ -52,8 +68,13 @@ class ExternalInstaller(object):
         if (size_b % self._board.nand_block_size != 0):
             size_blks += 1
         return size_blks
-                
-    def _install_img(self, filename, comp, comp_name, cmds, start_blk,
+    
+    def _md5sum(self, filename):
+        cmd = "md5sum %s | cut -f1 -d' '" % filename
+        ret, md5sum = self._e.check_output(cmd)
+        return md5sum.strip() if ret == 0 else ''
+    
+    def _install_img(self, filename, comp, comp_name, comp_nick, cmds, start_blk,
                      size_blks=0):
         offset = start_blk * self._board.nand_block_size
         img_size_blks = self._bytes_to_blks(os.path.getsize(filename))
@@ -75,6 +96,10 @@ class ExternalInstaller(object):
         self._subs['%s_write_offset' % comp] = hex(offset)
         self._subs['%s_write_size' % comp] = hex(img_size_aligned)
         self._subs['%s_post_write_cmd' % comp] = cmds['post_write']
+        self._subs['%smd5sum' % comp_nick] = self._md5sum(filename)
+        self._subs['%soffset' % comp_nick] = hex(offset)
+        self._subs['%ssize' % comp_nick] = hex(img_size_aligned)
+        self._subs['%spartitionsize' % comp_nick] = hex(part_size)
     
     def install_ipl(self):
         for part in self._partitions:
@@ -85,7 +110,8 @@ class ExternalInstaller(object):
                     'write': self._board.ipl_write_cmd,
                     'post_write': self._board.ipl_post_write_cmd
                 }
-                self._install_img(part.image, 'ipl', self._board.ipl_name, cmds,
+                name = self._board.ipl_name 
+                self._install_img(part.image, 'ipl', name, 'ipl', cmds,
                                   part.start_blk, part.size_blks)
 
     def install_bootloader(self):
@@ -98,7 +124,7 @@ class ExternalInstaller(object):
                     'post_write': self._board.bootloader_post_write_cmd
                 }
                 name = self._board.bootloader_name
-                self._install_img(part.image, 'bootloader', name, cmds,
+                self._install_img(part.image, 'bootloader', name, name, cmds,
                                   part.start_blk, part.size_blks)
                 
     def install_kernel(self):
@@ -111,7 +137,7 @@ class ExternalInstaller(object):
                     'post_write': self._board.kernel_post_write_cmd
                 }
                 name = self._board.kernel_name
-                self._install_img(part.image, 'kernel', name, cmds,
+                self._install_img(part.image, 'kernel', name, 'k', cmds,
                                   part.start_blk, part.size_blks)
 
     def read_partitions(self, filename):

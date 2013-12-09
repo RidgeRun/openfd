@@ -12,6 +12,10 @@ ${ipl_erase_cmd} ${ipl_erase_offset} ${ipl_erase_size}
 ${ipl_pre_write_cmd}
 ${ipl_write_cmd} ${loadaddr} ${ipl_write_offset} ${ipl_write_size}
 ${ipl_post_write_cmd}
+setenv iplmd5sum ${iplmd5sum}
+setenv iploffset ${iploffset}
+setenv iplsize ${iplsize}
+setenv iplpartitionsize ${iplpartitionsize}
 echo
 echo  ====== Installing ${bootloader_name}...
 echo
@@ -28,6 +32,10 @@ ${kernel_erase_cmd} ${kernel_erase_offset} ${kernel_erase_size}
 ${kernel_pre_write_cmd}
 ${kernel_write_cmd} ${loadaddr} ${kernel_write_offset} ${kernel_write_size}
 ${kernel_post_write_cmd}
+setenv kmd5sum ${kmd5sum}
+setenv koffset ${koffset}
+setenv ksize ${ksize}
+setenv kpartitionsize ${kpartitionsize}
 echo
 echo  ====== Installing File System...
 echo
