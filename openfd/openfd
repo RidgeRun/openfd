@@ -171,9 +171,6 @@ def _check_is_valid_ipv4(ip, arg):
         _logger.error('Invalid IP address on %s: %s' % (arg, ip))
         _abort_install()
 
-def _check_is_valid_board(board):
-    return True if board in _board_factory.supported_boards() else False
-
 def _setup_uboot():
     global _uboot
     _uboot = Uboot()
