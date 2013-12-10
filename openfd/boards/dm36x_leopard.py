@@ -38,3 +38,8 @@ class Dm36xLeopard(Board):
     kernel_pre_write_cmd = ""
     kernel_write_cmd = "nand write"
     kernel_post_write_cmd = ""
+    fs_name = "rootfs"
+    fs_erase_cmd = "nand erase"
+    fs_pre_write_cmd = ""
+    fs_write_cmd = "nand write"
+    fs_post_write_cmd = ""

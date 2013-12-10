@@ -40,7 +40,6 @@ class ExternalInstaller(object):
         self._e = utils.executer.get_global_executer()
         self._e.dryrun = dryrun
         self._dryrun = dryrun
-        
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
@@ -139,6 +138,21 @@ class ExternalInstaller(object):
                 name = self._board.kernel_name
                 self._install_img(part.image, 'kernel', name, 'k', cmds,
                                   part.start_blk, part.size_blks)
+    def install_fs(self):
+        for part in self._partitions:
+            print part.name
+            print self._board.fs_name
+            if part.name == self._board.fs_name:
+                cmds = {
+                    'erase': self._board.fs_erase_cmd,
+                    'pre_write': self._board.fs_pre_write_cmd,
+                    'write': self._board.fs_write_cmd,
+                    'post_write': self._board.fs_post_write_cmd
+                }
+                name = self._board.fs_name
+                self._install_img(part.image, 'fs', name, 'fs', cmds,
+                                  part.start_blk, part.size_blks)
+
 
     def read_partitions(self, filename):
         """

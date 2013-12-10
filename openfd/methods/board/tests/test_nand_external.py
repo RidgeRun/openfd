@@ -66,6 +66,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
         self.inst.install_ipl()
         self.inst.install_bootloader()
         self.inst.install_kernel()
+        self.inst.install_fs()
         self.inst.write(test_in_file, test_out_file) 
 
 if __name__ == '__main__':
