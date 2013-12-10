@@ -4,8 +4,7 @@ echo
 askenv dummy "  Press any key to continue..." 1
 echo
 echo
-
-echo  ====== Installing ${ipl_name}...
+echo  ====== Installing ${ipl_name} ======
 echo
 fatload mmc 0 ${loadaddr} ${ipl_image}
 ${ipl_erase_cmd} ${ipl_erase_offset} ${ipl_erase_size}
@@ -17,7 +16,7 @@ setenv iploffset ${iploffset}
 setenv iplsize ${iplsize}
 setenv iplpartitionsize ${iplpartitionsize}
 echo
-echo  ====== Installing ${bootloader_name}...
+echo  ====== Installing ${bootloader_name} ======
 echo
 fatload mmc 0 ${loadaddr} ${bootloader_image}
 ${bootloader_erase_cmd} ${bootloader_erase_offset} ${bootloader_erase_size}
@@ -25,7 +24,7 @@ ${bootloader_pre_write_cmd}
 ${bootloader_write_cmd} ${loadaddr} ${bootloader_write_offset} ${bootloader_write_size}
 ${bootloader_post_write_cmd}
 echo
-echo  ====== Installing ${kernel_name}...
+echo  ====== Installing ${kernel_name} ======
 echo
 fatload mmc 0 ${loadaddr} ${kernel_image}
 ${kernel_erase_cmd} ${kernel_erase_offset} ${kernel_erase_size}
@@ -37,7 +36,7 @@ setenv koffset ${koffset}
 setenv ksize ${ksize}
 setenv kpartitionsize ${kpartitionsize}
 echo
-echo  ====== Installing ${fs_name}...
+echo  ====== Installing ${fs_name} ======
 echo
 fatload mmc 0 ${loadaddr} ${fs_image}
 ${fs_erase_cmd} ${fs_erase_offset} ${fs_erase_size}
@@ -49,15 +48,15 @@ setenv fsoffset ${fsoffset}
 setenv fssize ${fssize}
 setenv fspartitionsize ${fspartitionsize}
 echo
-echo  ====== Installing Boot Settings...
+echo  ====== Installing Environment ======
 echo
-setenv bootargs @BOOTARGS@
+setenv bootargs ${bootargs}
 setenv autostart yes
 setenv bootdelay 2
-setenv bootcmd @BOOTCMD@
+setenv bootcmd ${bootcmd}
 saveenv
 echo
-echo  ======= Installation Complete!
+echo  ====== Installation Complete! ======
 echo
 echo "You may restart your board by"
 echo "  - turning off power,"

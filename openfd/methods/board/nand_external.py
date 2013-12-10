@@ -140,8 +140,6 @@ class ExternalInstaller(object):
                                   part.start_blk, part.size_blks)
     def install_fs(self):
         for part in self._partitions:
-            print part.name
-            print self._board.fs_name
             if part.name == self._board.fs_name:
                 cmds = {
                     'erase': self._board.fs_erase_cmd,
@@ -152,7 +150,6 @@ class ExternalInstaller(object):
                 name = self._board.fs_name
                 self._install_img(part.image, 'fs', name, 'fs', cmds,
                                   part.start_blk, part.size_blks)
-
 
     def read_partitions(self, filename):
         """

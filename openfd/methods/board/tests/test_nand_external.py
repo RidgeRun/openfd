@@ -57,7 +57,6 @@ class ExternalInstallerTestCase(unittest.TestCase):
         board = BoardFactory().make(dm36x_leopard.BOARD_NAME)
         self.inst = ExternalInstaller(board=board)
         self.inst.read_partitions(test_mmap_file)
-        self.inst.write(test_in_file, test_out_file)
         
     def tearDown(self):
         pass
