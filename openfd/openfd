@@ -34,6 +34,7 @@ import socket
 import signal
 import logging
 
+import openfd.boards
 import openfd.utils as utils
 from openfd.methods.board import *
 from openfd.methods.sdcard import *
@@ -46,6 +47,7 @@ _args = []
 _parser = None
 _parser_sd = None
 _parser_sd_img = None
+_parser_sd_script = None
 _parser_nand = None
 _parser_nand_ipl = None
 _parser_nand_bootloader = None
@@ -57,6 +59,7 @@ _subparsers = None
 _subparsers_nand = None
 _logger  = None
 _uboot = None
+_board_factory = None
 
 # ==========================================================================
 # Constants
@@ -65,6 +68,7 @@ _uboot = None
 # Modes
 MODE_SD = 'sd'
 MODE_SD_IMG = 'sd-img'
+MODE_SD_SCRIPT = 'sd-script'
 MODE_NAND = 'nand'
 MODE_RAM = 'ram'
 MODE_ENV = 'env'
@@ -116,6 +120,10 @@ def _init_executer():
     utils.executer.init_global_executer(dryrun=_args.dryrun,
                                     enable_colors=True, verbose=_args.verbose)
 
+def _init_boards():
+    global _board_factory
+    _board_factory = openfd.boards.board_factory.BoardFactory()
+
 def _clean_exit(code=0):
     _close_uboot()
     if code != 0: _logger.debug('Exiting with code %d' % code)
@@ -163,6 +171,9 @@ def _check_is_valid_ipv4(ip, arg):
         _logger.error('Invalid IP address on %s: %s' % (arg, ip))
         _abort_install()
 
+def _check_is_valid_board(board):
+    return True if board in _board_factory.supported_boards() else False
+
 def _setup_uboot():
     global _uboot
     _uboot = Uboot()
@@ -183,11 +194,6 @@ def _close_uboot():
 # ==========================================================================
 # Command line arguments
 # ==========================================================================
-
-def _missing_arg_exit(arg):
-    _parser.print_help()
-    _logger.error('Argument %s is required' % arg)
-    _clean_exit(-1)
     
 def _add_args():
     global _args
@@ -227,6 +233,13 @@ def _add_args():
                        dest='dryrun',
                        action='store_true',
                        default=False)
+    
+    _add_args_nand()
+    _add_args_sd()
+    _add_args_sd_img()
+    _add_args_sd_script()
+    _add_args_ram()
+    _add_args_env()
 
 def _add_args_shared(subparser):
     subparser.add_argument('--mmap-file',
@@ -321,6 +334,34 @@ def _add_args_sd_img():
                        help="Size in MB of the SD card image file to create",
                        metavar='<size>',
                        dest='imagesize_mb',
+                       required=True)
+
+def _add_args_sd_script():
+    global _parser_sd_script
+    _parser_sd_script = _subparsers.add_parser(MODE_SD_SCRIPT) 
+    
+    boards = _board_factory.supported_boards()
+            
+    _parser_sd_script.add_argument('--board',
+                       help="Board name. Supported: %s" % 
+                       ''.join('%s, ' % b for b in boards).rstrip(', '),
+                       metavar='<board>',
+                       dest='board',
+                       choices=boards,
+                       required=True)
+    
+    _add_args_shared(_parser_sd_script)
+    
+    _parser_sd_script.add_argument('--template-file',
+                       help='Template file',
+                       metavar='<file>',
+                       dest='template_file',
+                       required=True)
+    
+    _parser_sd_script.add_argument('--output-file',
+                       help='Output file generated from --template-file',
+                       metavar='<file>',
+                       dest='output_file',
                        required=True)
 
 def _add_args_serial_shared(subparser):
@@ -513,6 +554,8 @@ def _check_args():
         _check_args_sd()
     elif _args.mode == MODE_SD_IMG:
         _check_args_sd_img()
+    elif _args.mode == MODE_SD_SCRIPT:
+        _check_args_sd_script()
     elif _args.mode == MODE_NAND:
         _check_args_nand()
     elif _args.mode == MODE_RAM:
@@ -538,6 +581,11 @@ def _check_args_sd_img():
     _check_args_sd()
     _check_is_int(_args.imagesize_mb, '--image-size-mb')
     _args.imagesize_mb = int(_args.imagesize_mb)
+
+def _check_args_sd_script():
+    _check_is_file(_args.mmap_file, '--mmap-file')
+    _check_is_file(_args.template_file, '--template-file')
+    _check_is_file(_args.output_file, '--output-file')
 
 def _check_args_serial():
     _check_is_int(_args.serial_baud, '--serial-baud')
@@ -609,12 +657,8 @@ def main():
     global _args
     signal.signal(signal.SIGINT, _sigint_handler)
     signal.signal(signal.SIGTERM, _sigint_handler)
+    _init_boards()
     _add_args()
-    _add_args_nand()
-    _add_args_sd()
-    _add_args_sd_img()
-    _add_args_ram()
-    _add_args_env()
     _args = _parser.parse_args()
     _init_logging()
     _init_executer()
