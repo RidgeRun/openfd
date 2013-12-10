@@ -582,7 +582,6 @@ def _check_args_sd_img():
 def _check_args_sd_script():
     _check_is_file(_args.mmap_file, '--mmap-file')
     _check_is_file(_args.template_file, '--template-file')
-    _check_is_file(_args.output_file, '--output-file')
 
 def _check_args_serial():
     _check_is_int(_args.serial_baud, '--serial-baud')
@@ -795,6 +794,16 @@ def main():
             _logger.error(e)
             _abort_install()
         _close_uboot()
+        
+    if mode == MODE_SD_SCRIPT:
+        board = _board_factory.make(_args.board)
+        ext_installer = ExternalInstaller(board=board)
+        ext_installer.read_partitions(_args.mmap_file)
+        ext_installer.install_ipl()
+        ext_installer.install_bootloader()
+        ext_installer.install_kernel()
+        ext_installer.install_fs()
+        ext_installer.write(_args.template_file, _args.output_file)
         
     _logger.info('Installation complete')
     _clean_exit(0)
