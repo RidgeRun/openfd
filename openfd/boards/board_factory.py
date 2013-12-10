@@ -19,7 +19,11 @@
 # Imports
 # ==========================================================================
 
+import os
+import importlib
 import dm36x_leopard
+import dummy_evm
+import openfd.boards
 
 # ==========================================================================
 # Public Classes
@@ -41,6 +45,23 @@ class BoardFactory(object):
         
         if name == dm36x_leopard.BOARD_NAME:
             return dm36x_leopard.Dm36xLeopard()
+        elif name == dummy_evm.BOARD_NAME:
+            return dummy_evm.DummyEvm()
         else:
             raise BoardFactoryException("Don't know which Board instance " 
                                           "to create with name '%s'" % name)
+
+    def supported_boards(self):
+        boards = []
+        boards_dir = os.path.dirname(openfd.boards.__file__)
+        for board_file in os.listdir(boards_dir):
+            base = os.path.splitext(board_file)[0]
+            if base == '__init__' or base.startswith('.'):
+                continue
+            mod = importlib.import_module('openfd.boards.%s' % base)
+            try:
+                if mod.BOARD_NAME not in boards:
+                    boards.append(mod.BOARD_NAME)
+            except AttributeError:
+                pass
+        return sorted(boards)
