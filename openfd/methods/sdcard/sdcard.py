@@ -95,7 +95,7 @@ class SDCardInstaller(object):
             values: :const:`MODE_SD`, :const:`MODE_LOOPBACK`.""")
     
     def __set_device(self, device):
-        self._d.name = device
+        self._d = Device(device)
     
     def __get_device(self):
         return self._d.name
@@ -271,8 +271,6 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise
         """
         
-        cylinders = self._d.size_cyl
-        
         # Check we were able to get correctly the device size
         if  self._d.size_cyl == 0 and not self._dryrun:
             self._l.error('Unable to partition device %s (size is 0)' %
@@ -280,7 +278,7 @@ class SDCardInstaller(object):
             return False
         
         # Check we have enough size to fit all the partitions and the MBR.
-        if cylinders < self._min_total_cyl_size() and not self._dryrun:
+        if self._d.size_cyl < self._min_total_cyl_size() and not self._dryrun:
             self._l.error('Size of partitions is too large to fit in %s' %
                                self._d.name)
             return False
@@ -296,7 +294,7 @@ class SDCardInstaller(object):
             
         # Create the partitions        
         cmd = ('sudo sfdisk -D' +
-              ' -C' + str(cylinders) +
+              ' -C' + str(int(self._d.size_cyl)) +
               ' -H' + str(int(self._d.geometry.heads)) +
               ' -S' + str(int(self._d.geometry.sectors)) +
               ' '   + self._d.name + ' << EOF\n')
@@ -439,7 +437,7 @@ class SDCardInstaller(object):
         ret, loopdevice = self._e.check_output(cmd)
         if ret == 0:
             loopdevice = loopdevice.rstrip('\n')
-            self.device = loopdevice
+            self.device = loopdevice 
             cmd = 'sudo losetup %s %s' % (self._d.name,  image_name)
             ret = self._e.check_call(cmd)
             if ret != 0:
