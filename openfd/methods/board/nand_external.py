@@ -52,12 +52,6 @@ class ExternalInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                      doc="""Enable dryrun mode. System commands will be logged,
                      but not executed.""")
-    
-    def write(self, in_file, out_file):
-        with open(in_file, 'r') as in_f:
-            t = Template(in_f.read())
-            with open(out_file, 'w') as out_f: 
-                out_f.write(t.safe_substitute(self._subs))
                 
     def _bytes_to_blks(self, size_b):
         size_blks = (size_b / self._board.nand_block_size)
@@ -71,9 +65,9 @@ class ExternalInstaller(object):
         return md5sum.strip() if ret == 0 else ''
     
     def _save_substitution(self, sub, value):
-        if value:
-            self._l.debug('  ${%s} -> %s' % (sub, value))
-            self._subs[sub] = value
+        sub_just = ('${%s}' % sub).ljust(30)
+        self._l.debug('  %s = %s' % (sub_just, value))
+        self._subs[sub] = value
     
     def install_boardinfo(self):
         self._l.debug('Board substitutions')
@@ -168,3 +162,12 @@ class ExternalInstaller(object):
         
         self._partitions[:] = []
         self._partitions = read_nand_partitions(filename)
+
+    def write(self, in_file, out_file):
+        self._l.info('Writing script')
+        self._l.info('  Template: %s' % in_file)
+        self._l.info('  Output: %s' % out_file)
+        with open(in_file, 'r') as in_f:
+            t = Template(in_f.read())
+            with open(out_file, 'w') as out_f: 
+                out_f.write(t.safe_substitute(self._subs))
