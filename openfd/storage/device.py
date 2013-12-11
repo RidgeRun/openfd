@@ -48,22 +48,26 @@ class Device(object):
     """Representation of a device, like /dev/sda or /dev/sdb or so. """
 
     def __init__(self, device, dryrun=False):
+        """
+        :param device: Device associated with this instance, i.e. '/dev/sdb/'.
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
+        """
         self._device = device
         self._geometry = DeviceGeometry()
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._e.dryrun = dryrun
         self._dryrun = dryrun
+    
+    @property
+    def device(self):
+        """
+        Device associated with this instance, i.e. '/dev/sdb/'.
+        """
         
-    def __set_device(self, device):
-        self._device = device
-    
-    def __get_device(self):
         return self._device
-    
-    device = property(__get_device, __set_device,
-                      doc="""Device associated with this instance, i.e.
-                      '/dev/sdb/'.""")
     
     name = device
     

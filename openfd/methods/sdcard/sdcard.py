@@ -21,11 +21,9 @@
 # ==========================================================================
 
 import os
-import math
 from openfd.storage.partition import SDCardPartition
 from openfd.storage.partition import read_sdcard_partitions
 from openfd.storage.device import Device
-from openfd.storage.device import DeviceGeometry
 import component
 import openfd.utils
 
@@ -276,7 +274,7 @@ class SDCardInstaller(object):
         cylinders = self._d.size_cyl
         
         # Check we were able to get correctly the device size
-        if cylinders == 0 and not self._dryrun:
+        if  self._d.size_cyl == 0 and not self._dryrun:
             self._l.error('Unable to partition device %s (size is 0)' %
                                self._d.name)
             return False
@@ -374,7 +372,6 @@ class SDCardInstaller(object):
             self._l.error('Not in MODE_SD.')
             return False
         
-        # Check that the device is actually an SD card
         if self._interactive:
             if self._confirm_device_size() is False:
                 return False
