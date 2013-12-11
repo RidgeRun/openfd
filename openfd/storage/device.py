@@ -160,7 +160,7 @@ class Device(object):
         True if the device exists, false otherwise.
         """
         
-        cmd = 'sudo fdisk -l %s 2>/dev/null' % self._device
+        cmd = 'sudo fdisk -l %s' % self._device
         output = self._e.check_output(cmd)[1]
         return True if output else False
 
