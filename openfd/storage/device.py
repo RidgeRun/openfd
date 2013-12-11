@@ -19,6 +19,7 @@
 # Imports
 # ==========================================================================
 
+import math
 import openfd.utils as utils
 
 # ==========================================================================
@@ -110,7 +111,16 @@ class Device(object):
         """
         
         return long(self.size_b >> 30)
-
+    
+    @property
+    def size_cyl(self):
+        """
+        Device size (cylinders).
+        """
+        
+        size_cyl = self.size_b / self.geometry.cylinder_byte_size
+        return int(math.floor(size_cyl))
+    
     @property
     def is_mounted(self):
         """

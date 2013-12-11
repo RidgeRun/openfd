@@ -198,14 +198,6 @@ class SDCardInstaller(object):
             else:
                 min_cyl_size += int(part.size)
         return min_cyl_size
-
-    def _get_device_size_cyl(self):
-        """
-        Returns the given device size, in cylinders.
-        """
-        
-        size_cyl = self._d.size_b / self._d.geometry.cylinder_byte_size
-        return int(math.floor(size_cyl))
     
     def _get_partition_filename(self, partition_index):
         """
@@ -281,7 +273,7 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise
         """
         
-        cylinders = self._get_device_size_cyl()
+        cylinders = self._d.size_cyl
         
         # Check we were able to get correctly the device size
         if cylinders == 0 and not self._dryrun:
