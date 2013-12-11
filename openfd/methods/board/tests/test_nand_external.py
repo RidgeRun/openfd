@@ -62,6 +62,7 @@ class ExternalInstallerTestCase(unittest.TestCase):
         pass
 
     def test_install(self):
+        self.inst.install_boardinfo()
         self.inst.install_ipl()
         self.inst.install_bootloader()
         self.inst.install_kernel()

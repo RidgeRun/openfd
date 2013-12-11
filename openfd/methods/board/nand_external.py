@@ -53,11 +53,7 @@ class ExternalInstaller(object):
                      doc="""Enable dryrun mode. System commands will be logged,
                      but not executed.""")
     
-    def _general_substitutions(self):
-        self._subs['mach_desc'] = self._board.mach_description
-    
     def write(self, in_file, out_file):
-        self._general_substitutions()
         with open(in_file, 'r') as in_f:
             t = Template(in_f.read())
             with open(out_file, 'w') as out_f: 
@@ -78,6 +74,10 @@ class ExternalInstaller(object):
         if value:
             self._l.debug('  ${%s} -> %s' % (sub, value))
             self._subs[sub] = value
+    
+    def install_boardinfo(self):
+        self._l.debug('Board substitutions')
+        self._save_substitution('mach_desc', self._board.mach_description)
     
     def _install_img(self, filename, comp, comp_name, cmds, start_blk,
                      size_blks=0):

@@ -799,6 +799,7 @@ def main():
         board = _board_factory.make(_args.board)
         ext_installer = ExternalInstaller(board=board)
         ext_installer.read_partitions(_args.mmap_file)
+        ext_installer.install_boardinfo()
         ext_installer.install_ipl()
         ext_installer.install_bootloader()
         ext_installer.install_kernel()
