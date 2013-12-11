@@ -56,6 +56,7 @@ class Device(object):
         """
         self._device = device
         self._geometry = DeviceGeometry()
+        self._size_b = 0
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._e.dryrun = dryrun
@@ -97,7 +98,8 @@ class Device(object):
         Device size (bytes).
         """
         
-        size = 0
+        if self._size_b != 0:
+            return self._size_b
         cmd = ('sudo fdisk -l %s | grep %s | grep Disk | cut -f 5 -d " "' %
             (self._device, self._device))
         output = self._e.check_output(cmd)[1]
@@ -105,8 +107,8 @@ class Device(object):
             if not output:
                 self._l.error('Unable to obtain the size for %s' % self._device)
             else:
-                size = long(output)
-        return size
+                self._size_b = long(output)
+        return self._size_b
 
     @property
     def size_gb(self):
@@ -123,7 +125,7 @@ class Device(object):
         """
         
         size_cyl = self.size_b / self.geometry.cylinder_byte_size
-        return int(math.floor(size_cyl))
+        return long(math.floor(size_cyl))
     
     @property
     def is_mounted(self):
