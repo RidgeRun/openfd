@@ -48,6 +48,7 @@ class Device(object):
 
     def __init__(self, device, dryrun=False):
         self._device = device
+        self._geometry = DeviceGeometry()
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._e.dryrun = dryrun
@@ -75,6 +76,15 @@ class Device(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                       doc="""Enable dryrun mode. System commands will be
                      logged, but not executed.""")
+
+    def __set_geometry(self, geometry):
+        self._geometry = geometry
+        
+    def __get_geometry(self):
+        return self._geometry
+    
+    geometry = property(__get_geometry, __set_geometry,
+                      doc=""":class:`DeviceGeometry` instance.""")
 
     @property
     def size_b(self):

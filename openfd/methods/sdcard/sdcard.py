@@ -78,7 +78,6 @@ class SDCardInstaller(object):
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
         self._d = Device(device)
-        self._d.geometry = DeviceGeometry()
         self._mode = mode
         self._dryrun = dryrun
         self._e.dryrun = dryrun
