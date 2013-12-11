@@ -37,6 +37,7 @@ class ExternalInstaller(object):
         self._subs = {}
         self._board = board
         self._partitions = []
+        self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._e.dryrun = dryrun
         self._dryrun = dryrun
@@ -73,8 +74,14 @@ class ExternalInstaller(object):
         ret, md5sum = self._e.check_output(cmd)
         return md5sum.strip() if ret == 0 else ''
     
-    def _install_img(self, filename, comp, comp_name, comp_nick, cmds, start_blk,
+    def _save_substitution(self, sub, value):
+        if value:
+            self._l.debug('  ${%s} -> %s' % (sub, value))
+            self._subs[sub] = value
+    
+    def _install_img(self, filename, comp, comp_name, cmds, start_blk,
                      size_blks=0):
+        self._l.debug('%s substitutions' % comp.capitalize())
         offset = start_blk * self._board.nand_block_size
         img_size_blks = self._bytes_to_blks(os.path.getsize(filename))
         img_size_aligned = img_size_blks * self._board.nand_block_size
@@ -85,20 +92,20 @@ class ExternalInstaller(object):
                             "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self._board.nand_block_size
-        self._subs['%s_name' % comp] = comp_name
-        self._subs['%s_image' % comp] = os.path.basename(filename)
-        self._subs['%s_erase_cmd' % comp] = cmds['erase']
-        self._subs['%s_erase_offset' % comp] = hex(offset)
-        self._subs['%s_erase_size' % comp] = hex(part_size)
-        self._subs['%s_pre_write_cmd' % comp] = cmds['pre_write']
-        self._subs['%s_write_cmd' % comp] = cmds['write']
-        self._subs['%s_write_offset' % comp] = hex(offset)
-        self._subs['%s_write_size' % comp] = hex(img_size_aligned)
-        self._subs['%s_post_write_cmd' % comp] = cmds['post_write']
-        self._subs['%smd5sum' % comp_nick] = self._md5sum(filename)
-        self._subs['%soffset' % comp_nick] = hex(offset)
-        self._subs['%ssize' % comp_nick] = hex(img_size_aligned)
-        self._subs['%spartitionsize' % comp_nick] = hex(part_size)
+        self._save_substitution('%s_name' % comp, comp_name)
+        self._save_substitution('%s_image' % comp, os.path.basename(filename))
+        self._save_substitution('%s_erase_cmd' % comp, cmds['erase'])
+        self._save_substitution('%s_erase_offset' % comp, hex(offset))
+        self._save_substitution('%s_erase_size' % comp, hex(part_size))
+        self._save_substitution('%s_pre_write_cmd' % comp, cmds['pre_write'])
+        self._save_substitution('%s_write_cmd' % comp, cmds['write'])
+        self._save_substitution('%s_write_offset' % comp, hex(offset))
+        self._save_substitution('%s_write_size' % comp, hex(img_size_aligned))
+        self._save_substitution('%s_post_write_cmd' % comp, cmds['post_write'])
+        self._save_substitution('%s_md5sum' % comp, self._md5sum(filename))
+        self._save_substitution('%s_offset' % comp, hex(offset))
+        self._save_substitution('%s_size' % comp, hex(img_size_aligned))
+        self._save_substitution('%s_partitionsize' % comp, hex(part_size))
     
     def install_ipl(self):
         for part in self._partitions:
@@ -110,7 +117,7 @@ class ExternalInstaller(object):
                     'post_write': self._board.ipl_post_write_cmd
                 }
                 name = self._board.ipl_name 
-                self._install_img(part.image, 'ipl', name, 'ipl', cmds,
+                self._install_img(part.image, 'ipl', name, cmds,
                                   part.start_blk, part.size_blks)
 
     def install_bootloader(self):
@@ -123,7 +130,7 @@ class ExternalInstaller(object):
                     'post_write': self._board.bootloader_post_write_cmd
                 }
                 name = self._board.bootloader_name
-                self._install_img(part.image, 'bootloader', name, name, cmds,
+                self._install_img(part.image, 'bootloader', name, cmds,
                                   part.start_blk, part.size_blks)
                 
     def install_kernel(self):
@@ -136,7 +143,7 @@ class ExternalInstaller(object):
                     'post_write': self._board.kernel_post_write_cmd
                 }
                 name = self._board.kernel_name
-                self._install_img(part.image, 'kernel', name, 'k', cmds,
+                self._install_img(part.image, 'kernel', name, cmds,
                                   part.start_blk, part.size_blks)
     def install_fs(self):
         for part in self._partitions:
@@ -148,7 +155,7 @@ class ExternalInstaller(object):
                     'post_write': self._board.fs_post_write_cmd
                 }
                 name = self._board.fs_name
-                self._install_img(part.image, 'fs', name, 'fs', cmds,
+                self._install_img(part.image, 'filesystem', name, cmds,
                                   part.start_blk, part.size_blks)
 
     def read_partitions(self, filename):

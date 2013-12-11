@@ -280,11 +280,11 @@ class NandInstaller(object):
         ret, md5sum = self._e.check_output(cmd)
         return md5sum.strip() if ret == 0 else ''
 
-    def _is_img_install_needed(self, comp_nick, img_env):
-        md5sum_on_board = self._u.get_env('%smd5sum' % comp_nick)
-        off_on_board = self._u.get_env('%soffset' % comp_nick)
-        size_on_board = self._u.get_env('%ssize' % comp_nick)
-        part_size_on_board = self._u.get_env('%spartitionsize' % comp_nick)
+    def _is_img_install_needed(self, comp, img_env):
+        md5sum_on_board = self._u.get_env('%smd5sum' % comp)
+        off_on_board = self._u.get_env('%soffset' % comp)
+        size_on_board = self._u.get_env('%ssize' % comp)
+        part_size_on_board = self._u.get_env('%spartitionsize' % comp)
         if (img_env['md5sum'] != md5sum_on_board or
             img_env['offset'] != off_on_board or
             img_env['size'] != size_on_board or
@@ -292,13 +292,13 @@ class NandInstaller(object):
             return True
         return False
 
-    def _save_img_env(self, comp_nick, img_env):
-        self._u.set_env('%smd5sum' % comp_nick, img_env['md5sum'])
-        self._u.set_env('%soffset' % comp_nick, img_env['offset'])
-        self._u.set_env('%ssize' % comp_nick, img_env['size'])
-        self._u.set_env('%spartitionsize' % comp_nick, img_env['partitionsize'])
+    def _save_img_env(self, comp, img_env):
+        self._u.set_env('%smd5sum' % comp, img_env['md5sum'])
+        self._u.set_env('%soffset' % comp, img_env['offset'])
+        self._u.set_env('%ssize' % comp, img_env['size'])
+        self._u.set_env('%spartitionsize' % comp, img_env['partitionsize'])
 
-    def _install_img(self, filename, comp, comp_nick, start_blk, size_blks=0,
+    def _install_img(self, filename, comp, start_blk, size_blks=0,
                      force=False):
         self._l.info('Installing %s' % comp)
         offset = start_blk * self.nand_block_size
@@ -317,7 +317,7 @@ class NandInstaller(object):
                    'offset': hex(offset),
                    'size': hex(img_size_aligned),
                    'partitionsize': hex(part_size)}
-        if not force and not self._is_img_install_needed(comp_nick, img_env):
+        if not force and not self._is_img_install_needed(comp, img_env):
             self._l.info("%s doesn't need to be installed" % comp.capitalize())
             return True
         
@@ -338,7 +338,7 @@ class NandInstaller(object):
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         
         self._l.debug("Saving %s partition info" % comp)
-        self._save_img_env(comp_nick, img_env)
+        self._save_img_env(comp, img_env)
         self._u.save_env()
         
         self._l.info('%s installation complete' % comp.capitalize())
@@ -365,8 +365,8 @@ class NandInstaller(object):
         
         for part in self._partitions:
             if part.name == NandInstaller.names['ipl']:
-                return self._install_img(part.image, 'ipl', 'ipl',
-                             part.start_blk, part.size_blks, force)
+                return self._install_img(part.image, 'ipl', part.start_blk,
+                                         part.size_blks, force)
         return True
 
     def install_bootloader(self):
@@ -440,8 +440,8 @@ class NandInstaller(object):
         
         for part in self._partitions:
             if part.name == NandInstaller.names['kernel']:
-                return self._install_img(part.image, 'kernel', 'k',
-                                         part.start_blk, part.size_blks, force)
+                return self._install_img(part.image, 'kernel', part.start_blk,
+                                         part.size_blks, force)
         return True
     
     def install_fs(self, force=False):
@@ -464,7 +464,7 @@ class NandInstaller(object):
         
         for part in self._partitions:
             if part.name == NandInstaller.names['filesystem']:
-                return self._install_img(part.image, 'filesystem', 'fs',
+                return self._install_img(part.image, 'filesystem',
                                          part.start_blk, part.size_blks, force)
         return True
 
