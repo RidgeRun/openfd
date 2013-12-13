@@ -22,7 +22,6 @@
 import os
 import hexutils
 import socket
-from argparse import ArgumentError
 
 # ==========================================================================
 # Checks
@@ -51,7 +50,7 @@ class ArgChecker(object):
         try:
             int(val)
         except ValueError:
-            raise ArgumentError('%s must be an integer (%s)' % (arg, val))
+            raise ArgCheckerError('%s must be an integer (%s)' % (arg, val))
     
     def is_valid_addr(self, addr, arg):
         if not hexutils.is_valid_addr(addr):
