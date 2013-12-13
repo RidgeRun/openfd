@@ -386,7 +386,7 @@ def main():
     if args.mode == MODE_SD_SCRIPT:
         board = BoardFactory().make(args.board)
         ext_installer = NandExternalInstaller(board=board)
-        ext_installer.read_partitions(args.mmap_file)
+        ext_installer.read_partitions(args.flash_mmap_file)
         ext_installer.install_boardinfo()
         ext_installer.install_ipl()
         ext_installer.install_bootloader()

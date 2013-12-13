@@ -190,14 +190,14 @@ class SdCardArgs(object):
                            choices=boards,
                            required=True)
         
-        parser.add_argument('--mmap-file',
-                           help='Memory map config file',
+        parser.add_argument('--flash-mmap-file',
+                           help='Flash memory map config file',
                            metavar='<file>',
-                           dest='mmap_file',
+                           dest='flash_mmap_file',
                            required=True)
         
         parser.add_argument('--template-file',
-                           help='Template file',
+                           help='Template file for flash installer script',
                            metavar='<file>',
                            dest='template_file',
                            required=True)
@@ -207,7 +207,28 @@ class SdCardArgs(object):
                            metavar='<file>',
                            dest='output_file',
                            required=True)
+                
+        parser.add_argument('--device',
+                           help="Device to install",
+                           metavar='<dev>',
+                           dest='device',
+                           required=True)
+    
+        parser.add_argument('--sd-mmap-file',
+                           help='SD card memory map config file',
+                           metavar='<file>',
+                           dest='mmap_file',
+                           required=True)
+    
+        self.add_args_sd_bootloader(parser)
+        
+        parser.add_argument('--work-dir',
+                           help='Directory to perform temporary operations',
+                           metavar='<dir>',
+                           dest='workdir',
+                           required=True)
     
     def check_args_sd_script(self, args):
-        self.checker.is_file(args.mmap_file, '--mmap-file')
+        self.checker.is_file(args.flash_mmap_file, '--flash-mmap-file')
         self.checker.is_file(args.template_file, '--template-file')
+        
