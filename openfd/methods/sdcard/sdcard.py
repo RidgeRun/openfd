@@ -96,6 +96,7 @@ class SDCardInstaller(object):
     
     def __set_device(self, device):
         self._d = Device(device)
+        self._d.dryrun = self._dryrun
     
     def __get_device(self):
         return self._d.name
@@ -107,6 +108,7 @@ class SDCardInstaller(object):
         self._dryrun = dryrun
         self._comp_installer.dryrun = dryrun
         self._e.dryrun = dryrun
+        self._d.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
