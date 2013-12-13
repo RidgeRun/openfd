@@ -483,7 +483,7 @@ class SDCardInstaller(object):
             free_device = free_device.rstrip('\n')
             self._loopdevice_partitions[device_part] = free_device
             offset = int(part.start) * int(self._d.geometry.cylinder_byte_size)
-            if part.size == self._d.geometry.FULL_SIZE:
+            if part.size == self._d.geometry.full_size:
                 cmd = 'sudo losetup -o %s %s %s' % (offset, free_device,
                                                         image_name)
             else:
