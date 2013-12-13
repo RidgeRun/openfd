@@ -155,27 +155,6 @@ class SDCardInstaller(object):
                 size_is_good = False            
         return size_is_good
     
-    def _confirm_device_auto_unmount(self):
-        """
-        Checks for mounted partitions on the device, if there are it warns
-        the user that the partitions will be auto-unmounted.
-        
-        Returns true if the user confirms the auto-unmount operations; false
-        otherwise. 
-        """
-        
-        auto_unmount = True
-        if self._d.mounted_partitions:
-            msg = ('The following partitions from device %s will be '
-                   'unmounted:\n' % self._d.name)
-            for part in self._d.mounted_partitions:
-                msg += part + '\n'
-            msg_color = SDCardInstaller.WARN_COLOR
-            confirmed = self._e.prompt_user(msg, msg_color)
-            if not confirmed:
-                auto_unmount = False
-        return auto_unmount
-    
     def _min_total_cyl_size(self):
         """
         Sums all the partitions' sizes and returns the total. It is actually
@@ -382,9 +361,10 @@ class SDCardInstaller(object):
         
         if self._d.is_mounted and not self._dryrun:    
             if self._interactive:
-                if self._confirm_device_auto_unmount() is False:
-                    return False
-            if not self._d.unmount():
+                ret = self._d.confirmed_unmount()
+            else:
+                ret = self._d.unmount()
+            if ret is False:
                 self._l.error('Failed auto-unmounting %s, refusing to install'
                                 % self._d.name)
                 return False

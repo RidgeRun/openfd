@@ -47,6 +47,9 @@ class DeviceGeometry(object):
 class Device(object):
     """Representation of a device, like /dev/sda or /dev/sdb or so. """
 
+    #: Color for dangerous warning messages.
+    WARN_COLOR = 'yellow'
+
     def __init__(self, device, dryrun=False):
         """
         :param device: Device associated with this instance, i.e. '/dev/sdb/'.
@@ -180,6 +183,24 @@ class Device(object):
             if self._e.check_call(cmd) != 0:
                 self._l.error('Failed to unmount %s' % part)
                 return False
+        return True
+
+    def confirmed_unmount(self):
+        """
+        Same as `unmount()`, but prompts the user for confirmation.
+        
+        Returns true on success; false otherwise. 
+        """
+        
+        mounted_partitions = self.mounted_partitions 
+        if mounted_partitions:
+            msg = ('The following partitions from device %s will be '
+                   'unmounted:\n' % self.name)
+            for part in mounted_partitions:
+                msg += part + '\n'
+            confirmed = self._e.prompt_user(msg, self.WARN_COLOR)
+            if confirmed:
+                return self.unmount()
         return True
 
     def partition_suffix(self, partition_index):
