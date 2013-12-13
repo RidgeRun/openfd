@@ -28,7 +28,7 @@ from openfd.storage.partition import read_nand_partitions
 # Public Classes
 # ==========================================================================
 
-class ExternalInstaller(object):
+class NandExternalInstaller(object):
     """
     Install components to NAND memory.
     """
