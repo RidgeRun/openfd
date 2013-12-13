@@ -28,35 +28,40 @@ this installer.
 # Imports
 # ==========================================================================
 
+import time
+import os
 import sys
 import argparse
+import serial
 import socket
 import signal
 import logging
 
 import openfd.boards
 import openfd.utils as utils
-from openfd.methods.board import *
-from openfd.methods.sdcard import *
+from openfd.utils.args import ArgCheckerError
+from openfd.methods.board import BoardArgs
+from openfd.methods.board import Uboot
+from openfd.methods.board import UbootTimeoutException
+from openfd.methods.board import TftpRamLoader
+from openfd.methods.board import RamLoaderException
+from openfd.methods.board import NandInstaller
+from openfd.methods.board import NandExternalInstaller
+from openfd.methods.board import EnvInstaller
+from openfd.methods.sdcard import ComponentInstaller
+from openfd.methods.sdcard import SDCardInstaller
 
 # ==========================================================================
 # Global variables
 # ==========================================================================
 
 _args = []
+_board_args = None
 _parser = None
 _parser_sd = None
 _parser_sd_img = None
 _parser_sd_script = None
-_parser_nand = None
-_parser_nand_ipl = None
-_parser_nand_bootloader = None
-_parser_nand_kernel = None
-_parser_nand_fs = None
-_parser_ram = None
-_parser_env = None
 _subparsers = None
-_subparsers_nand = None
 _logger  = None
 _uboot = None
 _board_factory = None
@@ -194,9 +199,11 @@ def _close_uboot():
     
 def _add_args():
     global _args
+    global _board_args
     global _parser
     global _subparsers
     _parser = argparse.ArgumentParser()
+    _board_args = BoardArgs()
     _subparsers = _parser.add_subparsers(help="installation mode (--help available)",
                                          dest="mode")
     
@@ -238,15 +245,13 @@ def _add_args():
     _add_args_ram()
     _add_args_env()
 
-def _add_args_shared(subparser):
+def _add_args_sd_shared(subparser):
+    
     subparser.add_argument('--mmap-file',
                        help='Memory map config file',
                        metavar='<file>',
                        dest='mmap_file',
                        required=True)
-
-def _add_args_sd_shared(subparser):
-    _add_args_shared(subparser)
 
     subparser.add_argument('--kernel-file',
                        help='Path to the Kernel file to be installed.',
@@ -347,7 +352,11 @@ def _add_args_sd_script():
                        choices=boards,
                        required=True)
     
-    _add_args_shared(_parser_sd_script)
+    _parser_sd_script.add_argument('--mmap-file',
+                       help='Memory map config file',
+                       metavar='<file>',
+                       dest='mmap_file',
+                       required=True)
     
     _parser_sd_script.add_argument('--template-file',
                        help='Template file',
@@ -361,202 +370,47 @@ def _add_args_sd_script():
                        dest='output_file',
                        required=True)
 
-def _add_args_serial_shared(subparser):
-    
-    subparser.add_argument('--serial-port',
-                       help="Device name or port number for serial communica"
-                       "tion with U-Boot (i.e. '/dev/ttyS0')",
-                       metavar='<port>',
-                       dest='serial_port',
-                       required=True)
-    
-    subparser.add_argument('--serial-baud',
-                       help="Baud rate (default: 115200)",
-                       metavar='<baud>',
-                       dest='serial_baud',
-                       default=115200)
-
-def _add_args_tftp_shared(subparser):
-      
-    net_modes = [TftpRamLoader.MODE_STATIC, TftpRamLoader.MODE_DHCP]
-    
-    subparser.add_argument('--board-net-mode',
-                       help="Networking mode: %s (default: dhcp)" %
-                       ''.join('%s|' % mode for mode in net_modes).rstrip('|'),
-                       metavar='<mode>',
-                       choices=net_modes,
-                       dest='board_net_mode',
-                       default=TftpRamLoader.MODE_DHCP)
-
-    subparser.add_argument('--board-ip-addr',
-                       help="Board IPv4 address (only required in --board-net-"
-                       "mode=static)",
-                       metavar='<addr>',
-                       dest='board_ip_addr')
-    
-    subparser.add_argument('--host-ip-addr',
-                       help="Host IPv4 address",
-                       metavar='<addr>',
-                       dest='host_ip_addr',
-                       required=True)
-
-    subparser.add_argument('--tftp-dir',
-                       help="TFTP server root directory",
-                       metavar='<dir>',
-                       dest='tftp_dir',
-                       required=True)
-
-    subparser.add_argument('--tftp-port',
-                       help="TFTP server port (default: 69)",
-                       metavar='<port>',
-                       dest='tftp_port',
-                       default=69)
-
 def _add_args_nand():
-    global _parser_nand
-    global _subparsers_nand
-    _parser_nand = _subparsers.add_parser(MODE_NAND)
-    
-    _subparsers_nand = _parser_nand.add_subparsers(help="component (--help available)",
-                                                    dest="component")
-    
-    _add_args_shared(_parser_nand)
-    
-    _parser_nand.add_argument('--nand-blk-size',
-                       help="NAND block size (bytes)",
-                       metavar='<size>',
-                       dest='nand_blk_size')
-    
-    _parser_nand.add_argument('--nand-page-size',
-                       help="NAND page size (bytes)",
-                       metavar='<size>',
-                       dest='nand_page_size')
-    
-    _add_args_serial_shared(_parser_nand)
-    
-    _parser_nand.add_argument('--ram-load-addr',
-                       help='RAM address to load components (decimal or hex)',
-                       metavar='<addr>',
-                       dest='ram_load_addr',
-                       required=True)
-    
-    _parser_nand.add_argument('--uboot-file',
-                       help='Path to a U-Boot file that can be loaded to RAM '
-                       'and drive the installation',
-                       metavar='<file>',
-                       dest='nand_uboot_file')
-  
-    _add_args_tftp_shared(_parser_nand)
-    _add_args_nand_ipl()
-    _add_args_nand_bootloader()
-    _add_args_nand_kernel()
-    _add_args_nand_fs()
-
-def _add_args_nand_ipl():
-    global _parser_nand_ipl 
-    _parser_nand_ipl = _subparsers_nand.add_parser(COMP_IPL,
-                                           help="Initial Program Loader (UBL)")
-    
-    _parser_nand_ipl.add_argument('--force',
-                       help='Force component installation',
-                       dest='ipl_force',
-                       action='store_true',
-                       default=False)
-
-def _add_args_nand_bootloader():
-    global _parser_nand_bootloader 
-    _parser_nand_bootloader = _subparsers_nand.add_parser(COMP_BOOTLOADER,
+    parser_nand = _subparsers.add_parser(MODE_NAND)
+    subparsers_nand = parser_nand.add_subparsers(help="component "
+                                       "(--help available)", dest="component")
+    parser_nand_ipl = subparsers_nand.add_parser(COMP_IPL,
+                                       help="Initial Program Loader (UBL)")
+    parser_nand_bootloader = subparsers_nand.add_parser(COMP_BOOTLOADER,
                                                   help="Bootloader (U-Boot)")
-
-def _add_args_nand_kernel():
-    global _parser_nand_kernel 
-    _parser_nand_kernel = _subparsers_nand.add_parser(COMP_KERNEL,
-                                                      help="Kernel")
-    
-    _parser_nand_kernel.add_argument('--force',
-                       help='Force component installation',
-                       dest='kernel_force',
-                       action='store_true',
-                       default=False)
-
-def _add_args_nand_fs():
-    global _parser_nand_fs 
-    _parser_nand_fs = _subparsers_nand.add_parser(COMP_FS,
-                                                  help="Filesystem")
-    
-    _parser_nand_fs.add_argument('--force',
-                       help='Force component installation',
-                       dest='fs_force',
-                       action='store_true',
-                       default=False)
+    parser_nand_kernel = subparsers_nand.add_parser(COMP_KERNEL, help="Kernel")
+    parser_nand_fs = subparsers_nand.add_parser(COMP_FS, help="Filesystem")
+    _board_args.add_args_nand(parser_nand)
+    _board_args.add_args_nand_ipl(parser_nand_ipl)
+    _board_args.add_args_nand_bootloader(parser_nand_bootloader)
+    _board_args.add_args_nand_kernel(parser_nand_kernel)
+    _board_args.add_args_nand_fs(parser_nand_fs)
 
 def _add_args_ram():
-    global _parser_ram
-    _parser_ram = _subparsers.add_parser(MODE_RAM)
-
-    _parser_ram.add_argument('--file',
-                       help='Path to the file to load in RAM (at --load-addr)',
-                       metavar='<file>',
-                       dest='ram_file',
-                       required=True)
-
-    _parser_ram.add_argument('--load-addr',
-                       help='RAM address to load the file (decimal or hex)',
-                       metavar='<addr>',
-                       dest='ram_load_addr',
-                       required=True)
-    
-    _parser_ram.add_argument('--boot-line',
-                       help="Line to expect in the serial port to determine "
-                       "that boot is complete",
-                       metavar='<line>',
-                       dest='ram_boot_line',
-                       required=True)
-    
-    _parser_ram.add_argument('--boot-timeout',
-                       help="Max time in seconds to wait for --boot-line",
-                       metavar='<s>',
-                       dest='ram_boot_timeout',
-                       required=True)
-   
-    _add_args_serial_shared(_parser_ram)
-    _add_args_tftp_shared(_parser_ram)
+    parser_ram = _subparsers.add_parser(MODE_RAM)
+    _board_args.add_args_ram(parser_ram)
     
 def _add_args_env():
-    global _parser_env
-    _parser_env = _subparsers.add_parser(MODE_ENV)
-    
-    _parser_env.add_argument('--variable',
-                       help="U-Boot's environment variable",
-                       metavar='<var>',
-                       dest='env_variable',
-                       required=True)
-
-    _parser_env.add_argument('--value',
-                       help="Value to set in --variable",
-                       metavar='<value>',
-                       dest='env_value',
-                       required=True)
-    
-    _parser_env.add_argument('--force',
-                       help='Force variable installation',
-                       dest='env_force',
-                       action='store_true',
-                       default=False)
-    
-    _add_args_serial_shared(_parser_env)
+    parser_env = _subparsers.add_parser(MODE_ENV)
+    _board_args.add_args_env(parser_env)
     
 def _check_args():
-    if _args.mode == MODE_SD:
-        _check_args_sd()
-    elif _args.mode == MODE_SD_IMG:
-        _check_args_sd_img()
-    elif _args.mode == MODE_SD_SCRIPT:
-        _check_args_sd_script()
-    elif _args.mode == MODE_NAND:
-        _check_args_nand()
-    elif _args.mode == MODE_RAM:
-        _check_args_ram()
+    try:
+        if _args.mode == MODE_SD:
+            _check_args_sd()
+        elif _args.mode == MODE_SD_IMG:
+            _check_args_sd_img()
+        elif _args.mode == MODE_SD_SCRIPT:
+            _check_args_sd_script()
+        elif _args.mode == MODE_NAND:
+            _board_args.check_args_nand(_args)
+        elif _args.mode == MODE_RAM:
+            _board_args.check_args_ram(_args)
+        elif _args.mode == MODE_ENV:
+            _board_args.check_args_env(_args)        
+    except ArgCheckerError as e:
+        _logger.error(e)
+        _abort_install()
     
 def _check_args_sd():    
     _check_is_file(_args.mmap_file, '--mmap-file')
@@ -564,7 +418,7 @@ def _check_args_sd():
     _check_x_ok(_args.uflash_bin, '--uflash-bin')
     _check_is_file(_args.ubl_file, '--ubl-file')
     _check_is_file(_args.uboot_file, '--uboot-file')
-    _check_is_file(_args.kernel_file, '--kernel-file')
+    _check_is_file(_args.kernel_file, '--kernel_check_args_ram()-file')
     _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
     _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
     _check_is_dir(_args.workdir, '--work-dir')
@@ -581,62 +435,7 @@ def _check_args_sd_img():
 
 def _check_args_sd_script():
     _check_is_file(_args.mmap_file, '--mmap-file')
-    _check_is_file(_args.template_file, '--template-file')
-
-def _check_args_serial():
-    _check_is_int(_args.serial_baud, '--serial-baud')
-
-def _check_args_tftp():
-    _check_is_dir(_args.tftp_dir, '--tftp-dir')
-    _check_is_int(_args.tftp_port, '--tftp-port')
-    _args.tftp_port = int(_args.tftp_port)
-    _check_is_valid_ipv4(_args.host_ip_addr, '--host-ip-addr')
-    if _args.board_net_mode == TftpRamLoader.MODE_STATIC:
-        _check_is_valid_ipv4(_args.board_ip_addr, '--board-ip-addr')
-
-def _check_args_nand():
-    if _args.nand_blk_size:
-        _check_is_int(_args.nand_blk_size, '--nand-blk-size')
-        _args.nand_blk_size = int(_args.nand_blk_size)
-    if _args.nand_page_size:
-        _check_is_int(_args.nand_page_size, '--nand-page-size')
-        _args.nand_page_size = int(_args.nand_page_size)
-    if _args.nand_uboot_file:
-        _check_is_file(_args.nand_uboot_file, '--uboot-file')
-    _check_is_valid_addr(_args.ram_load_addr, '--ram-load-addr')
-    _check_args_serial()
-    _check_args_tftp()
-    if _args.component == COMP_IPL:
-        _check_args_nand_ipl()
-    if _args.component == COMP_BOOTLOADER:
-        _check_args_nand_bootloader()
-    if _args.component == COMP_KERNEL:
-        _check_args_nand_kernel()
-    if _args.component == COMP_FS:
-        _check_args_nand_fs()
-
-def _check_args_nand_ipl():
-    pass
-    
-def _check_args_nand_bootloader():
-    pass
-    
-def _check_args_nand_kernel():
-    pass
-
-def _check_args_nand_fs():
-    pass
-
-def _check_args_ram():
-    _check_is_file(_args.ram_file, '--file')
-    _check_is_valid_addr(_args.ram_load_addr, '--load-addr')
-    _check_is_int(_args.ram_boot_timeout, '--boot-timeout')
-    _args.ram_boot_timeout = int(_args.ram_boot_timeout)
-    _check_args_serial()
-    _check_args_tftp()
-
-def _check_args_env():
-    _check_args_serial()
+    _check_is_file(_args.template_file, '--template-file')    
 
 def _check_sudo():
     ret = utils.get_global_executer().prompt_sudo()
@@ -797,7 +596,7 @@ def main():
         
     if mode == MODE_SD_SCRIPT:
         board = _board_factory.make(_args.board)
-        ext_installer = ExternalInstaller(board=board)
+        ext_installer = NandExternalInstaller(board=board)
         ext_installer.read_partitions(_args.mmap_file)
         ext_installer.install_boardinfo()
         ext_installer.install_ipl()
