@@ -48,6 +48,7 @@ from openfd.methods.board import RamLoaderException
 from openfd.methods.board import NandInstaller
 from openfd.methods.board import NandExternalInstaller
 from openfd.methods.board import EnvInstaller
+from openfd.methods.sdcard import SdCardArgs
 from openfd.methods.sdcard import ComponentInstaller
 from openfd.methods.sdcard import SDCardInstaller
 
@@ -57,10 +58,8 @@ from openfd.methods.sdcard import SDCardInstaller
 
 _args = []
 _board_args = None
+_sd_args = None
 _parser = None
-_parser_sd = None
-_parser_sd_img = None
-_parser_sd_script = None
 _subparsers = None
 _logger  = None
 _uboot = None
@@ -200,10 +199,12 @@ def _close_uboot():
 def _add_args():
     global _args
     global _board_args
+    global _sd_args
     global _parser
     global _subparsers
     _parser = argparse.ArgumentParser()
     _board_args = BoardArgs()
+    _sd_args = SdCardArgs()
     _subparsers = _parser.add_subparsers(help="installation mode (--help available)",
                                          dest="mode")
     
@@ -309,66 +310,16 @@ def _add_args_sd_shared(subparser):
                        default=None)
     
 def _add_args_sd():
-    global _parser_sd
-    _parser_sd = _subparsers.add_parser(MODE_SD)
-    
-    _parser_sd.add_argument('--device',
-                   help="Device to install",
-                   metavar='<dev>',
-                   dest='device',
-                   required=True)
-    
-    _add_args_sd_shared(_parser_sd)
+    parser_sd = _subparsers.add_parser(MODE_SD)
+    _sd_args.add_args_sd(parser_sd)
 
 def _add_args_sd_img():
-    global _parser_sd
-    global _parser_sd_img
-    _parser_sd_img = _subparsers.add_parser(MODE_SD_IMG)
-    _add_args_sd_shared(_parser_sd_img)
-    
-    _parser_sd_img.add_argument('--image',
-                       help="Filename of the SD card image to create",
-                       metavar='<file>',
-                       dest='image',
-                       required=True)
-    
-    _parser_sd_img.add_argument('--image-size-mb',
-                       help="Size in MB of the SD card image file to create",
-                       metavar='<size>',
-                       dest='imagesize_mb',
-                       required=True)
+    parser_sd_img = _subparsers.add_parser(MODE_SD_IMG)
+    _sd_args.add_args_sd_img(parser_sd_img)
 
 def _add_args_sd_script():
-    global _parser_sd_script
-    _parser_sd_script = _subparsers.add_parser(MODE_SD_SCRIPT) 
-    
-    boards = _board_factory.supported_boards()
-            
-    _parser_sd_script.add_argument('--board',
-                       help="Board name. Supported: %s" % 
-                       ''.join('%s, ' % b for b in boards).rstrip(', '),
-                       metavar='<board>',
-                       dest='board',
-                       choices=boards,
-                       required=True)
-    
-    _parser_sd_script.add_argument('--mmap-file',
-                       help='Memory map config file',
-                       metavar='<file>',
-                       dest='mmap_file',
-                       required=True)
-    
-    _parser_sd_script.add_argument('--template-file',
-                       help='Template file',
-                       metavar='<file>',
-                       dest='template_file',
-                       required=True)
-    
-    _parser_sd_script.add_argument('--output-file',
-                       help='Output file generated from --template-file',
-                       metavar='<file>',
-                       dest='output_file',
-                       required=True)
+    parser_sd_script = _subparsers.add_parser(MODE_SD_SCRIPT)
+    _sd_args.add_args_sd_script(parser_sd_script)
 
 def _add_args_nand():
     parser_nand = _subparsers.add_parser(MODE_NAND)
@@ -397,11 +348,11 @@ def _add_args_env():
 def _check_args():
     try:
         if _args.mode == MODE_SD:
-            _check_args_sd()
+            _sd_args.check_args_sd(_args)
         elif _args.mode == MODE_SD_IMG:
-            _check_args_sd_img()
+            _sd_args.check_args_sd_img(_args)
         elif _args.mode == MODE_SD_SCRIPT:
-            _check_args_sd_script()
+            _sd_args.check_args_sd_script(_args)
         elif _args.mode == MODE_NAND:
             _board_args.check_args_nand(_args)
         elif _args.mode == MODE_RAM:
@@ -411,31 +362,6 @@ def _check_args():
     except ArgCheckerError as e:
         _logger.error(e)
         _abort_install()
-    
-def _check_args_sd():    
-    _check_is_file(_args.mmap_file, '--mmap-file')
-    _check_is_file(_args.uflash_bin, '--uflash-bin')
-    _check_x_ok(_args.uflash_bin, '--uflash-bin')
-    _check_is_file(_args.ubl_file, '--ubl-file')
-    _check_is_file(_args.uboot_file, '--uboot-file')
-    _check_is_file(_args.kernel_file, '--kernel_check_args_ram()-file')
-    _check_is_valid_addr(_args.uboot_entry_addr, '--uboot-entry-addr')
-    _check_is_valid_addr(_args.uboot_load_addr, '--uboot-load-addr')
-    _check_is_dir(_args.workdir, '--work-dir')
-    if _args.rootfs:
-        _check_is_dir(_args.rootfs, '--rootfs')
-    _args.workdir = _args.workdir.rstrip('/') 
-    if _args.rootfs:
-        _check_is_dir(_args.rootfs, '--rootfs')
-    
-def _check_args_sd_img():
-    _check_args_sd()
-    _check_is_int(_args.imagesize_mb, '--image-size-mb')
-    _args.imagesize_mb = int(_args.imagesize_mb)
-
-def _check_args_sd_script():
-    _check_is_file(_args.mmap_file, '--mmap-file')
-    _check_is_file(_args.template_file, '--template-file')    
 
 def _check_sudo():
     ret = utils.get_global_executer().prompt_sudo()
