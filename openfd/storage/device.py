@@ -21,6 +21,8 @@
 
 import math
 import openfd.utils as utils
+from partition import SDCardPartition
+from partition import read_sdcard_partitions
 
 # ==========================================================================
 # Public classes
@@ -231,23 +233,6 @@ class Device(object):
                 return False
         return True
 
-    def partition_suffix(self, partition_index):
-        """
-        This function returns a string with the standard partition numeric
-        suffix, depending on the type of device.
-        
-        For example, the first partition (index = 1) in device
-        /dev/sdb is going to have the suffix "1", so that one can compose
-        the complete partition's filename: /dev/sdb1. While a device like
-        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
-        filename for the first partition is "/dev/mmcblk0p1".  
-        """
-        
-        if 'mmcblk' in self._device or 'loop' in self._device:
-            return 'p%s' % partition_index
-        else:
-            return '%s' % partition_index
-
 class SDCard(Device):
 
     def __init__(self, device, dryrun=False):
@@ -286,6 +271,31 @@ class SDCard(Device):
             else:
                 min_cyl_size += int(part.size)
         return min_cyl_size
+    
+    def partition_suffix(self, partition_index):
+        """
+        This function returns a string with the standard partition numeric
+        suffix, depending on the type of device.
+        
+        For example, the first partition (index = 1) in device
+        /dev/sdb is going to have the suffix "1", so that one can compose
+        the complete partition's filename: /dev/sdb1. While a device like
+        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
+        filename for the first partition is "/dev/mmcblk0p1".  
+        """
+        
+        if 'mmcblk' in self._device or 'loop' in self._device:
+            return 'p%s' % partition_index
+        else:
+            return '%s' % partition_index
+        
+    def partition_filename(self, index):
+        """
+        Gets the complete filename for the partition (i.e. /dev/sdb1 for
+        `index` 1)
+        """
+        
+        return self.name + self.partition_suffix(index)
         
     def create_partitions(self, partitions):
         """
@@ -310,3 +320,54 @@ class SDCard(Device):
         
         if self._e.check_call(cmd) != 0:
             raise DeviceException('Unable to partition device %s' % self.name)
+        
+    def mount(self, directory):
+        """
+        Mounts the partitions in the specified directory.
+        
+        I.e., if the partitions are called "boot" and "rootfs", and the given
+        directory is "/media", this function will mount:
+        
+           - /media/boot
+           - /media/rootfs
+        
+        :param directory: Directory where to mount the partitions.
+        :exception DeviceException: When unable to mount.
+        """
+        
+        i = 1
+        for part in self._partitions:
+            
+            name = self.partition_filename(i)
+            mnt_dir = "%s/%s" % (directory.rstrip('/'), part.name)
+            
+            if self._e.check_call('mkdir -p %s' % mnt_dir) != 0:
+                raise DeviceException('Failed to create directory %s' % mnt_dir)
+            
+            # Map the partition's fs to a type that the 'mount' understands
+            fs_type = None
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
+                fs_type = 'vfat'
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
+                fs_type = 'ext3'
+            
+            if fs_type:
+                cmd = 'sudo mount -t %s %s %s' % (fs_type, name, mnt_dir)
+            else:
+                # Let mount try to guess the partition type
+                cmd = 'sudo mount %s %s' % (name, mnt_dir)
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Failed to mount %s in %s' % 
+                                      (name, mnt_dir))
+            i += 1
+
+    def read_partitions(self, filename):
+        """
+        Reads the partitions information from the given file.
+        
+        :param filename: Path to the file with the partitions information.
+        :returns: Returns true on success; false otherwise.  
+        """
+        
+        self._partitions[:] = []
+        self._partitions = read_sdcard_partitions(filename)

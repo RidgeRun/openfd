@@ -20,7 +20,6 @@
 # Imports
 # ==========================================================================
 
-import os
 from openfd.storage.partition import SDCardPartition
 from openfd.storage.partition import read_sdcard_partitions
 from openfd.storage.device import DeviceException
@@ -161,48 +160,7 @@ class SDCardInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        if not self._partitions: return True
-        
-        directory = directory.rstrip('/')
-        if not os.path.isdir(directory):
-            self._l.error('Directory %s does not exist' % directory)
-            return False
-        
-        partition_index = 1
-        for part in self._partitions:
-        
-            part_name = self._get_partition_filename(partition_index)
-            mount_point = directory + '/' + part.name
-        
-            # Create the directory where to mount
-            cmd = 'mkdir -p %s' % mount_point
-            if self._e.check_call(cmd) != 0:
-                self._l.error('Failed to create directory %s' % mount_point)
-                return False
-            
-            # Map the partition's filesystem to a type that the 'mount'
-            # command understands
-            part_type = None        
-            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
-                part_type = 'vfat'
-            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
-                part_type = 'ext3'
-            
-            # Now mount
-            if part_type:
-                cmd = 'sudo mount -t %s %s %s' % (part_type, part_name,
-                                                  mount_point)
-            else:
-                # Let mount try to guess the partition type
-                cmd = 'sudo mount %s %s' % (part_name, mount_point)            
-            if self._e.check_call(cmd) != 0:
-                self._l.error('Failed to mount %s in %s' % (part_name,
-                                                            mount_point))        
-                return False
-            
-            partition_index += 1
-            
-        return True
+        self._sd.mount(directory)
     
     def _create_partitions(self):
         """
@@ -555,8 +513,7 @@ class SDCardInstaller(object):
         
         self._partitions[:] = []
         self._partitions = read_sdcard_partitions(filename)
-        for part in self._partitions:
-            self._sd.add_partition(part)
+        self._sd.read_partitions(filename)
         
     def _check_filesystems(self):
         """
