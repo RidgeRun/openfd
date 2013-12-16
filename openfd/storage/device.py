@@ -259,3 +259,54 @@ class SDCard(Device):
         """
         
         Device.__init__(self, device, dryrun)
+        self._partitions = []
+        
+    def add_partition(self, part):
+        self._partitions.append(part)
+        
+    def min_cyl_size(self):
+        """
+        Sums all the partitions' sizes and returns the total. It is actually
+        the minimum size because there could be partitions which size is
+        unknown as they can be specified to take as much space as they can.
+        The size calculated for such partitions is 1 cylinder - their minimum,
+        and hence the total size is also minimum.
+        
+        Additionally to the partitions' size, the total includes 1 cylinder
+        for the Master Boot Record.
+        """
+        
+        # Leave room for the MBR
+        min_cyl_size = 1
+        for part in self._partitions:
+            if part.size == self.geometry.full_size:
+                # If size is unspecified, at least estimate 1 cylinder for
+                # that partition
+                min_cyl_size += 1
+            else:
+                min_cyl_size += int(part.size)
+        return min_cyl_size
+        
+    def create_partitions(self, partitions):
+        """
+        Create the partitions in the given device.
+        
+        :exception DeviceException: When unable to partition.
+        """
+            
+        # Create the partitions        
+        cmd = ('sudo sfdisk -D' +
+              ' -C' + str(int(self.size_cyl)) +
+              ' -H' + str(int(self.geometry.heads)) +
+              ' -S' + str(int(self.geometry.sectors)) +
+              ' '   + self.name + ' << EOF\n')
+        for part in self._partitions:
+            cmd += str(part.start) + ','
+            cmd += str(part.size) + ','
+            cmd += str(part.type)
+            if part.is_bootable: cmd += ',*'
+            cmd += '\n'
+        cmd += 'EOF'
+        
+        if self._e.check_call(cmd) != 0:
+            raise DeviceException('Unable to partition device %s' % self.name)

@@ -136,30 +136,7 @@ class SDCardInstaller(object):
     
     enable_colors = property(__get_enable_colors, __set_enable_colors,
                            doc="""Enable colored messages.""")
-    
-    def _min_total_cyl_size(self):
-        """
-        Sums all the partitions' sizes and returns the total. It is actually
-        the minimum size because there could be partitions which size is
-        unknown as they can be specified to take as much space as they can.
-        The size calculated for such partitions is 1 cylinder - their minimum,
-        and hence the total size is also minimum.
         
-        Additionally to the partitions' size, the total includes 1 cylinder
-        for the Master Boot Record.
-        """
-        
-        # Leave room for the MBR
-        min_cyl_size = 1
-        for part in self._partitions:
-            if part.size == self._sd.geometry.full_size:
-                # If size is unspecified, at least estimate 1 cylinder for
-                # that partition
-                min_cyl_size += 1
-            else:
-                min_cyl_size += int(part.size)
-        return min_cyl_size
-    
     def _get_partition_filename(self, partition_index):
         """
         Gets the complete filename for the partition (i.e. /dev/sdb1)
@@ -241,7 +218,7 @@ class SDCardInstaller(object):
             return False
         
         # Check we have enough size to fit all the partitions and the MBR.
-        if self._sd.size_cyl < self._min_total_cyl_size() and not self._dryrun:
+        if self._sd.size_cyl < self._sd.min_cyl_size() and not self._dryrun:
             self._l.error('Size of partitions is too large to fit in %s' %
                                self._sd.name)
             return False
@@ -255,22 +232,10 @@ class SDCardInstaller(object):
             if not confirmed:
                 return False
             
-        # Create the partitions        
-        cmd = ('sudo sfdisk -D' +
-              ' -C' + str(int(self._sd.size_cyl)) +
-              ' -H' + str(int(self._sd.geometry.heads)) +
-              ' -S' + str(int(self._sd.geometry.sectors)) +
-              ' '   + self._sd.name + ' << EOF\n')
-        for part in self._partitions:
-            cmd += str(part.start) + ','
-            cmd += str(part.size) + ','
-            cmd += str(part.type)
-            if part.is_bootable: cmd += ',*'
-            cmd += '\n'
-        cmd += 'EOF'
-        
-        if self._e.check_call(cmd) != 0:
-            self._l.error('Unable to partition device %s' % self._sd.name)
+        try:
+            self._sd.create_partitions(self._partitions)
+        except DeviceException as e:
+            self._l.error(e)
             return False
         
         return True
@@ -374,8 +339,8 @@ class SDCardInstaller(object):
         size_b = int(image_size_mb) << 20
         size_cyl = size_b / self._sd.geometry.cylinder_byte_size
         
-        if size_cyl < self._min_total_cyl_size():
-            size_needed_b = (self._min_total_cyl_size() *
+        if size_cyl < self._sd._min_cyl_size():
+            size_needed_b = (self._sd._min_cyl_size() *
                                 self._sd.geometry.cylinder_byte_size)
             size_needed_mb = int(size_needed_b) >> 20
             self._l.error('Image size of %s MB is too small to hold the '
@@ -590,6 +555,8 @@ class SDCardInstaller(object):
         
         self._partitions[:] = []
         self._partitions = read_sdcard_partitions(filename)
+        for part in self._partitions:
+            self._sd.add_partition(part)
         
     def _check_filesystems(self):
         """
