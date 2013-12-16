@@ -76,11 +76,11 @@ class SDCardInstaller(object):
         self._e = openfd.utils.executer.get_global_executer()
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
-        self._d = SDCard(device)
+        self._sd = SDCard(device)
         self._mode = mode
         self._dryrun = dryrun
         self._e.dryrun = dryrun
-        self._d.dryrun = dryrun
+        self._sd.dryrun = dryrun
         self._comp_installer.dryrun = dryrun
         self._interactive = interactive
         self._partitions = []
@@ -96,11 +96,11 @@ class SDCardInstaller(object):
             values: :const:`MODE_SD`, :const:`MODE_LOOPBACK`.""")
     
     def __set_device(self, device):
-        self._d = SDCard(device)
-        self._d.dryrun = self._dryrun
+        self._sd = SDCard(device)
+        self._sd.dryrun = self._dryrun
     
     def __get_device(self):
-        return self._d.name
+        return self._sd.name
     
     device = property(__get_device, __set_device,
                       doc="""Device name (i.e. '/dev/sdb').""")
@@ -109,7 +109,7 @@ class SDCardInstaller(object):
         self._dryrun = dryrun
         self._comp_installer.dryrun = dryrun
         self._e.dryrun = dryrun
-        self._d.dryrun = dryrun
+        self._sd.dryrun = dryrun
     
     def __get_dryrun(self):
         return self._dryrun
@@ -152,7 +152,7 @@ class SDCardInstaller(object):
         # Leave room for the MBR
         min_cyl_size = 1
         for part in self._partitions:
-            if part.size == self._d.geometry.full_size:
+            if part.size == self._sd.geometry.full_size:
                 # If size is unspecified, at least estimate 1 cylinder for
                 # that partition
                 min_cyl_size += 1
@@ -165,7 +165,7 @@ class SDCardInstaller(object):
         Gets the complete filename for the partition (i.e. /dev/sdb1)
         """
         
-        p = self._d.name + self._d.partition_suffix(partition_index)    
+        p = self._sd.name + self._sd.partition_suffix(partition_index)    
         if self._mode == self.MODE_LOOPBACK:
             p = self._loopdevice_partitions[p]
         return p
@@ -235,21 +235,21 @@ class SDCardInstaller(object):
         """
         
         # Check we were able to get correctly the device size
-        if  self._d.size_cyl == 0 and not self._dryrun:
+        if  self._sd.size_cyl == 0 and not self._dryrun:
             self._l.error('Unable to partition device %s (size is 0)' %
-                               self._d.name)
+                               self._sd.name)
             return False
         
         # Check we have enough size to fit all the partitions and the MBR.
-        if self._d.size_cyl < self._min_total_cyl_size() and not self._dryrun:
+        if self._sd.size_cyl < self._min_total_cyl_size() and not self._dryrun:
             self._l.error('Size of partitions is too large to fit in %s' %
-                               self._d.name)
+                               self._sd.name)
             return False
 
         # Just before creating the partitions, prompt the user
         if self._interactive and self._mode != self.MODE_LOOPBACK:
             msg = ('You are about to repartition your device %s '
-                   '(all your data will be lost)' % self._d.name)
+                   '(all your data will be lost)' % self._sd.name)
             msg_color = SDCardInstaller.WARN_COLOR
             confirmed = self._e.prompt_user(msg, msg_color)
             if not confirmed:
@@ -257,10 +257,10 @@ class SDCardInstaller(object):
             
         # Create the partitions        
         cmd = ('sudo sfdisk -D' +
-              ' -C' + str(int(self._d.size_cyl)) +
-              ' -H' + str(int(self._d.geometry.heads)) +
-              ' -S' + str(int(self._d.geometry.sectors)) +
-              ' '   + self._d.name + ' << EOF\n')
+              ' -C' + str(int(self._sd.size_cyl)) +
+              ' -H' + str(int(self._sd.geometry.heads)) +
+              ' -S' + str(int(self._sd.geometry.sectors)) +
+              ' '   + self._sd.name + ' << EOF\n')
         for part in self._partitions:
             cmd += str(part.start) + ','
             cmd += str(part.size) + ','
@@ -270,7 +270,7 @@ class SDCardInstaller(object):
         cmd += 'EOF'
         
         if self._e.check_call(cmd) != 0:
-            self._l.error('Unable to partition device %s' % self._d.name)
+            self._l.error('Unable to partition device %s' % self._sd.name)
             return False
         
         return True
@@ -334,31 +334,31 @@ class SDCardInstaller(object):
             return False
         
         if self._interactive:
-            if self._d.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
+            if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
                 return False
         
-        if not self._d.exists and not self._dryrun:
-            self._l.error('No valid disk available on %s' % self._d.name)
+        if not self._sd.exists and not self._dryrun:
+            self._l.error('No valid disk available on %s' % self._sd.name)
             return False
         
-        if self._d.is_mounted and not self._dryrun:
+        if self._sd.is_mounted and not self._dryrun:
             try:
                 if self._interactive:
-                    ret = self._d.confirmed_unmount()
+                    ret = self._sd.confirmed_unmount()
                     if ret is False:
                         return False
                 else:
-                    ret = self._d.unmount()
+                    ret = self._sd.unmount()
             except DeviceException as e:
                 self._l.error(e)
                 return False
         
-        self._l.info('Creating partitions on %s' % self._d.name)
+        self._l.info('Creating partitions on %s' % self._sd.name)
         if not self._create_partitions():
             return False
         
         self._l.info('Formatting partitions on %s (this may take a '
-                     'while)' % self._d.name)
+                     'while)' % self._sd.name)
         if not self._format_partitions():
             return False
         
@@ -372,11 +372,11 @@ class SDCardInstaller(object):
         """
         
         size_b = int(image_size_mb) << 20
-        size_cyl = size_b / self._d.geometry.cylinder_byte_size
+        size_cyl = size_b / self._sd.geometry.cylinder_byte_size
         
         if size_cyl < self._min_total_cyl_size():
             size_needed_b = (self._min_total_cyl_size() *
-                                self._d.geometry.cylinder_byte_size)
+                                self._sd.geometry.cylinder_byte_size)
             size_needed_mb = int(size_needed_b) >> 20
             self._l.error('Image size of %s MB is too small to hold the '
                    'partitions, the image must be bigger than %s MB to '
@@ -404,11 +404,11 @@ class SDCardInstaller(object):
         if ret == 0:
             loopdevice = loopdevice.rstrip('\n')
             self.device = loopdevice 
-            cmd = 'sudo losetup %s %s' % (self._d.name,  image_name)
+            cmd = 'sudo losetup %s %s' % (self._sd.name,  image_name)
             ret = self._e.check_call(cmd)
             if ret != 0:
                 self._l.error('Failed to associate image file %s to %s'
-                                   % (image_name, self._d.name))
+                                   % (image_name, self._sd.name))
                 return False
         else:
             self._l.error('Failed when searching for free loop devices')
@@ -416,7 +416,7 @@ class SDCardInstaller(object):
         
         # If we want to reuse the code for creating and formatting partitions
         # the image needs to have a valid format
-        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._d.name
+        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._sd.name
         ret = self._e.check_call(cmd)
         if ret != 0:
             self._l.error('Failed to format a temporal filesystem on %s'
@@ -435,8 +435,8 @@ class SDCardInstaller(object):
         
         partition_index = 1
         for part in self._partitions: 
-            device_part = (self._d.name +
-                            self._d.partition_suffix(partition_index))
+            device_part = (self._sd.name +
+                            self._sd.partition_suffix(partition_index))
             
             cmd = 'sudo losetup -f'
             ret, free_device = self._e.check_output(cmd)
@@ -448,13 +448,13 @@ class SDCardInstaller(object):
             
             free_device = free_device.rstrip('\n')
             self._loopdevice_partitions[device_part] = free_device
-            offset = int(part.start) * int(self._d.geometry.cylinder_byte_size)
-            if part.size == self._d.geometry.full_size:
+            offset = int(part.start) * int(self._sd.geometry.cylinder_byte_size)
+            if part.size == self._sd.geometry.full_size:
                 cmd = 'sudo losetup -o %s %s %s' % (offset, free_device,
                                                         image_name)
             else:
                 part_size = int(int(part.size) * 
-                                    self._d.geometry.cylinder_byte_size)
+                                    self._sd.geometry.cylinder_byte_size)
                 cmd = ('sudo losetup -o %s --sizelimit %s %s %s'
                            % (offset, part_size, free_device, image_name))
                 
@@ -490,14 +490,14 @@ class SDCardInstaller(object):
         if not self._create_image_file(image_filename, image_size_mb):
             return False
         
-        self._l.info('Creating partitions on %s' % self._d.name)
+        self._l.info('Creating partitions on %s' % self._sd.name)
         if not self._create_partitions(): return False
         
         self._l.info('Associating partitions for loopdevice')
         if not self._associate_loopdevice_partitions(image_filename):
             return False
         
-        self._l.info('Formatting partitions on %s' % self._d.name)
+        self._l.info('Formatting partitions on %s' % self._sd.name)
         if not self._format_partitions(): return False
         
         return True
@@ -516,10 +516,10 @@ class SDCardInstaller(object):
             if ret != 0:
                 self._l.error('Failed releasing loopdevice %s' %dev)
                 return False
-        cmd = 'sudo losetup -d %s' % self._d.name
+        cmd = 'sudo losetup -d %s' % self._sd.name
         ret = self._e.check_call(cmd)
         if ret != 0:
-            self._l.error('Failed releasing loopdevice %s' % self._d.name)
+            self._l.error('Failed releasing loopdevice %s' % self._sd.name)
             return False
         self._loopdevice_partitions.clear()
         return True
@@ -531,7 +531,7 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise. 
         """
             
-        self._l.info('Checking filesystems on %s' % self._d.name)
+        self._l.info('Checking filesystems on %s' % self._sd.name)
         return self._check_filesystems()
     
     def _release_loopdevice(self):
@@ -599,13 +599,13 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise.
         """
         
-        if not self._d.exists and not self._dryrun:
-            self._l.error("Device %s doesn't exist" % self._d.name)
+        if not self._sd.exists and not self._dryrun:
+            self._l.error("Device %s doesn't exist" % self._sd.name)
             return False
         
-        if self._d.is_mounted:
+        if self._sd.is_mounted:
             try:
-                self._d.unmount()
+                self._sd.unmount()
             except DeviceException as e:
                 self._l.error(e)
                 return False
@@ -671,7 +671,7 @@ class SDCardInstaller(object):
             for component in part.components:
                 
                 if component == SDCardPartition.COMPONENT_BOOTLOADER:
-                    ret = self._comp_installer.install_uboot(self._d.name)
+                    ret = self._comp_installer.install_uboot(self._sd.name)
                     if ret is False: return False
                     
                     ret =  self._comp_installer.install_uboot_env(mount_point)
