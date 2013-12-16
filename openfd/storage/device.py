@@ -246,6 +246,15 @@ class SDCard(Device):
         Device.__init__(self, device, dryrun)
         self._partitions = []
         
+    @property
+    def partitions(self):
+        """
+        Returns the list of partitions (type SD card partition) associated with
+        this SD card.
+        """
+        
+        return self._partitions
+        
     def sync(self):
         if self._e.check_call('sync') != 0:
             raise DeviceException('Unable to sync')
@@ -308,7 +317,7 @@ class SDCard(Device):
         :exception DeviceException: When unable to partition.
         """
             
-        # Create the partitions        
+        # Create the partitions
         cmd = ('sudo sfdisk -D' +
               ' -C' + str(int(self.size_cyl)) +
               ' -H' + str(int(self.geometry.heads)) +

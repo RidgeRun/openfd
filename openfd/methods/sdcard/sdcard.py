@@ -219,7 +219,6 @@ class SDCardInstaller(object):
         :returns: Returns true on success; false otherwise. 
         """
         
-        if not self._partitions: return True
         if self._mode != SDCardInstaller.MODE_SD:
             self._l.error('Not in MODE_SD.')
             return False
@@ -462,7 +461,7 @@ class SDCardInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        if self._partitions:
+        if self._sd.partitions:
             if self._mode == SDCardInstaller.MODE_SD:
                 return self._release_sd()
             elif self.mode == SDCardInstaller.MODE_LOOPBACK:
@@ -477,8 +476,6 @@ class SDCardInstaller(object):
         :returns: Returns true on success; false otherwise.  
         """
         
-        self._partitions[:] = []
-        self._partitions = read_sdcard_partitions(filename)
         self._sd.read_partitions(filename)
         
     def _check_filesystems(self):
@@ -510,7 +507,7 @@ class SDCardInstaller(object):
         
         partition_index = 1
         
-        for part in self._partitions:
+        for part in self._sd.partitions:
             
             device_part = self._get_partition_filename(partition_index)
             
