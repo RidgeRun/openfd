@@ -100,6 +100,10 @@ class Device(object):
     geometry = property(__get_geometry, __set_geometry,
                       doc=""":class:`DeviceGeometry` instance.""")
 
+    def _sync(self):
+        if self._e.check_call('sync') != 0:
+            raise DeviceException('Unable to sync')
+
     @property
     def size_b(self):
         """
@@ -254,13 +258,6 @@ class SDCard(Device):
         """
         
         return self._partitions
-        
-    def sync(self):
-        if self._e.check_call('sync') != 0:
-            raise DeviceException('Unable to sync')
-        
-    def add_partition(self, part):
-        self._partitions.append(part)
         
     def min_cyl_size(self):
         """
@@ -432,28 +429,29 @@ class SDCard(Device):
         fs_ok = True
         self.unmount()
         for i in range(1, len(self._partitions) + 1):
-            fs_state = []
+            states = []
             filename = self.partition_filename(i)
             self.sync()
             ret = self._e.check_call("sudo fsck -y %s" % filename)
             if ret == 0:
-                fs_state.append(fsck_outputs[ret])
+                states.append(fsck_outputs[ret])
             else:
                 for i in range(len(fsck_outputs)):
                     key = 2 ** i
                     if ret & key:
                         try:
-                            fs_state.append(fsck_outputs[key])
+                            states.append(fsck_outputs[key])
                             if key != 1: # keys not counted as fatal errors
                                 fs_ok = False
                         except KeyError:
                             pass
-                fs_states = ''.join("'%s', " % st for st in fs_state)
-                fs_states = fs_states.rstrip(', ')
-            if not fs_ok:
-                raise DeviceException("Filesystem check in %s: %s (see 'man "
-                          "fsck', exit code: %s)" % (filename, fs_states, ret))
-        return fs_ok
+            states_str = ''.join("'%s', " % s for s in states).rstrip(', ')
+            msg = ("Filesystem check in %s: %s (see 'man fsck', exit code: %s)"
+                   % (filename, states_str, ret))
+            if fs_ok:
+                self._l.debug(msg)
+            else:
+                raise DeviceException(msg)
 
     def read_partitions(self, filename):
         """
