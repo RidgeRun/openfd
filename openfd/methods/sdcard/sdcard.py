@@ -136,25 +136,6 @@ class SDCardInstaller(object):
     enable_colors = property(__get_enable_colors, __set_enable_colors,
                            doc="""Enable colored messages.""")
     
-    def _confirm_device_size(self):
-        """
-        Checks the device's size against WARN_DEVICE_SIZE_GB, if it's bigger
-        it warns the user that the device does not look like an SD card.
-        
-        Returns true if the user confirms the device is an SD card; false
-        otherwise. 
-        """
-        
-        size_is_good = True
-        if self._d.size_gb > SDCardInstaller.WARN_DEVICE_SIZE_GB:
-            msg = ('Device %s has %d gigabytes, it does not look like an '
-                   'SD card' % (self._d.name, self._d.size_gb))
-            msg_color = SDCardInstaller.WARN_COLOR 
-            confirmed = self._e.prompt_user(msg, msg_color)
-            if not confirmed:
-                size_is_good = False            
-        return size_is_good
-    
     def _min_total_cyl_size(self):
         """
         Sums all the partitions' sizes and returns the total. It is actually
@@ -352,7 +333,7 @@ class SDCardInstaller(object):
             return False
         
         if self._interactive:
-            if self._confirm_device_size() is False:
+            if self._d.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
                 return False
         
         if not self._d.exists and not self._dryrun:

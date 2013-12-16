@@ -49,7 +49,7 @@ class Device(object):
 
     #: Color for dangerous warning messages.
     WARN_COLOR = 'yellow'
-
+    
     def __init__(self, device, dryrun=False):
         """
         :param device: Device associated with this instance, i.e. '/dev/sdb/'.
@@ -182,6 +182,23 @@ class Device(object):
             cmd = 'sudo umount %s' % part
             if self._e.check_call(cmd) != 0:
                 self._l.error('Failed to unmount %s' % part)
+                return False
+        return True
+    
+    def confirm_size_gb(self, size_gb):
+        """
+        Checks the device's size against `size_gb`, if it's bigger
+        it warns the user prompting for confirmation.
+        
+        Returns true if size is less or equal than size_gb, or if not,
+        and the user confirms; false otherwise. 
+        """
+        
+        if self.size_gb > size_gb:
+            msg = ('Device %s has %d gigabytes, are you sure this is the right '
+                   'device' % (self.name, self.size_gb))
+            confirmed = self._e.prompt_user(msg, color=self.WARN_COLOR)
+            if not confirmed:
                 return False
         return True
 
