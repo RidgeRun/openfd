@@ -189,7 +189,7 @@ class SDCardInstaller(object):
                 return False
             
         try:
-            self._sd.create_partitions(self._partitions)
+            self._sd.create_partitions()
         except DeviceException as e:
             self._l.error(e)
             return False
@@ -244,13 +244,11 @@ class SDCardInstaller(object):
                 self._l.error(e)
                 return False
         
-        self._l.info('Creating partitions on %s' % self._sd.name)
-        if not self._create_partitions():
-            return False
-        
-        self._l.info('Formatting partitions on %s (this may take a '
-                     'while)' % self._sd.name)
-        if not self._format_partitions():
+        self._l.info('Formatting %s (this may take a while)' % self._sd.name)
+        try:
+            self._sd.format()
+        except DeviceException as e:
+            self._l.error(e)
             return False
         
         return True
@@ -495,53 +493,13 @@ class SDCardInstaller(object):
             self._l.error("Device %s doesn't exist" % self._sd.name)
             return False
         
-        if self._sd.is_mounted:
-            try:
-                self._sd.unmount()
-            except DeviceException as e:
-                self._l.error(e)
-                return False
+        try:
+            self._sd.check_filesystems()
+        except DeviceException as e:
+            self._l.error(e)
+            return False
         
-        # According to 'man fsck' the exit code returned by fsck is the sum
-        # of the following conditions
-        fsck_outputs = {0    : 'No errors',
-                        1    : 'Filesystem errors corrected',
-                        2    : 'System should be rebooted',
-                        4    : 'Filesystem errors left uncorrected',
-                        8    : 'Operational error',
-                        16   : 'Usage or syntax error',
-                        32   : 'fsck canceled by user request',
-                        128  : 'Shared-library error'}
-        
-        fs_ok = True
-        
-        for partition_index in range(1,len(self._partitions)+1):
-            fs_state = []
-            device_part = self._get_partition_filename(partition_index)
-            cmd = 'sync'
-            if self._e.check_call(cmd) != 0:
-                self._l.error('Unable  to sync')
-                return False
-            cmd = "sudo fsck -y %s" % device_part
-            ret = self._e.check_call(cmd)
-            if ret == 0:
-                fs_state.append(fsck_outputs[ret])
-            else:
-                for i in range(len(fsck_outputs)):
-                    key = 2 ** i
-                    if ret & key:
-                        try:
-                            fs_state.append(fsck_outputs[key])
-                            if key != 1: # keys not counted as fatal errors
-                                fs_ok = False
-                        except KeyError:
-                            pass
-                fs_states = ''.join("'%s', " % st for st in fs_state)
-                fs_states = fs_states.rstrip(', ')
-                self._l.debug("Filesystem check in %s: %s (see 'man fsck', exit "
-                              "code: %s)" % (device_part, fs_states, ret))
-            if not fs_ok: break
-        return fs_ok
+        return True
     
     def install_components(self):
         """

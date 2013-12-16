@@ -278,16 +278,13 @@ def main():
         if args.mode == MODE_SD:
             sd_installer.device = args.device
             sd_installer.mode = sd_installer.MODE_SD
-            ret = sd_installer.read_partitions(args.mmap_file)
-            if ret is False: _abort_install()
+            sd_installer.read_partitions(args.mmap_file)
             ret = sd_installer.format_sd()
             if ret is False: _abort_install()
         elif args.mode == MODE_SD_IMG:
             sd_installer.mode = sd_installer.MODE_LOOPBACK
-            ret = sd_installer.read_partitions(args.mmap_file)
-            if ret is False: _abort_install()
-            ret = sd_installer.format_loopdevice(args.image, 
-                                                 args.imagesize_mb)
+            sd_installer.read_partitions(args.mmap_file)
+            ret = sd_installer.format_loopdevice(args.image, args.imagesize_mb)
             if ret is False: _abort_install()
         
         ret = sd_installer.mount_partitions(args.workdir)

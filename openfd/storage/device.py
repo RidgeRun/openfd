@@ -301,7 +301,7 @@ class SDCard(Device):
         
         return self.name + self.partition_suffix(index)
         
-    def create_partitions(self, partitions):
+    def create_partitions(self):
         """
         Create the partitions in the given device.
         
@@ -392,12 +392,65 @@ class SDCard(Device):
         if self._partitions:
             self.sync()
 
+    def format(self):
+        """
+        Creates and formats the partitions in the SD card.
+        
+        :returns: Returns true on success; false otherwise. 
+        """
+        
+        self.create_partitions()
+        self.format_partitions()
+
+    def check_filesystems(self):
+        """
+        Checks the integrity of the filesystems in the given device. Upon 
+        error, tries to recover using the 'fsck' command.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        # The exit code returned by fsck is the sum of the following conditions
+        fsck_outputs = {0    : 'No errors',
+                        1    : 'Filesystem errors corrected',
+                        2    : 'System should be rebooted',
+                        4    : 'Filesystem errors left uncorrected',
+                        8    : 'Operational error',
+                        16   : 'Usage or syntax error',
+                        32   : 'fsck canceled by user request',
+                        128  : 'Shared-library error'}
+        
+        fs_ok = True
+        self.unmount()
+        for i in range(1, len(self._partitions) + 1):
+            fs_state = []
+            filename = self.partition_filename(i)
+            self.sync()
+            ret = self._e.check_call("sudo fsck -y %s" % filename)
+            if ret == 0:
+                fs_state.append(fsck_outputs[ret])
+            else:
+                for i in range(len(fsck_outputs)):
+                    key = 2 ** i
+                    if ret & key:
+                        try:
+                            fs_state.append(fsck_outputs[key])
+                            if key != 1: # keys not counted as fatal errors
+                                fs_ok = False
+                        except KeyError:
+                            pass
+                fs_states = ''.join("'%s', " % st for st in fs_state)
+                fs_states = fs_states.rstrip(', ')
+            if not fs_ok:
+                raise DeviceException("Filesystem check in %s: %s (see 'man "
+                          "fsck', exit code: %s)" % (filename, fs_states, ret))
+        return fs_ok
+
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
         
         :param filename: Path to the file with the partitions information.
-        :returns: Returns true on success; false otherwise.  
         """
         
         self._partitions[:] = []
