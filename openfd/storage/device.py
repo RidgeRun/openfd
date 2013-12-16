@@ -100,7 +100,7 @@ class Device(object):
     geometry = property(__get_geometry, __set_geometry,
                       doc=""":class:`DeviceGeometry` instance.""")
 
-    def _sync(self):
+    def sync(self):
         if self._e.check_call('sync') != 0:
             raise DeviceException('Unable to sync')
 
@@ -397,16 +397,6 @@ class SDCard(Device):
             
         if self._partitions:
             self.sync()
-
-    def format(self):
-        """
-        Creates and formats the partitions in the SD card.
-        
-        :returns: Returns true on success; false otherwise. 
-        """
-        
-        self.create_partitions()
-        self.format_partitions()
 
     def check_filesystems(self):
         """

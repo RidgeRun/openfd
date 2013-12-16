@@ -245,7 +245,8 @@ class SDCardInstaller(object):
         
         self._l.info('Formatting %s (this may take a while)' % self._sd.name)
         try:
-            self._sd.format()
+            self._create_partitions()
+            self._format_partitions()
         except DeviceException as e:
             self._l.error(e)
             return False
