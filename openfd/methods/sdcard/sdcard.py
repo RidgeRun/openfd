@@ -150,17 +150,15 @@ class SDCardInstaller(object):
         """
         Mounts the partitions in the specified directory.
         
-        I.e., if the partitions are called "boot" and "rootfs", and the given
-        directory is "/media", this function will mount:
-        
-           - /media/boot
-           - /media/rootfs
-        
-        :param directory: Directory where to mount the partitions.
-        :returns: Returns true on success; false otherwise.
+        Returns true on success; false otherwise.
         """
         
-        self._sd.mount(directory)
+        try:
+            self._sd.mount(directory)
+        except DeviceException as e:
+            self._l.error(e)
+            return False
+        return True
     
     def _create_partitions(self):
         """
@@ -207,41 +205,11 @@ class SDCardInstaller(object):
         Returns true on success; false otherwise.
         """
         
-        partition_index = 1
-        
-        for part in self._partitions:
-            
-            # Get the complete filename for the partition (i.e. /dev/sdb1)
-            device_part = self._get_partition_filename(partition_index)
-            
-            # Format
-            cmd = ''
-            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
-                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (device_part, part.name)
-            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
-                cmd = 'sudo mkfs.ext3 %s -L %s'  % (device_part, part.name)
-            else:
-                msg = ("Can't format partition %s, unknown filesystem: %s" %
-                       (part.name, part.filesystem))
-                self._l.error(msg)
-                return False
-            
-            if self._e.check_call(cmd) == 0:
-                msg = ('Formatted %s (%s) into %s' % (part.name,
-                                              part.filesystem, device_part))
-            else:
-                self._l.error('Unable to format %s into %s' %
-                                (part.name, device_part))
-                return False
-        
-            partition_index += 1
-            
-        if self._partitions:
-            ret = self._e.check_call('sync')
-            if ret != 0:
-                self._l.error('Unable  to sync')
-                return False
-        
+        try:
+            self._sd.format_partitions()
+        except DeviceException as e:
+            self._l.error(e)
+            return False
         return True
 
     def format_sd(self):

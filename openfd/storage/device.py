@@ -246,6 +246,10 @@ class SDCard(Device):
         Device.__init__(self, device, dryrun)
         self._partitions = []
         
+    def sync(self):
+        if self._e.check_call('sync') != 0:
+            raise DeviceException('Unable to sync')
+        
     def add_partition(self, part):
         self._partitions.append(part)
         
@@ -360,6 +364,33 @@ class SDCard(Device):
                 raise DeviceException('Failed to mount %s in %s' % 
                                       (name, mnt_dir))
             i += 1
+
+    def format_partitions(self):
+        """
+        Format the partitions in the given device, assuming these partitions
+        were already created (see create_partitions()). To register partitions
+        use read_partitions().
+        
+        Returns true on success; false otherwise.
+        """
+        
+        i = 1
+        for part in self._partitions:
+            filename = self.partition_filename(i)
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
+                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (filename, part.name)
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
+                cmd = 'sudo mkfs.ext3 %s -L %s'  % (filename, part.name)
+            else:
+                raise DeviceException("Can't format partition %s, unknown "
+                              "filesystem: %s" % (part.name, part.filesystem))
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Unable to format %s into %s' %
+                                (part.name, filename))
+            i += 1
+            
+        if self._partitions:
+            self.sync()
 
     def read_partitions(self, filename):
         """
