@@ -26,6 +26,9 @@ import openfd.utils as utils
 # Public classes
 # ==========================================================================
 
+class DeviceException(Exception):
+    pass
+
 class DeviceGeometry(object):
     """Geometry for a given device."""
     
@@ -99,6 +102,8 @@ class Device(object):
     def size_b(self):
         """
         Device size (bytes).
+        
+        :exception DeviceException: When unable to obtain the size. 
         """
         
         if self._size_b != 0:
@@ -108,7 +113,8 @@ class Device(object):
         output = self._e.check_output(cmd)[1]
         if not self._dryrun:
             if not output:
-                self._l.error('Unable to obtain the size for %s' % self._device)
+                raise DeviceException('Unable to obtain the size for %s' %
+                                      self._device)
             else:
                 self._size_b = long(output)
         return self._size_b
@@ -117,6 +123,8 @@ class Device(object):
     def size_gb(self):
         """
         Device size (gigabytes).
+        
+        :exception DeviceException: When unable to obtain the size.
         """
         
         return long(self.size_b >> 30)
@@ -125,6 +133,8 @@ class Device(object):
     def size_cyl(self):
         """
         Device size (cylinders).
+        
+        :exception DeviceException: When unable to obtain the size.
         """
         
         size_cyl = self.size_b / self.geometry.cylinder_byte_size
@@ -171,19 +181,16 @@ class Device(object):
         """
         Unmounts any mounted partitions.
         
-        Returns true on success; false otherwise.
+        :exception DeviceException: When unable to sync or unmount.
         """
         
         for part in self.mounted_partitions:
             cmd = 'sync'
             if self._e.check_call(cmd) != 0:
-                self._l.error('Unable  to sync')
-                return False
+                raise DeviceException('Unable  to sync')
             cmd = 'sudo umount %s' % part
             if self._e.check_call(cmd) != 0:
-                self._l.error('Failed to unmount %s' % part)
-                return False
-        return True
+                raise DeviceException('Failed to unmount %s' % part)
     
     def confirm_size_gb(self, size_gb):
         """
@@ -206,7 +213,9 @@ class Device(object):
         """
         Same as `unmount()`, but prompts the user for confirmation.
         
-        Returns true on success; false otherwise. 
+        :returns: Returns false if the user declined the unmount; true
+            otherwise.
+        :exception DeviceException: When unable to sync or unmount. 
         """
         
         mounted_partitions = self.mounted_partitions 
@@ -217,7 +226,9 @@ class Device(object):
                 msg += part + '\n'
             confirmed = self._e.prompt_user(msg, self.WARN_COLOR)
             if confirmed:
-                return self.unmount()
+                self.unmount()
+            else:
+                return False
         return True
 
     def partition_suffix(self, partition_index):
@@ -236,3 +247,15 @@ class Device(object):
             return 'p%s' % partition_index
         else:
             return '%s' % partition_index
+
+class SDCard(Device):
+
+    def __init__(self, device, dryrun=False):
+        """
+        :param device: Device associated with this instance, i.e. '/dev/sdb/'.
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
+        """
+        
+        Device.__init__(self, device, dryrun)

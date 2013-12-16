@@ -23,7 +23,8 @@
 import os
 from openfd.storage.partition import SDCardPartition
 from openfd.storage.partition import read_sdcard_partitions
-from openfd.storage.device import Device
+from openfd.storage.device import DeviceException
+from openfd.storage.device import SDCard
 import component
 import openfd.utils
 
@@ -75,7 +76,7 @@ class SDCardInstaller(object):
         self._e = openfd.utils.executer.get_global_executer()
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
-        self._d = Device(device)
+        self._d = SDCard(device)
         self._mode = mode
         self._dryrun = dryrun
         self._e.dryrun = dryrun
@@ -95,7 +96,7 @@ class SDCardInstaller(object):
             values: :const:`MODE_SD`, :const:`MODE_LOOPBACK`.""")
     
     def __set_device(self, device):
-        self._d = Device(device)
+        self._d = SDCard(device)
         self._d.dryrun = self._dryrun
     
     def __get_device(self):
@@ -340,14 +341,16 @@ class SDCardInstaller(object):
             self._l.error('No valid disk available on %s' % self._d.name)
             return False
         
-        if self._d.is_mounted and not self._dryrun:    
-            if self._interactive:
-                ret = self._d.confirmed_unmount()
-            else:
-                ret = self._d.unmount()
-            if ret is False:
-                self._l.error('Failed auto-unmounting %s, refusing to install'
-                                % self._d.name)
+        if self._d.is_mounted and not self._dryrun:
+            try:
+                if self._interactive:
+                    ret = self._d.confirmed_unmount()
+                    if ret is False:
+                        return False
+                else:
+                    ret = self._d.unmount()
+            except DeviceException as e:
+                self._l.error(e)
                 return False
         
         self._l.info('Creating partitions on %s' % self._d.name)
@@ -601,8 +604,10 @@ class SDCardInstaller(object):
             return False
         
         if self._d.is_mounted:
-            if not self._d.unmount():
-                self._l.error("Can't unmount partitions from %s" % self._d.name)
+            try:
+                self._d.unmount()
+            except DeviceException as e:
+                self._l.error(e)
                 return False
         
         # According to 'man fsck' the exit code returned by fsck is the sum
