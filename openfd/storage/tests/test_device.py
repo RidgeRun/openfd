@@ -72,6 +72,4 @@ class SDCardTestCase(unittest.TestCase):
         self.sd.check_filesystems()
 
 if __name__ == '__main__':
-    loader = unittest.TestLoader() 
-    suite = loader.loadTestsFromTestCase(SDCardTestCase)
-    unittest.TextTestRunner(verbosity=1).run(suite)
+    unittest.main()
