@@ -32,6 +32,7 @@ if not devdir: sys.exit(-1)
 
 test_device = '/dev/sdb' # CAREFUL!
 test_mmap_file = '%s/images/sd-mmap.config' % devdir
+test_work_dir = "%s/images/" % devdir
 test_img = "%s/images/sdcard-test.img" % devdir
 test_img_size_mb = 128
 
@@ -55,12 +56,20 @@ class SDCardTestCase(unittest.TestCase):
             
     def setUp(self):
         self.sd = SDCard(device=test_device)
+        self.sd.read_partitions(test_mmap_file)
+        self.assertTrue(self.sd.exists)
         
     def tearDown(self):
         pass
     
     def testAll(self):
-        pass
+        self.assertTrue(self.sd.size_cyl >= self.sd.min_cyl_size())
+        self.sd.unmount()
+        self.sd.create_partitions()
+        self.sd.format_partitions()
+        self.sd.mount(test_work_dir)
+        self.sd.unmount()
+        self.sd.check_filesystems()
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 

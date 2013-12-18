@@ -429,3 +429,4 @@ class SDCard(Device):
         
         self._partitions[:] = []
         self._partitions = read_sdcard_partitions(filename)
+    
