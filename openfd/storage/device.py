@@ -334,10 +334,6 @@ class SDCard(Device):
             i += 1   
         if self._partitions:
             self.sync()
-            
-    def format(self):
-        self._create_partitions()
-        self._format_partitions()
         
     def mount(self, directory):
         """
