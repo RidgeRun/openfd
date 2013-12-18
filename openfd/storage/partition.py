@@ -30,7 +30,7 @@ def read_nand_partitions(filename):
     Reads the NAND partitions information from the given file.
     
     :param filename: Path to the file with the partitions information.
-    :returns: Returns a list of NAND partitions.  
+    :returns: Returns the list of partitions read from the given file.  
     """
     
     partitions = []
@@ -63,7 +63,7 @@ def read_sdcard_partitions(filename):
     Reads the partitions information from the given file.
     
     :param filename: Path to the file with the partitions information.
-    :returns: Returns true on success; false otherwise.  
+    :returns: Returns the list of partitions read from the given file.  
     """
     
     partitions = []
@@ -73,6 +73,39 @@ def read_sdcard_partitions(filename):
         part = None
         if config.has_option(section, 'name'):
             part = SDCardPartition(config.get(section, 'name'))
+        if part:
+            if config.has_option(section, 'start'):
+                part.start = config.get(section, 'start')
+            if config.has_option(section, 'size'):
+                part.size = config.get(section, 'size')
+            if config.has_option(section, 'bootable'):
+                part.bootable = config.getboolean(section, 'bootable')
+            if config.has_option(section, 'type'):
+                part.type = config.get(section, 'type')
+            if config.has_option(section, 'filesystem'):
+                part.filesystem = config.get(section, 'filesystem')
+            if config.has_option(section, 'components'):
+                components = config.get(section, 'components')
+                components = components.strip(', ')
+                part.components = components.replace(' ','').split(',')
+            partitions.append(part)
+    return partitions
+
+def read_loopdevice_partitions(filename):
+    """
+    Reads the partitions information from the given file.
+    
+    :param filename: Path to the file with the partitions information.
+    :returns: Returns the list of partitions read from the given file.  
+    """
+    
+    partitions = []
+    config = ConfigParser.RawConfigParser()
+    config.readfp(open(filename))
+    for section in config.sections():
+        part = None
+        if config.has_option(section, 'name'):
+            part = LoopDevicePartition(config.get(section, 'name'))
         if part:
             if config.has_option(section, 'start'):
                 part.start = config.get(section, 'start')
@@ -325,3 +358,40 @@ class SDCardPartition(Partition):
                           :const:`COMPONENT_KERNEL`,
                           :const:`COMPONENT_ROOTFS`,
                           :const:`COMPONENT_BLANK`.""")
+
+class LoopDevicePartition(SDCardPartition):
+    
+    def __init__(self, name, start_addr=0, size=0, bootable=False,
+                 part_type='', filesystem='', components=[]):
+        """    
+        :param name: Partition name.
+        :param start_addr: Partition start address (decimal).
+        :param size: Partition size in cylinders. Size can be '-' to indicate
+            the max size available.
+        :param bootable: Enables the bootable flag on this partition.
+        :type bootable: boolean
+        :param part_type: Partition type. Possible values:
+            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
+            :const:`TYPE_UNKNOWN`.
+        :param filesystem: Partition filesystem. Possible values:
+            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`, 
+            :const:`FILESYSTEM_UNKNOWN`.
+        :param components: A list of partition components. Possible values:
+            :const:`COMPONENT_BOOTLOADER`, :const:`COMPONENT_KERNEL`,
+            :const:`COMPONENT_ROOTFS`, :const:`COMPONENT_BLANK`.
+        """
+
+        SDCardPartition.__init__(self, name, start_addr, size, bootable,
+                                 part_type, filesystem, components)
+        self._device = None
+    
+    def __set_device(self, device):
+        self._device = device
+        
+    def __get_device(self):
+        return self._device
+    
+    device = property(__get_device, __set_device,
+                    doc="""Loop device (string) which this partition is
+                    associated to.""")
+    
