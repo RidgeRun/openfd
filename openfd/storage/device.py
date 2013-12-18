@@ -23,6 +23,7 @@ import math
 import openfd.utils as utils
 from partition import SDCardPartition
 from partition import read_sdcard_partitions
+from partition import read_loopdevice_partitions
 
 # ==========================================================================
 # Public classes
@@ -44,7 +45,7 @@ class DeviceGeometry(object):
     sector_byte_size = 512.0
     
     #: Cylinder byte size: 255 * 63 * 512 = 8225280 bytes.
-    cylinder_byte_size = 8225280.0
+    cyl_byte_size = 8225280.0
     
     #: String used to represent the max available size of a given storage device.
     full_size = "-"
@@ -62,6 +63,7 @@ class Device(object):
             but not executed.
         :type dryrun: boolean
         """
+        
         self._device = device
         self._geometry = DeviceGeometry()
         self._size_b = 0
@@ -143,7 +145,7 @@ class Device(object):
         :exception DeviceException: When unable to obtain the size.
         """
         
-        size_cyl = self.size_b / self.geometry.cylinder_byte_size
+        size_cyl = self.size_b / self.geometry.cyl_byte_size
         return long(math.floor(size_cyl))
     
     @property
@@ -191,11 +193,8 @@ class Device(object):
         """
         
         for part in self.mounted_partitions:
-            cmd = 'sync'
-            if self._e.check_call(cmd) != 0:
-                raise DeviceException('Unable  to sync')
-            cmd = 'sudo umount %s' % part
-            if self._e.check_call(cmd) != 0:
+            self.sync()
+            if self._e.check_call('sudo umount %s' % part) != 0:
                 raise DeviceException('Failed to unmount %s' % part)
     
     def confirm_size_gb(self, size_gb):
@@ -281,31 +280,12 @@ class SDCard(Device):
             else:
                 min_cyl_size += int(part.size)
         return min_cyl_size
-    
-    def partition_suffix(self, partition_index):
-        """
-        This function returns a string with the standard partition numeric
-        suffix, depending on the type of device.
         
-        For example, the first partition (index = 1) in device
-        /dev/sdb is going to have the suffix "1", so that one can compose
-        the complete partition's filename: /dev/sdb1. While a device like
-        /dev/mmcblk0 will provoke a partition suffix "p1", so that the complete
-        filename for the first partition is "/dev/mmcblk0p1".  
-        """
-        
+    def _partition_name(self, index):
         if 'mmcblk' in self._device or 'loop' in self._device:
-            return 'p%s' % partition_index
+            return '%sp%s' % (self.name, index) # i.e. /dev/mmbclk0p1
         else:
-            return '%s' % partition_index
-        
-    def partition_filename(self, index):
-        """
-        Gets the complete filename for the partition (i.e. /dev/sdb1 for
-        `index` 1)
-        """
-        
-        return self.name + self.partition_suffix(index)
+            return '%s%s' % (self.name, index)  # i.e. /dev/sdb1
         
     def create_partitions(self):
         """
@@ -313,8 +293,7 @@ class SDCard(Device):
         
         :exception DeviceException: When unable to partition.
         """
-            
-        # Create the partitions
+        
         cmd = ('sudo sfdisk -D' +
               ' -C' + str(int(self.size_cyl)) +
               ' -H' + str(int(self.geometry.heads)) +
@@ -327,9 +306,38 @@ class SDCard(Device):
             if part.is_bootable: cmd += ',*'
             cmd += '\n'
         cmd += 'EOF'
-        
         if self._e.check_call(cmd) != 0:
             raise DeviceException('Unable to partition device %s' % self.name)
+        
+    def format_partitions(self):
+        """
+        Format the partitions in the given device, assuming these partitions
+        were already created (see create_partitions()). To register partitions
+        use read_partitions().
+        
+        :exception DeviceException: When unable to format.
+        """
+
+        i = 1
+        for part in self._partitions:
+            filename = self._partition_name(i)
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
+                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (filename, part.name)
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
+                cmd = 'sudo mkfs.ext3 %s -L %s'  % (filename, part.name)
+            else:
+                raise DeviceException("Can't format partition %s, unknown "
+                              "filesystem: %s" % (part.name, part.filesystem))
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Unable to format %s into %s' %
+                                (part.name, filename))
+            i += 1   
+        if self._partitions:
+            self.sync()
+            
+    def format(self):
+        self._create_partitions()
+        self._format_partitions()
         
     def mount(self, directory):
         """
@@ -348,7 +356,7 @@ class SDCard(Device):
         i = 1
         for part in self._partitions:
             
-            name = self.partition_filename(i)
+            name = self._partition_name(i)
             mnt_dir = "%s/%s" % (directory.rstrip('/'), part.name)
             
             if self._e.check_call('mkdir -p %s' % mnt_dir) != 0:
@@ -370,33 +378,6 @@ class SDCard(Device):
                 raise DeviceException('Failed to mount %s in %s' % 
                                       (name, mnt_dir))
             i += 1
-
-    def format_partitions(self):
-        """
-        Format the partitions in the given device, assuming these partitions
-        were already created (see create_partitions()). To register partitions
-        use read_partitions().
-        
-        Returns true on success; false otherwise.
-        """
-        
-        i = 1
-        for part in self._partitions:
-            filename = self.partition_filename(i)
-            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
-                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (filename, part.name)
-            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
-                cmd = 'sudo mkfs.ext3 %s -L %s'  % (filename, part.name)
-            else:
-                raise DeviceException("Can't format partition %s, unknown "
-                              "filesystem: %s" % (part.name, part.filesystem))
-            if self._e.check_call(cmd) != 0:
-                raise DeviceException('Unable to format %s into %s' %
-                                (part.name, filename))
-            i += 1
-            
-        if self._partitions:
-            self.sync()
 
     def check_filesystems(self):
         """
@@ -420,7 +401,7 @@ class SDCard(Device):
         self.unmount()
         for i in range(1, len(self._partitions) + 1):
             states = []
-            filename = self.partition_filename(i)
+            filename = self._partition_name(i)
             self.sync()
             ret = self._e.check_call("sudo fsck -y %s" % filename)
             if ret == 0:
