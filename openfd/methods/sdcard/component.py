@@ -189,26 +189,6 @@ class ComponentInstaller(object):
         :returns: Returns true on success; false otherwise.
         """
         
-        if not self._uflash_bin:
-            self._l.error('No path to uflash specified')
-            return False
-        
-        if not self._ubl_file:
-            self._l.error('No path to ubl file specified')
-            return False
-        
-        if not self._uboot_file:
-            self._l.error('No path to uboot file specified')
-            return False
-        
-        if not self._uboot_entry_addr:
-            self._l.error('No uboot entry address specified')
-            return False
-
-        if not self._uboot_load_addr:
-            self._l.error('No uboot load address specified')
-            return False
-        
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
         
@@ -237,22 +217,6 @@ class ComponentInstaller(object):
         """
         
         self._l.info('Installing uboot environment')
-        
-        if not os.path.isdir(mount_point) and not self._dryrun:
-            self._l.error('Mount point %s does not exist' % mount_point)
-            return False
-        
-        if not self._uboot_load_addr:
-            self._l.error('No uboot load address specified')
-            return False
-        
-        if not self._bootargs:
-            self._l.error('No bootargs specified')
-            return False
-        
-        if not self._workdir:
-            self._l.error('No workdir specified')
-            return False
         
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         
@@ -283,11 +247,7 @@ class ComponentInstaller(object):
         :param mount_point: Path to where install the kernel image.
         :returns: Returns true on success, false otherwise.
         """
-        
-        if not self._kernel_image:
-            self._l.error('No kernel image specified')
-            return False
-        
+
         self._l.info('Installing kernel')
         cmd = 'sudo cp %s %s/uImage' % (self._kernel_image, mount_point)
         if self._e.check_call(cmd) != 0:
