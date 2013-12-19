@@ -160,13 +160,11 @@ class Executer(object):
                 print message
         else:
             print message
-        
         confirmation = ''
         try:
             confirmation = raw_input('Do you want to continue [Y/n]: ')
         except (EOFError, KeyboardInterrupt):
             pass
-        
         return confirmation.strip().upper() == 'Y'
 
     def check_output(self, cmd, logoutput=False):
@@ -200,7 +198,7 @@ class Executer(object):
                 retcode = e.returncode
                 output += e.output
         if logoutput and not self._dryrun:
-                self._log(output)
+            self._log(output)
         return retcode, output
                         
     def call(self, cmd):
