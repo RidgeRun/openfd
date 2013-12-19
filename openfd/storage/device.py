@@ -171,7 +171,7 @@ class Device(object):
         partitions = []
         cmd = 'mount | grep %s | cut -f 3 -d " "' % self._device
         output = self._e.check_output(cmd)[1]
-        if output:
+        if output:    
             partitions = output.strip().split('\n')
         return partitions
 
@@ -351,25 +351,20 @@ class SDCard(Device):
         
         i = 1
         for part in self._partitions:
-            
             name = self._partition_name(i)
             mnt_dir = "%s/%s" % (directory.rstrip('/'), part.name)
-            
             if self._e.check_call('mkdir -p %s' % mnt_dir) != 0:
                 raise DeviceException('Failed to create directory %s' % mnt_dir)
-            
             # Map the partition's fs to a type that the 'mount' understands
             fs_type = None
             if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
                 fs_type = 'vfat'
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 fs_type = 'ext3'
-            
             if fs_type:
                 cmd = 'sudo mount -t %s %s %s' % (fs_type, name, mnt_dir)
             else:
-                # Let mount try to guess the partition type
-                cmd = 'sudo mount %s %s' % (name, mnt_dir)
+                cmd = 'sudo mount %s %s' % (name, mnt_dir) # let mount guess
             if self._e.check_call(cmd) != 0:
                 raise DeviceException('Failed to mount %s in %s' % 
                                       (name, mnt_dir))
@@ -575,6 +570,49 @@ class LoopDevice(Device):
             i += 1   
         if self._partitions:
             self.sync()
+    
+    def mount(self, directory):
+        """
+        Mounts the partitions in the specified directory.
+        
+        I.e., if the partitions are called "boot" and "rootfs", and the given
+        directory is "/media", this function will mount:
+        
+           - /media/boot
+           - /media/rootfs
+        
+        :param directory: Directory where to mount the partitions.
+        :exception DeviceException: When unable to mount.
+        """
+        
+        i = 1
+        for part in self._partitions:
+            mnt_dir = "%s/%s" % (directory.rstrip('/'), part.name)
+            if self._e.check_call('mkdir -p %s' % mnt_dir) != 0:
+                raise DeviceException('Failed to create directory %s' % mnt_dir)
+            # Map the partition's fs to a type that the 'mount' understands
+            fs_type = None
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
+                fs_type = 'vfat'
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
+                fs_type = 'ext3'
+            if fs_type:
+                cmd = 'sudo mount -t %s %s %s' % (fs_type, part.device, mnt_dir)
+            else:
+                cmd = 'sudo mount %s %s' % (part.device, mnt_dir) # let mount guess
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Failed to mount %s in %s' % 
+                                      (part.device, mnt_dir))
+            i += 1
+    
+    def unmount(self):
+        for part in self._partitions:
+            if part.device:
+                self.sync()
+                ret = self._e.check_call('sudo umount %s' % part.device)
+                if ret != 0:
+                    raise DeviceException('Failed to unmount %s' % part.device)
+        Device.unmount(self)
     
     def detach_device(self):
         ret = self._e.check_call('sudo losetup -d %s' % self.name)

@@ -88,6 +88,8 @@ class DeviceTestCase(unittest.TestCase):
             self.ld.create_partitions()
             self.ld.attach_partitions(test_img)
             self.ld.format_partitions()
+            self.ld.mount(test_work_dir)
+            self.ld.unmount()
             self.ld.detach_partitions()
             self.ld.detach_device()
 
