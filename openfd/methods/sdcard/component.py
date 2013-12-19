@@ -28,6 +28,9 @@ import openfd.utils.hexutils as hexutils
 # Public Classes
 # ==========================================================================
 
+class ComponentInstallerError(Exception):
+    """Exceptions for ComponentInstaller"""
+
 class ComponentInstaller(object):
     """
     Class to handle components-related operations.
@@ -181,9 +184,8 @@ class ComponentInstaller(object):
               ' -e ' + uboot_entry_addr + 
               ' -l ' + uboot_load_addr)
         if self._e.check_call(cmd) != 0:
-            self._l.error('Failed to flash UBL and uboot into %s' % device)
-            return False
-
+            raise ComponentInstallerError('Failed to flash UBL and uboot '
+                                          'into %s' % device)
         return True
     
     def install_uboot_env(self, mount_point):
@@ -198,9 +200,7 @@ class ComponentInstaller(object):
         """
         
         self._l.info('Installing uboot environment')
-        
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
-        
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
         if not self._dryrun:
             with open(uenv_file, "w") as uenv:
@@ -211,13 +211,9 @@ class ComponentInstaller(object):
                 uenv.write("%s\n" % bootargs)
                 self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)
                 uenv.write("%s\n" % uenvcmd)
-        
         cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
         if self._e.check_call(cmd) != 0:
-            self._l.error('Failed to install uboot env file.')
-            return False
-        
-        return True
+            raise ComponentInstallerError('Failed to install uboot env file.')
         
     def install_kernel(self, mount_point):
         """
@@ -232,11 +228,8 @@ class ComponentInstaller(object):
         self._l.info('Installing kernel')
         cmd = 'sudo cp %s %s/uImage' % (self._kernel_image, mount_point)
         if self._e.check_call(cmd) != 0:
-            self._l.error('Failed copying %s to %s' %
+            raise ComponentInstallerError('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))
-            return False
-        
-        return True
     
     def install_rootfs(self, mount_point):
         """
@@ -251,11 +244,7 @@ class ComponentInstaller(object):
             cmd = 'cd %s ; find . | sudo cpio -pdum %s' % (self._rootfs,
                                                            mount_point)
             if self._e.check_call(cmd) != 0:
-                self._l.error('Failed installing rootfs into %s' % mount_point)
-                return False
-            
+                raise ComponentInstallerError('Failed installing rootfs '
+                                              'into %s' % mount_point)
             if self._e.check_call('sync') != 0:
-                self._l.error('Unable  to sync')
-                return False
-            
-        return True
+                raise ComponentInstallerError('Unable  to sync')

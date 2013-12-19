@@ -50,6 +50,8 @@ from openfd.methods.board import EnvInstaller
 from openfd.methods.sdcard import SdCardArgs
 from openfd.methods.sdcard import ComponentInstaller
 from openfd.methods.sdcard import SDCardInstaller
+from openfd.methods.sdcard import SDCardInstallerError
+from openfd.storage import DeviceException
 
 # ==========================================================================
 # Global variables
@@ -266,20 +268,20 @@ def _get_tftp_loader(args, uboot):
 
 def _mode_sd(args):
     _check_sudo()
-    comp_installer = _get_comp_installer(args)
-    sd_installer = SDCardInstaller(comp_installer)
-    sd_installer.interactive = args.interactive
-    sd_installer.dryrun = args.dryrun
-    sd_installer.device = args.device
-    sd_installer.read_partitions(args.mmap_file)
-    ret = sd_installer.format()
-    if ret is False: _abort_install()
-    ret = sd_installer.mount_partitions(args.workdir)
-    if ret is False: _abort_install()
-    ret = sd_installer.install_components()
-    if ret is False: _abort_install()
-    ret = sd_installer.release()
-    if ret is False: _abort_install()
+    try:
+        comp_installer = _get_comp_installer(args)
+        sd_installer = SDCardInstaller(comp_installer)
+        sd_installer.interactive = args.interactive
+        sd_installer.dryrun = args.dryrun
+        sd_installer.device = args.device
+        sd_installer.read_partitions(args.mmap_file)
+        sd_installer.format()
+        sd_installer.mount_partitions(args.workdir)
+        sd_installer.install_components()
+        sd_installer.release()
+    except (SDCardInstallerError, DeviceException) as e:
+        _logger.error(e)
+        _abort_install()
 
 def _mode_sd_img(args):
     _check_sudo()

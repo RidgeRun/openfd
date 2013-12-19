@@ -20,15 +20,17 @@
 # Imports
 # ==========================================================================
 
+import openfd.utils as utils
 from openfd.storage.partition import SDCardPartition
-from openfd.storage.device import DeviceException
 from openfd.storage.device import SDCard
-import component
-import openfd.utils
+from component import ComponentInstallerError
 
 # ==========================================================================
 # Public Classes
 # ==========================================================================
+
+class SDCardInstallerError(Exception):
+    """Exceptions for SDCardInstaller"""
 
 class SDCardInstaller(object):
     """
@@ -37,10 +39,10 @@ class SDCardInstaller(object):
     Typical flow:
     ::
         1. read_partitions()
-        2. format_sd() / format_loopdevice()
+        2. format()
         3. mount_partitions()
         4. install_components()
-        5. release_device()
+        5. release()
     """
 
     #: Warn the user when partitioning a device above this size.
@@ -62,8 +64,8 @@ class SDCardInstaller(object):
         :type interactive: boolean
         """
         
-        self._l = openfd.utils.logger.get_global_logger()
-        self._e = openfd.utils.executer.get_global_executer()
+        self._l = utils.logger.get_global_logger()
+        self._e = utils.executer.get_global_executer()
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
         self._sd = SDCard(device)
@@ -121,89 +123,62 @@ class SDCardInstaller(object):
         """
         Mounts the partitions in the specified directory.
         
-        Returns true on success; false otherwise.
+        :exception DeviceException: When unable to mount.
         """
         
-        try:
-            self._sd.mount(directory)
-        except DeviceException as e:
-            self._l.error(e)
-            return False
-        return True
+        self._sd.mount(directory)
 
     def _format_checks(self):
         if self._sd.exists is False:
-            self._l.error('No valid disk available on %s' % self._sd.name)
-            return False
-        
-        # Unmount
+            raise SDCardInstallerError('No disk on %s' % self._sd.name)
         if self._sd.is_mounted:
-            try:
-                if self._interactive:
-                    ret = self._sd.confirmed_unmount()
-                    if ret is False:
-                        return False
-                else:
-                    ret = self._sd.unmount()
-            except DeviceException as e:
-                self._l.error(e)
-                return False
-    
+            if self._interactive:
+                ret = self._sd.confirmed_unmount()
+                if ret is False:
+                    raise SDCardInstallerError('User canceled')
+            else:
+                self._sd.unmount()
         if  self._sd.size_cyl == 0:
-            self._l.error('Unable to partition %s (size 0)' % self._sd.name)
-            return False
-        
+            raise SDCardInstallerError('%s size is 0' % self._sd.name)
         if self._sd.size_cyl < self._sd.min_cyl_size():
-            self._l.error('Size of partitions is too large to fit in %s' %
-                               self._sd.name)
-            return False
+            raise SDCardInstallerError('Size of partitions is too large to '
+                                       'fit in %s' % self._sd.name)
         
     def _format_confirms(self):
         if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
-            return False
-        msg = ('You are about to repartition your device %s '
-               '(all your data will be lost)' % self._sd.name)
-        msg_color = SDCardInstaller.WARN_COLOR
-        confirmed = self._e.prompt_user(msg, msg_color)
+            raise SDCardInstallerError('User canceled')
+        msg = ('You are about to repartition %s (all your data will be lost)' 
+               % self._sd.name)
+        confirmed = self._e.prompt_user(msg, SDCardInstaller.WARN_COLOR)
         if not confirmed:
-            return False
+            raise SDCardInstallerError('User canceled')
         
     def format(self):
         """
         Creates and formats the partitions in the SD card.
         
-        :returns: Returns true on success; false otherwise. 
+        :returns: Returns true on success; false otherwise.
+        :exception DeviceException: On failure formatting the device.
+        :exception SDCardInstallerError: On failure executing this action. 
         """
         
         if not self.dryrun:
-            ret = self._format_checks()
-            if ret is False: return False
+            self._format_checks()
         if self._interactive:
-            ret = self._format_confirms()
-            if ret is False: return False
+            self._format_confirms()
         self._l.info('Formatting %s (this may take a while)' % self._sd.name)
-        try:
-            self._sd.create_partitions()
-            self._sd.format_partitions()
-        except DeviceException as e:
-            self._l.error(e)
-            return False
-        return True
+        self._sd.create_partitions()
+        self._sd.format_partitions()
 
     def release(self):
         """
         Unmounts all partitions and release the given device.
         
-        :returns: Returns true on success; false otherwise.
+        :exception DeviceException: On failure releasing the device.
         """
         
-        try:
-            self._sd.unmount()
-            self._sd.check_filesystems()
-        except DeviceException as e:
-            self._l.error(e)
-            return False
-        return True
+        self._sd.unmount()
+        self._sd.check_filesystems()
     
     def read_partitions(self, filename):
         """
@@ -219,36 +194,31 @@ class SDCardInstaller(object):
         """
         Installs the specified components for each partition.
         
-        :returns: Returns true on success, false otherwise.
+        :exception SDCardInstallerError: On failure installing the components.
         """
         
         i = 1
         for part in self._sd.partitions:
             device_part = self._sd.partition_name(i)
             cmd = 'mount | grep %s  | cut -f 3 -d " "' % device_part
-            ret, output = self._e.check_output(cmd)
+            output = self._e.check_output(cmd)[1]
             mount_point = output.replace('\n', '')
-            for component in part.components:
-                if component == SDCardPartition.COMPONENT_BOOTLOADER:
-                    ret = self._comp_installer.install_uboot(self._sd.name)
-                    if ret is False: return False
-                    ret =  self._comp_installer.install_uboot_env(mount_point)
-                    if ret is False: return False
-                elif component == SDCardPartition.COMPONENT_KERNEL:
-                    ret = self._comp_installer.install_kernel(mount_point)
-                    if ret is False: return False
-                elif component == SDCardPartition.COMPONENT_ROOTFS:
-                    if self._comp_installer.rootfs is None:
-                        msg = ('No directory specified for "%s", omitting...' %
-                                   (SDCardPartition.COMPONENT_ROOTFS))
-                        self._l.warning(msg)
+            for comp in part.components:
+                try:
+                    if comp == SDCardPartition.COMPONENT_BOOTLOADER:
+                        self._comp_installer.install_uboot(self._sd.name)
+                        self._comp_installer.install_uboot_env(mount_point)
+                    elif comp == SDCardPartition.COMPONENT_KERNEL:
+                        self._comp_installer.install_kernel(mount_point)
+                    elif comp == SDCardPartition.COMPONENT_ROOTFS:
+                        if self._comp_installer.rootfs is None:
+                            self._l.warning('No directory for "%s", omitting...'
+                                        % (SDCardPartition.COMPONENT_ROOTFS))
+                        else:
+                            self._comp_installer.install_rootfs(mount_point)
                     else:
-                        ret = self._comp_installer.install_rootfs(mount_point)
-                        if ret is False: return False
-                elif component == SDCardPartition.COMPONENT_BLANK:
-                    pass
-                else:
-                    self._l.error('Component %s is not valid' % component)
-                    return False
+                        raise SDCardInstallerError('Component %s is not valid'
+                                                   % comp)
+                except ComponentInstallerError as e:
+                    raise SDCardInstallerError(e)
             i += 1
-        return True
