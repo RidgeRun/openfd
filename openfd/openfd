@@ -237,6 +237,151 @@ def _check_sudo():
         _clean_exit(-1)
 
 # ==========================================================================
+# Installation modes
+# ==========================================================================
+
+def _get_comp_installer(args):
+    comp_installer = ComponentInstaller()
+    comp_installer.uflash_bin = args.uflash_bin
+    comp_installer.ubl_file = args.ubl_file
+    comp_installer.uboot_file = args.uboot_file
+    comp_installer.uboot_entry_addr = args.uboot_entry_addr
+    comp_installer.uboot_load_addr = args.uboot_load_addr
+    comp_installer.bootargs = args.uboot_bootargs
+    comp_installer.kernel_image = args.kernel_file
+    comp_installer.rootfs = args.rootfs
+    comp_installer.workdir = args.workdir
+    return comp_installer
+
+def _get_tftp_loader(args, uboot):
+    tftp_loader = TftpRamLoader(uboot, args.board_net_mode)
+    tftp_loader.dir = args.tftp_dir
+    tftp_loader.port = args.tftp_port
+    tftp_loader.host_ipaddr = args.host_ip_addr
+    tftp_loader.net_mode = args.board_net_mode
+    if args.board_net_mode == TftpRamLoader.MODE_STATIC:
+        tftp_loader.board_ipaddr = args.board_ip_addr
+    tftp_loader.dryrun = args.dryrun
+    return tftp_loader
+
+def _mode_sd(args):
+    _check_sudo()
+    comp_installer = _get_comp_installer(args)
+    sd_installer = SDCardInstaller(comp_installer)
+    sd_installer.interactive = args.interactive
+    sd_installer.dryrun = args.dryrun
+    sd_installer.device = args.device
+    sd_installer.mode = sd_installer.MODE_SD
+    sd_installer.read_partitions(args.mmap_file)
+    ret = sd_installer.format_sd()
+    if ret is False: _abort_install()
+    ret = sd_installer.mount_partitions(args.workdir)
+    if ret is False: _abort_install()
+    ret = sd_installer.install_components()
+    if ret is False: _abort_install()
+    ret = sd_installer.release_device()
+    if ret is False: _abort_install()
+
+def _mode_sd_img(args):
+    _check_sudo()
+    comp_installer = _get_comp_installer(args)
+    sd_installer = SDCardInstaller(comp_installer)
+    sd_installer.interactive = args.interactive
+    sd_installer.dryrun = args.dryrun
+    sd_installer.mode = sd_installer.MODE_LOOPBACK
+    sd_installer.read_partitions(args.mmap_file)
+    ret = sd_installer.format_loopdevice(args.image, args.imagesize_mb)
+    if ret is False: _abort_install()
+    ret = sd_installer.mount_partitions(args.workdir)
+    if ret is False: _abort_install()
+    ret = sd_installer.install_components()
+    if ret is False: _abort_install()
+    ret = sd_installer.release_device()
+    if ret is False: _abort_install()
+    
+def _mode_nand(args):
+    uboot = _setup_uboot(args)
+    tftp_loader = _get_tftp_loader(args, uboot)
+    try:
+        comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
+                             COMP_FS]
+        if args.component in comp_requires_network:
+            tftp_loader.setup_uboot_network()
+        nand_installer = NandInstaller(uboot=uboot, loader=tftp_loader)
+        if args.nand_blk_size:
+            nand_installer.nand_block_size = args.nand_blk_size
+        if args.nand_page_size:
+            nand_installer.nand_page_size = args.nand_page_size
+        nand_installer.ram_load_addr = args.ram_load_addr
+        nand_installer.dryrun = args.dryrun
+        nand_installer.read_partitions(args.mmap_file)
+        if args.nand_uboot_file:
+            ret = nand_installer.load_uboot_to_ram(args.nand_uboot_file,
+                                                   args.ram_load_addr)
+            if ret is False: _abort_install()
+        if args.component == COMP_IPL:
+            ret = nand_installer.install_ipl(force=args.ipl_force)
+            if ret is False: _abort_install()
+        if args.component == COMP_BOOTLOADER:
+            ret = nand_installer.install_bootloader()
+            if ret is False: _abort_install()
+        if args.component == COMP_KERNEL:
+            ret = nand_installer.install_kernel(force=args.kernel_force)
+            if ret is False: _abort_install()
+        if args.component == COMP_FS:
+            ret = nand_installer.install_fs(force=args.fs_force)
+            if ret is False: _abort_install()
+        if args.component in comp_requires_network:
+            if uboot.get_env('autostart') == 'no':
+                uboot.set_env('autostart', 'yes')
+                uboot.save_env()
+        uboot.cmd('echo Installation complete', prompt_timeout=None)
+    except (UbootTimeoutException, RamLoaderException) as e:
+        uboot.close_comm()
+        _logger.error(e)
+        _abort_install()
+    uboot.close_comm()
+
+def _mode_ram(args):
+    uboot = _setup_uboot(args)
+    tftp_loader = _get_tftp_loader(args, uboot)
+    try:
+        tftp_loader.setup_uboot_network()
+        _logger.info("Loading %s to RAM address %s" %
+                     (args.ram_file, args.ram_load_addr))
+        tftp_loader.load_file_to_ram_and_boot(args.ram_file, args.ram_load_addr,
+                      args.ram_boot_line, boot_timeout=args.ram_boot_timeout)
+    except (UbootTimeoutException, RamLoaderException) as e:
+        uboot.close_comm()
+        _logger.error(e)
+        _abort_install()
+    uboot.close_comm()
+
+def _mode_env(args):
+    uboot = _setup_uboot(args)
+    try:
+        env_installer = EnvInstaller(uboot=uboot)
+        env_installer.dryrun = args.dryrun
+        env_installer.install_variable(args.env_variable, args.env_value,
+                                       args.env_force)
+    except UbootTimeoutException as e:
+        uboot.close_comm()
+        _logger.error(e)
+        _abort_install()
+    uboot.close_comm()
+
+def _mode_sd_script(args):
+    board = BoardFactory().make(args.board)
+    ext_installer = NandExternalInstaller(board=board)
+    ext_installer.read_partitions(args.flash_mmap_file)
+    ext_installer.install_boardinfo()
+    ext_installer.install_ipl()
+    ext_installer.install_bootloader()
+    ext_installer.install_kernel()
+    ext_installer.install_fs()
+    ext_installer.write(args.template_file, args.output_file)
+
+# ==========================================================================
 # Main logic
 # ==========================================================================
 
@@ -247,151 +392,18 @@ def main():
     _init_logging(args)
     _init_executer(args)
     _check_args(args)
-        
-    mode_requires_sudo = [MODE_SD, MODE_SD_IMG]
-    if args.mode in mode_requires_sudo:
-        _check_sudo() 
-    
-    if args.mode == MODE_SD or args.mode == MODE_SD_IMG:
-        
-        # Components installer
-        
-        comp_installer = ComponentInstaller()
-        comp_installer.uflash_bin = args.uflash_bin
-        comp_installer.ubl_file = args.ubl_file
-        comp_installer.uboot_file = args.uboot_file
-        comp_installer.uboot_entry_addr = args.uboot_entry_addr
-        comp_installer.uboot_load_addr = args.uboot_load_addr
-        comp_installer.bootargs = args.uboot_bootargs
-        comp_installer.kernel_image = args.kernel_file
-        comp_installer.rootfs = args.rootfs
-        comp_installer.workdir = args.workdir
-        
-        # SDCard installer
-    
-        sd_installer = SDCardInstaller(comp_installer)
-        sd_installer.interactive = args.interactive
-        sd_installer.dryrun = args.dryrun
-        
-        # Operations
-        
-        if args.mode == MODE_SD:
-            sd_installer.device = args.device
-            sd_installer.mode = sd_installer.MODE_SD
-            sd_installer.read_partitions(args.mmap_file)
-            ret = sd_installer.format_sd()
-            if ret is False: _abort_install()
-        elif args.mode == MODE_SD_IMG:
-            sd_installer.mode = sd_installer.MODE_LOOPBACK
-            sd_installer.read_partitions(args.mmap_file)
-            ret = sd_installer.format_loopdevice(args.image, args.imagesize_mb)
-            if ret is False: _abort_install()
-        
-        ret = sd_installer.mount_partitions(args.workdir)
-        if ret is False: _abort_install()
-        
-        ret = sd_installer.install_components()
-        if ret is False: _abort_install()
-        
-        ret = sd_installer.release_device()
-        if ret is False: _abort_install()
-        
-    if args.mode == MODE_NAND or args.mode == MODE_RAM:
-        uboot = _setup_uboot(args)
-        try:
-            tftp_loader = TftpRamLoader(uboot, args.board_net_mode)
-            tftp_loader.dir = args.tftp_dir
-            tftp_loader.port = args.tftp_port
-            tftp_loader.host_ipaddr = args.host_ip_addr
-            tftp_loader.net_mode = args.board_net_mode
-            if args.board_net_mode == TftpRamLoader.MODE_STATIC:
-                tftp_loader.board_ipaddr = args.board_ip_addr
-            tftp_loader.dryrun = args.dryrun
-            
-            if args.mode == MODE_NAND:
-                
-                comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
-                                     COMP_FS]
-            
-                if args.component in comp_requires_network:
-                    tftp_loader.setup_uboot_network()
-            
-                nand_installer = NandInstaller(uboot=uboot, loader=tftp_loader)
-                if args.nand_blk_size:
-                    nand_installer.nand_block_size = args.nand_blk_size
-                if args.nand_page_size:
-                    nand_installer.nand_page_size = args.nand_page_size
-                nand_installer.ram_load_addr = args.ram_load_addr
-                nand_installer.dryrun = args.dryrun
-                nand_installer.read_partitions(args.mmap_file)
-                
-                if args.nand_uboot_file:
-                    ret = nand_installer.load_uboot_to_ram(args.nand_uboot_file,
-                                                           args.ram_load_addr)
-                    if ret is False: _abort_install()
-                
-                if args.component == COMP_IPL:
-                    ret = nand_installer.install_ipl(force=args.ipl_force)
-                    if ret is False: _abort_install()
-                    
-                if args.component == COMP_BOOTLOADER:
-                    ret = nand_installer.install_bootloader()
-                    if ret is False: _abort_install()
-                    
-                if args.component == COMP_KERNEL:
-                    ret = nand_installer.install_kernel(force=args.kernel_force)
-                    if ret is False: _abort_install()
-        
-                if args.component == COMP_FS:
-                    ret = nand_installer.install_fs(force=args.fs_force)
-                    if ret is False: _abort_install()
-            
-                _logger.debug("Finishing installation")
-                if args.component in comp_requires_network:
-                    if uboot.get_env('autostart') == 'no':
-                        uboot.set_env('autostart', 'yes')
-                        uboot.save_env()
-                        
-                uboot.cmd('echo Installation complete', prompt_timeout=None)
-                        
-            if args.mode == MODE_RAM:
-                tftp_loader.setup_uboot_network()
-                _logger.info("Loading %s to RAM address %s" %
-                             (args.ram_file, args.ram_load_addr))
-                tftp_loader.load_file_to_ram_and_boot(args.ram_file,
-                                  args.ram_load_addr, args.ram_boot_line,
-                                  boot_timeout=args.ram_boot_timeout)
-            
-        except (UbootTimeoutException, RamLoaderException) as e:
-            uboot.close_comm()
-            _logger.error(e)
-            _abort_install()
-        uboot.close_comm()
-        
+    if args.mode == MODE_SD:
+        _mode_sd(args)
+    if args.mode == MODE_SD_IMG:
+        _mode_sd_img(args)
+    if args.mode == MODE_NAND:
+        _mode_nand(args)
+    if args.mode == MODE_RAM:
+        _mode_ram(args)
     if args.mode == MODE_ENV:
-        uboot = _setup_uboot(args)
-        try:
-            env_installer = EnvInstaller(uboot=uboot)
-            env_installer.dryrun = args.dryrun
-            env_installer.install_variable(args.env_variable, args.env_value,
-                                           args.env_force)
-        except UbootTimeoutException as e:
-            uboot.close_comm()
-            _logger.error(e)
-            _abort_install()
-        uboot.close_comm()
-        
+        _mode_env(args)
     if args.mode == MODE_SD_SCRIPT:
-        board = BoardFactory().make(args.board)
-        ext_installer = NandExternalInstaller(board=board)
-        ext_installer.read_partitions(args.flash_mmap_file)
-        ext_installer.install_boardinfo()
-        ext_installer.install_ipl()
-        ext_installer.install_bootloader()
-        ext_installer.install_kernel()
-        ext_installer.install_fs()
-        ext_installer.write(args.template_file, args.output_file)
-        
+        _mode_sd_script()
     _logger.info('Installation complete')
     _clean_exit(0)
     
