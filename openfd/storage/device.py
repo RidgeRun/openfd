@@ -282,8 +282,7 @@ class SDCard(Device):
         return min_cyl_size
         
     def _partition_name(self, index):
-        print 'partition_name = %s %s' % (self.name, index)
-        if 'mmcblk' in self._device or 'loop' in self._device:
+        if 'mmcblk' in self._device:
             return '%sp%s' % (self.name, index) # i.e. /dev/mmbclk0p1
         else:
             return '%s%s' % (self.name, index)  # i.e. /dev/sdb1
@@ -551,6 +550,31 @@ class LoopDevice(Device):
         cmd += 'EOF'
         if self._e.check_call(cmd) != 0:
             raise DeviceException('Unable to partition device %s' % self.name)
+    
+    def format_partitions(self):
+        """
+        Format the partitions in the given device, assuming these partitions
+        were already created (see create_partitions()). To register partitions
+        use read_partitions().
+        
+        :exception DeviceException: When unable to format.
+        """
+
+        i = 1
+        for part in self._partitions:
+            if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
+                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (part.device, part.name)
+            elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
+                cmd = 'sudo mkfs.ext3 %s -L %s'  % (part.device, part.name)
+            else:
+                raise DeviceException("Can't format partition %s, unknown "
+                              "filesystem: %s" % (part.name, part.filesystem))
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Unable to format %s into %s' %
+                                (part.name, part.device))
+            i += 1   
+        if self._partitions:
+            self.sync()
     
     def detach_device(self):
         ret = self._e.check_call('sudo losetup -d %s' % self.name)

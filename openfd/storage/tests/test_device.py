@@ -87,6 +87,7 @@ class DeviceTestCase(unittest.TestCase):
             self.assertTrue(self.ld.size_cyl >= self.ld.min_cyl_size())
             self.ld.create_partitions()
             self.ld.attach_partitions(test_img)
+            self.ld.format_partitions()
             self.ld.detach_partitions()
             self.ld.detach_device()
 
