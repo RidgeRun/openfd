@@ -90,6 +90,7 @@ class DeviceTestCase(unittest.TestCase):
             self.ld.format_partitions()
             self.ld.mount(test_work_dir)
             self.ld.unmount()
+            self.ld.check_filesystems()
             self.ld.detach_partitions()
             self.ld.detach_device()
 

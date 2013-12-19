@@ -614,6 +614,51 @@ class LoopDevice(Device):
                     raise DeviceException('Failed to unmount %s' % part.device)
         Device.unmount(self)
     
+    def check_filesystems(self):
+        """
+        Checks the integrity of the filesystems in the given device. Upon 
+        error, tries to recover using the 'fsck' command.
+        
+        Note: The device should be unmounted before running this check.
+        
+        Returns true on success; false otherwise.
+        """
+        
+        # The exit code returned by fsck is the sum of the following conditions
+        fsck_outputs = {0    : 'No errors',
+                        1    : 'Filesystem errors corrected',
+                        2    : 'System should be rebooted',
+                        4    : 'Filesystem errors left uncorrected',
+                        8    : 'Operational error',
+                        16   : 'Usage or syntax error',
+                        32   : 'fsck canceled by user request',
+                        128  : 'Shared-library error'}
+        
+        fs_ok = True
+        for part in self._partitions:
+            states = []
+            self.sync()
+            ret = self._e.check_call("sudo fsck -y %s" % part.device)
+            if ret == 0:
+                states.append(fsck_outputs[ret])
+            else:
+                for i in range(len(fsck_outputs)):
+                    key = 2 ** i
+                    if ret & key:
+                        try:
+                            states.append(fsck_outputs[key])
+                            if key != 1: # keys not counted as fatal errors
+                                fs_ok = False
+                        except KeyError:
+                            pass
+            states_str = ''.join("'%s', " % s for s in states).rstrip(', ')
+            msg = ("Filesystem check in %s: %s (see 'man fsck', exit code: %s)"
+                   % (part.device, states_str, ret))
+            if fs_ok:
+                self._l.debug(msg)
+            else:
+                raise DeviceException(msg)
+    
     def detach_device(self):
         ret = self._e.check_call('sudo losetup -d %s' % self.name)
         if ret != 0:
