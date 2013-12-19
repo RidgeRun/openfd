@@ -189,13 +189,13 @@ class SDCardInstaller(object):
         :returns: Returns true on success; false otherwise. 
         """
         
-        if self._interactive:
-            if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
-                return False
-        
         if not self._sd.exists and not self._dryrun:
             self._l.error('No valid disk available on %s' % self._sd.name)
             return False
+        
+        if self._interactive:
+            if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
+                return False
         
         if self._sd.is_mounted and not self._dryrun:
             try:
