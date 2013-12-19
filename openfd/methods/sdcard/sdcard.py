@@ -21,7 +21,6 @@
 # ==========================================================================
 
 from openfd.storage.partition import SDCardPartition
-from openfd.storage.partition import read_sdcard_partitions
 from openfd.storage.device import DeviceException
 from openfd.storage.device import SDCard
 import component
@@ -50,19 +49,11 @@ class SDCardInstaller(object):
     #: Color for dangerous warning messages.
     WARN_COLOR = 'yellow'
     
-    #: Installs on the SD-card
-    MODE_SD = 'sd'
-    
-    #: Installs on a loopback file instead of a real SD-card.
-    MODE_LOOPBACK = 'loopback'
-    
-    def __init__(self, comp_installer, device='', mode=None, dryrun=False,
+    def __init__(self, comp_installer, device='', dryrun=False,
                  interactive=True, enable_colors=True):
         """
         :param comp_installer: :class:`ComponentInstaller` instance.
         :param device: Device name (i.e. '/dev/sdb').
-        :param mode: Installation mode. Possible values: :const:`MODE_SD`,
-            :const:`MODE_LOOPBACK`.
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
             but not executed.
         :type dryrun: boolean
@@ -76,7 +67,6 @@ class SDCardInstaller(object):
         self._e.enable_colors = enable_colors
         self._comp_installer = comp_installer
         self._sd = SDCard(device)
-        self._mode = mode
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._sd.dryrun = dryrun
@@ -84,15 +74,6 @@ class SDCardInstaller(object):
         self._interactive = interactive
         self._partitions = []
         self._loopdevice_partitions = {}
-    
-    def __set_mode(self, mode):
-        self._mode = mode
-    
-    def __get_mode(self):
-        return self._mode
-    
-    mode = property(__get_mode, __set_mode, doc="""Installation mode. Possible
-            values: :const:`MODE_SD`, :const:`MODE_LOOPBACK`.""")
     
     def __set_device(self, device):
         self._sd = SDCard(device)
@@ -135,17 +116,7 @@ class SDCardInstaller(object):
     
     enable_colors = property(__get_enable_colors, __set_enable_colors,
                            doc="""Enable colored messages.""")
-        
-    def _get_partition_filename(self, partition_index):
-        """
-        Gets the complete filename for the partition (i.e. /dev/sdb1)
-        """
-            
-        p = self._sd._partition_name(partition_index)
-        if self._mode == self.MODE_LOOPBACK:
-            p = self._loopdevice_partitions[p]
-        return p
-    
+
     def mount_partitions(self, directory):
         """
         Mounts the partitions in the specified directory.
@@ -178,9 +149,8 @@ class SDCardInstaller(object):
             self._l.error('Size of partitions is too large to fit in %s' %
                                self._sd.name)
             return False
-
         # Just before creating the partitions, prompt the user
-        if self._interactive and self._mode != self.MODE_LOOPBACK:
+        if self._interactive:
             msg = ('You are about to repartition your device %s '
                    '(all your data will be lost)' % self._sd.name)
             msg_color = SDCardInstaller.WARN_COLOR
@@ -212,16 +182,12 @@ class SDCardInstaller(object):
             return False
         return True
 
-    def format_sd(self):
+    def format(self):
         """
         Creates and formats the partitions in the SD card.
         
         :returns: Returns true on success; false otherwise. 
         """
-        
-        if self._mode != SDCardInstaller.MODE_SD:
-            self._l.error('Not in MODE_SD.')
-            return False
         
         if self._interactive:
             if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
@@ -245,228 +211,30 @@ class SDCardInstaller(object):
         
         self._l.info('Formatting %s (this may take a while)' % self._sd.name)
         try:
-            self._create_partitions()
-            self._format_partitions()
+            ret = self._create_partitions()
+            if ret is False:
+                return False
+            ret = self._format_partitions()
+            if ret is False:
+                return False
         except DeviceException as e:
             self._l.error(e)
             return False
         
         return True
-    
-    def _test_image_size(self, image_size_mb):
-        """
-        Test that the image will be big enough to hold the partitions.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        size_b = int(image_size_mb) << 20
-        size_cyl = size_b / self._sd.geometry.cylinder_byte_size
-        
-        if size_cyl < self._sd._min_cyl_size():
-            size_needed_b = (self._sd._min_cyl_size() *
-                                self._sd.geometry.cylinder_byte_size)
-            size_needed_mb = int(size_needed_b) >> 20
-            self._l.error('Image size of %s MB is too small to hold the '
-                   'partitions, the image must be bigger than %s MB to '
-                   'hold them.' % (image_size_mb, size_needed_mb))
-            return False
-        
-        return True
-    
-    def _create_image_file(self, image_name, image_size):
-        """
-        Creates the image file with a valid format and associates the file
-        with a loop device. 
-        
-        Returns true on success; false otherwise.
-        """
-        
-        cmd = 'dd if=/dev/zero of=%s bs=1M count=%s' % (image_name, image_size)
-        ret = self._e.check_call(cmd)
-        if ret != 0:
-            self._l.error('Failed to create file for the image %s' % image_name)
-            return False
-                
-        cmd = 'sudo losetup -f'
-        ret, loopdevice = self._e.check_output(cmd)
-        if ret == 0:
-            loopdevice = loopdevice.rstrip('\n')
-            self.device = loopdevice 
-            cmd = 'sudo losetup %s %s' % (self._sd.name,  image_name)
-            ret = self._e.check_call(cmd)
-            if ret != 0:
-                self._l.error('Failed to associate image file %s to %s'
-                                   % (image_name, self._sd.name))
-                return False
-        else:
-            self._l.error('Failed when searching for free loop devices')
-            return False
-        
-        # If we want to reuse the code for creating and formatting partitions
-        # the image needs to have a valid format
-        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self._sd.name
-        ret = self._e.check_call(cmd)
-        if ret != 0:
-            self._l.error('Failed to format a temporal filesystem on %s'
-                               % image_name)
-            return False
-        
-        return True
-    
-    def _associate_loopdevice_partitions(self, image_name):
-        """
-        Associates parts of the image file to an available /dev/loop*,
-        so that it works as a device partition.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        partition_index = 1
-        for part in self._partitions: 
-            device_part = (self._sd.name +
-                            self._sd.partition_suffix(partition_index))
-            
-            cmd = 'sudo losetup -f'
-            ret, free_device = self._e.check_output(cmd)
-            
-            if ret != 0:
-                self._detach_loopdevice()
-                self._l.error("Can't find a free loopdevice")
-                return False
-            
-            free_device = free_device.rstrip('\n')
-            self._loopdevice_partitions[device_part] = free_device
-            offset = int(part.start) * int(self._sd.geometry.cylinder_byte_size)
-            if part.size == self._sd.geometry.full_size:
-                cmd = 'sudo losetup -o %s %s %s' % (offset, free_device,
-                                                        image_name)
-            else:
-                part_size = int(int(part.size) * 
-                                    self._sd.geometry.cylinder_byte_size)
-                cmd = ('sudo losetup -o %s --sizelimit %s %s %s'
-                           % (offset, part_size, free_device, image_name))
-                
-            ret = self._e.check_call(cmd)
-            if ret != 0:
-                self._l.error('Failed associating image %s to %s' %
-                              (image_name, free_device))
-                return False
-            
-            partition_index += 1
-            
-        return True
-    
-    def format_loopdevice(self, image_filename, image_size_mb):
-        """
-        Creates and formats the partitions in the loopdevice.
-        
-        :param image_filename: Filename of the loopback image to create.
-        :param image_size_mb: Loopback image size, in megabytes.
-        :returns: Returns true on success; false otherwise. 
-        """
-        
-        if not self._partitions: return True
-        
-        if self._mode != SDCardInstaller.MODE_LOOPBACK:
-            self._l.error('Not in MODE_LOOPBACK.')
-            return False
-        
-        if not self._test_image_size(image_size_mb):
-            return False
-        
-        self._l.info('Creating image file %s' % image_filename)
-        if not self._create_image_file(image_filename, image_size_mb):
-            return False
-        
-        self._l.info('Creating partitions on %s' % self._sd.name)
-        if not self._create_partitions(): return False
-        
-        self._l.info('Associating partitions for loopdevice')
-        if not self._associate_loopdevice_partitions(image_filename):
-            return False
-        
-        self._l.info('Formatting partitions on %s' % self._sd.name)
-        if not self._format_partitions(): return False
-        
-        return True
-    
-    def _detach_loopdevice(self):
-        """
-        Detach all loopdevices associated with a partition and then detaches
-        the device itself.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        for dev in self._loopdevice_partitions.itervalues():
-            cmd = 'sudo losetup -d %s' % dev
-            ret = self._e.check_call(cmd)
-            if ret != 0:
-                self._l.error('Failed releasing loopdevice %s' %dev)
-                return False
-        cmd = 'sudo losetup -d %s' % self._sd.name
-        ret = self._e.check_call(cmd)
-        if ret != 0:
-            self._l.error('Failed releasing loopdevice %s' % self._sd.name)
-            return False
-        self._loopdevice_partitions.clear()
-        return True
-    
-    def _release_sd(self):
-        """
-        Unmounts all the partitions in the SD card.
-        
-        Returns true on success; false otherwise. 
-        """
-            
-        self._l.info('Checking filesystems on %s' % self._sd.name)
-        return self._check_filesystems()
-    
-    def _release_loopdevice(self):
-        """
-        Releases all loopdevices used when creating an image file. Should be
-        run after finishing the process.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        # Unmount partitions
-        for dev in self._loopdevice_partitions.itervalues():
-            cmd = 'sync'
-            ret = self._e.check_call(cmd)
-            if ret != 0:
-                self._l.error('unable  to sync loop device %s' %dev)
-                return False
-            cmd = 'sudo umount %s' % dev
-            ret = self._e.check_call(cmd)
-            if ret != 0:
-                self._l.error('Failed unmounting loop device %s' %dev)
-                return False
-        
-        self._l.info('Checking filesystems on loop device')    
-        ret = self._check_filesystems()
-        if not ret:
-            self._l.error('Failed image filesystem check')
-            return False
-        
-        ret = self._detach_loopdevice()
-        if not ret: return False
-        
-        return True
 
-    def release_device(self):
+    def release(self):
         """
         Unmounts all partitions and release the given device.
         
         :returns: Returns true on success; false otherwise.
         """
         
-        if self._sd.partitions:
-            if self._mode == SDCardInstaller.MODE_SD:
-                return self._release_sd()
-            elif self.mode == SDCardInstaller.MODE_LOOPBACK:
-                return self._release_loopdevice()
+        try:
+            self._sd.check_filesystems()
+        except DeviceException as e:
+            self._l.error(e)
+            return False
         return True
     
     def read_partitions(self, filename):
@@ -474,30 +242,10 @@ class SDCardInstaller(object):
         Reads the partitions information from the given file.
         
         :param filename: Path to the file with the partitions information.
-        :returns: Returns true on success; false otherwise.  
+        :returns: Returns true on success; false otherwise.
         """
         
         self._sd.read_partitions(filename)
-        
-    def _check_filesystems(self):
-        """
-        Checks the integrity of the filesystems in the given device. Upon 
-        error, tries to recover using the 'fsck' command.
-        
-        Returns true on success; false otherwise.
-        """
-        
-        if not self._sd.exists and not self._dryrun:
-            self._l.error("Device %s doesn't exist" % self._sd.name)
-            return False
-        
-        try:
-            self._sd.check_filesystems()
-        except DeviceException as e:
-            self._l.error(e)
-            return False
-        
-        return True
     
     def install_components(self):
         """
@@ -506,46 +254,33 @@ class SDCardInstaller(object):
         :returns: Returns true on success, false otherwise.
         """
         
-        partition_index = 1
-        
+        i = 1
         for part in self._sd.partitions:
-            
-            device_part = self._get_partition_filename(partition_index)
-            
+            device_part = self._sd.partition_name(i)
             cmd = 'mount | grep %s  | cut -f 3 -d " "' % device_part
             ret, output = self._e.check_output(cmd)
             mount_point = output.replace('\n', '')
-            
             for component in part.components:
-                
                 if component == SDCardPartition.COMPONENT_BOOTLOADER:
                     ret = self._comp_installer.install_uboot(self._sd.name)
                     if ret is False: return False
-                    
                     ret =  self._comp_installer.install_uboot_env(mount_point)
                     if ret is False: return False
-                    
                 elif component == SDCardPartition.COMPONENT_KERNEL:
                     ret = self._comp_installer.install_kernel(mount_point)
                     if ret is False: return False
-                    
                 elif component == SDCardPartition.COMPONENT_ROOTFS:
                     if self._comp_installer.rootfs is None:
-                        # This is valid because rootfs argument is optional
                         msg = ('No directory specified for "%s", omitting...' %
                                    (SDCardPartition.COMPONENT_ROOTFS))
-                        self._l.info(msg)
+                        self._l.warning(msg)
                     else:
                         ret = self._comp_installer.install_rootfs(mount_point)
                         if ret is False: return False
-                
                 elif component == SDCardPartition.COMPONENT_BLANK:
                     pass
-                
                 else:
                     self._l.error('Component %s is not valid' % component)
                     return False
-                
-            partition_index += 1
-        
+            i += 1
         return True

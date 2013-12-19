@@ -62,7 +62,7 @@ class DeviceTestCase(unittest.TestCase):
         pass
     
     def testSDCard(self):
-        test_sd = False
+        test_sd = True
         if test_sd:
             print "---- Testing SDCard ----"
             self.sd = SDCard(device=test_device)
@@ -77,7 +77,7 @@ class DeviceTestCase(unittest.TestCase):
             self.sd.check_filesystems()
     
     def testLoopDevice(self):
-        test_ld = True
+        test_ld = False
         if test_ld:
             self.ld = LoopDevice()
             self.ld.read_partitions(test_mmap_file)

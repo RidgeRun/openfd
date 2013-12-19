@@ -160,6 +160,7 @@ class Executer(object):
                 print message
         else:
             print message
+        confirmation = ''
         try:
             confirmation = raw_input('Do you want to continue [Y/n]: ')
         except (EOFError, KeyboardInterrupt):

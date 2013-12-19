@@ -281,7 +281,7 @@ class SDCard(Device):
                 min_cyl_size += int(part.size)
         return min_cyl_size
         
-    def _partition_name(self, index):
+    def partition_name(self, index):
         if 'mmcblk' in self._device:
             return '%sp%s' % (self.name, index) # i.e. /dev/mmbclk0p1
         else:
@@ -320,7 +320,7 @@ class SDCard(Device):
 
         i = 1
         for part in self._partitions:
-            filename = self._partition_name(i)
+            filename = self.partition_name(i)
             if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
                 cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (filename, part.name)
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
@@ -351,7 +351,7 @@ class SDCard(Device):
         
         i = 1
         for part in self._partitions:
-            name = self._partition_name(i)
+            name = self.partition_name(i)
             mnt_dir = "%s/%s" % (directory.rstrip('/'), part.name)
             if self._e.check_call('mkdir -p %s' % mnt_dir) != 0:
                 raise DeviceException('Failed to create directory %s' % mnt_dir)
@@ -392,7 +392,7 @@ class SDCard(Device):
         self.unmount()
         for i in range(1, len(self._partitions) + 1):
             states = []
-            filename = self._partition_name(i)
+            filename = self.partition_name(i)
             self.sync()
             ret = self._e.check_call("sudo fsck -y %s" % filename)
             if ret == 0:

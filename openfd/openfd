@@ -271,15 +271,14 @@ def _mode_sd(args):
     sd_installer.interactive = args.interactive
     sd_installer.dryrun = args.dryrun
     sd_installer.device = args.device
-    sd_installer.mode = sd_installer.MODE_SD
     sd_installer.read_partitions(args.mmap_file)
-    ret = sd_installer.format_sd()
+    ret = sd_installer.format()
     if ret is False: _abort_install()
     ret = sd_installer.mount_partitions(args.workdir)
     if ret is False: _abort_install()
     ret = sd_installer.install_components()
     if ret is False: _abort_install()
-    ret = sd_installer.release_device()
+    ret = sd_installer.release()
     if ret is False: _abort_install()
 
 def _mode_sd_img(args):
