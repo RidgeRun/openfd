@@ -24,6 +24,7 @@ sys.path.insert(1, os.path.abspath('..'))
 
 import openfd.utils as utils
 from device import SDCard
+from device import LoopDevice
 from device import DeviceException
 
 # DEVDIR environment variable
@@ -36,13 +37,13 @@ test_work_dir = "%s/images/" % devdir
 test_img = "%s/images/sdcard-test.img" % devdir
 test_img_size_mb = 128
 
-class SDCardTestCase(unittest.TestCase):
+class DeviceTestCase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
         verbose = True
         dryrun = False
-        logger = utils.logger.init_global_logger('SDCard')
+        logger = utils.logger.init_global_logger('Device')
         logger.setLevel(logging.DEBUG)
         streamhandler = logging.StreamHandler()
         streamhandler.setFormatter(logging.Formatter('%(msg)s'))
@@ -55,21 +56,35 @@ class SDCardTestCase(unittest.TestCase):
                                     enable_colors=False, verbose=verbose)
             
     def setUp(self):
-        self.sd = SDCard(device=test_device)
-        self.sd.read_partitions(test_mmap_file)
-        self.assertTrue(self.sd.exists)
-        
+        pass
+  
     def tearDown(self):
         pass
     
-    def testAll(self):
-        self.assertTrue(self.sd.size_cyl >= self.sd.min_cyl_size())
-        self.sd.unmount()
-        self.sd.create_partitions()
-        self.sd.format_partitions()
-        self.sd.mount(test_work_dir)
-        self.sd.unmount()
-        self.sd.check_filesystems()
+    def testSDCard(self):
+        test_sd = False
+        if test_sd:
+            print "---- Testing SDCard ----"
+            self.sd = SDCard(device=test_device)
+            self.sd.read_partitions(test_mmap_file)
+            self.assertTrue(self.sd.exists)
+            self.assertTrue(self.sd.size_cyl >= self.sd.min_cyl_size())
+            self.sd.unmount()
+            self.sd.create_partitions()
+            self.sd.format_partitions()
+            self.sd.mount(test_work_dir)
+            self.sd.unmount()
+            self.sd.check_filesystems()
+    
+    def testLoopDevice(self):
+        test_ld = True
+        if test_ld:
+            self.ld = LoopDevice()
+            self.ld.read_partitions(test_mmap_file)
+            self.ld.check_img_size(test_img_size_mb)
+            self.assertRaises(DeviceException, self.ld.check_img_size, 1)
+            self.ld.attach_device(test_img, test_img_size_mb)
+            self.ld.detach_device()
 
 if __name__ == '__main__':
     unittest.main()

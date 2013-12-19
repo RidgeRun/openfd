@@ -430,3 +430,93 @@ class SDCard(Device):
         self._partitions[:] = []
         self._partitions = read_sdcard_partitions(filename)
     
+class LoopDevice(Device):
+    
+    def __init__(self, dryrun=False):
+        self._e = utils.executer.get_global_executer()
+        self._e.dryrun = dryrun
+        Device.__init__(self, self._get_free_device(), dryrun)
+        self._partitions = []
+    
+    def _get_free_device(self):
+        ret, loop_device = self._e.check_output('sudo losetup -f')
+        if ret != 0:
+            raise DeviceException('Failed obtaining a free loop device')
+        return loop_device.strip()
+    
+    def min_cyl_size(self):
+        """
+        Sums all the partitions' sizes and returns the total. It is actually
+        the minimum size because there could be partitions which size is
+        unknown as they can be specified to take as much space as they can.
+        The size calculated for such partitions is 1 cylinder - their minimum,
+        and hence the total size is also minimum.
+        
+        Additionally to the partitions' size, the total includes 1 cylinder
+        for the Master Boot Record.
+        """
+        
+        # Leave room for the MBR
+        min_cyl_size = 1
+        for part in self._partitions:
+            if part.size == self.geometry.full_size:
+                # If size is unspecified, at least estimate 1 cylinder for
+                # that partition
+                min_cyl_size += 1
+            else:
+                min_cyl_size += int(part.size)
+        return min_cyl_size
+    
+    def check_img_size(self, img_size_mb):
+        img_size_b = int(img_size_mb) << 20
+        img_size_cyl = img_size_b / self.geometry.cyl_byte_size
+        if img_size_cyl < self.min_cyl_size():
+            size_needed_b = (self.min_cyl_size() * self.geometry.cyl_byte_size)
+            size_needed_mb = int(size_needed_b) >> 20
+            raise DeviceException('Image size of %s MB is too small to hold '
+                   'the partitions, the image must be bigger than %s MB to '
+                   'hold them.' % (img_size_mb, size_needed_mb))
+    
+    def attach_device(self, img_name, img_size):
+        """
+        Creates the image file with a valid format and associates the file
+        with the loop device. 
+        
+        :exception DeviceException: Upon failure on associating the image
+            file with the loop device.
+        """
+        
+        cmd = 'dd if=/dev/zero of=%s bs=1M count=%s' % (img_name, img_size)
+        ret = self._e.check_call(cmd)
+        if ret != 0:
+            raise DeviceException('Failed creating file for %s' % img_name)
+        
+        cmd = 'sudo losetup %s %s' % (self.name, img_name)
+        ret = self._e.check_call(cmd)
+        if ret != 0:
+            raise DeviceException('Failed to associate image file %s to %s'
+                                  % (img_name, self.name))
+        
+        # If we want to reuse the code for creating and formatting partitions
+        # the image needs to have a valid format
+        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self.name
+        ret = self._e.check_call(cmd)
+        if ret != 0:
+            raise DeviceException('Failed to format a temporary filesystem on '
+                                  '%s' % img_name)
+    
+    def detach_device(self):
+        ret = self._e.check_call('sudo losetup -d %s' % self.name)
+        if ret != 0:
+            raise DeviceException('Failed detaching %s' % self.name)
+    
+    def read_partitions(self, filename):
+        """
+        Reads the partitions information from the given file.
+        
+        :param filename: Path to the file with the partitions information.
+        """
+        
+        self._partitions[:] = []
+        self._partitions = read_loopdevice_partitions(filename)
+        
