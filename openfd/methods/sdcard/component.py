@@ -33,23 +33,8 @@ class ComponentInstaller(object):
     Class to handle components-related operations.
     """
     
-    def __init__(self, uflash_bin=None, ubl_file=None, uboot_file=None,
-                 uboot_entry_addr=None, uboot_load_addr=None, bootargs=None,
-                 kernel_image=None, rootfs=None, workdir=None, dryrun=False):
+    def __init__(self, dryrun=False):
         """
-        :param uflash_bin: Path to the uflash tool.
-        :param ubl_file: Path to the UBL file.
-        :param uboot_file: Path the Uboot file.
-        :param uboot_entry_addr: Uboot entry address, in decimal or hexadecimal
-            (`'0x'` prefix).
-        :param uboot_load_addr: Uboot load address, in decimal or hexadecimal
-            (`'0x'` prefix).
-        :param bootargs: Uboot environment variable 'bootargs'.
-        :param kernel_image: Path to the kernel image.
-        :param rootfs: Path to the rootfs directory. Set to None if this
-            installation does not require a rootfs, i.e. NFS will be used.
-        :param workdir: Path to the workdir - a directory where this installer
-            can write files and perform other temporary operations.
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
             but not executed.
         :type dryrun: boolean
@@ -57,19 +42,15 @@ class ComponentInstaller(object):
         
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
-        self._workdir = workdir
-        self._uflash_bin = uflash_bin
-        self._ubl_file = ubl_file
-        self._uboot_file = uboot_file
+        self._workdir = None
+        self._uflash_bin = None
+        self._ubl_file = None
+        self._uboot_file = None
         self._uboot_entry_addr = None
-        if hexutils.is_valid_addr(uboot_entry_addr):
-            self._uboot_entry_addr = uboot_entry_addr
         self._uboot_load_addr = None
-        if hexutils.is_valid_addr(uboot_load_addr):
-            self._uboot_load_addr = uboot_load_addr
-        self._bootargs = bootargs
-        self._kernel_image = kernel_image
-        self._rootfs = rootfs
+        self._bootargs = None
+        self._kernel_image = None
+        self._rootfs = None
         self._dryrun = dryrun
         self._e.dryrun = dryrun
 
