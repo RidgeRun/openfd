@@ -130,74 +130,14 @@ class SDCardInstaller(object):
             self._l.error(e)
             return False
         return True
-    
-    def _create_partitions(self):
-        """
-        Create the partitions in the given device.
-        
-        Returns true on success; false otherwise
-        """
-        
-        # Check we were able to get correctly the device size
-        if  self._sd.size_cyl == 0 and not self._dryrun:
-            self._l.error('Unable to partition device %s (size is 0)' %
-                               self._sd.name)
-            return False
-        
-        # Check we have enough size to fit all the partitions and the MBR.
-        if self._sd.size_cyl < self._sd.min_cyl_size() and not self._dryrun:
-            self._l.error('Size of partitions is too large to fit in %s' %
-                               self._sd.name)
-            return False
-        # Just before creating the partitions, prompt the user
-        if self._interactive:
-            msg = ('You are about to repartition your device %s '
-                   '(all your data will be lost)' % self._sd.name)
-            msg_color = SDCardInstaller.WARN_COLOR
-            confirmed = self._e.prompt_user(msg, msg_color)
-            if not confirmed:
-                return False
-            
-        try:
-            self._sd.create_partitions()
-        except DeviceException as e:
-            self._l.error(e)
-            return False
-        
-        return True
 
-    def _format_partitions(self):
-        """
-        Format the partitions in the given device, assuming these partitions
-        were already created (see create_partitions()). To register partitions
-        use read_partitions().
-        
-        Returns true on success; false otherwise.
-        """
-        
-        try:
-            self._sd.format_partitions()
-        except DeviceException as e:
-            self._l.error(e)
-            return False
-        return True
-
-    def format(self):
-        """
-        Creates and formats the partitions in the SD card.
-        
-        :returns: Returns true on success; false otherwise. 
-        """
-        
-        if not self._sd.exists and not self._dryrun:
+    def _format_checks(self):
+        if self._sd.exists is False:
             self._l.error('No valid disk available on %s' % self._sd.name)
             return False
         
-        if self._interactive:
-            if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
-                return False
-        
-        if self._sd.is_mounted and not self._dryrun:
+        # Unmount
+        if self._sd.is_mounted:
             try:
                 if self._interactive:
                     ret = self._sd.confirmed_unmount()
@@ -208,19 +148,46 @@ class SDCardInstaller(object):
             except DeviceException as e:
                 self._l.error(e)
                 return False
+    
+        if  self._sd.size_cyl == 0:
+            self._l.error('Unable to partition %s (size 0)' % self._sd.name)
+            return False
         
+        if self._sd.size_cyl < self._sd.min_cyl_size():
+            self._l.error('Size of partitions is too large to fit in %s' %
+                               self._sd.name)
+            return False
+        
+    def _format_confirms(self):
+        if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
+            return False
+        msg = ('You are about to repartition your device %s '
+               '(all your data will be lost)' % self._sd.name)
+        msg_color = SDCardInstaller.WARN_COLOR
+        confirmed = self._e.prompt_user(msg, msg_color)
+        if not confirmed:
+            return False
+        
+    def format(self):
+        """
+        Creates and formats the partitions in the SD card.
+        
+        :returns: Returns true on success; false otherwise. 
+        """
+        
+        if not self.dryrun:
+            ret = self._format_checks()
+            if ret is False: return False
+        if self._interactive:
+            ret = self._format_confirms()
+            if ret is False: return False
         self._l.info('Formatting %s (this may take a while)' % self._sd.name)
         try:
-            ret = self._create_partitions()
-            if ret is False:
-                return False
-            ret = self._format_partitions()
-            if ret is False:
-                return False
+            self._sd.create_partitions()
+            self._sd.format_partitions()
         except DeviceException as e:
             self._l.error(e)
             return False
-        
         return True
 
     def release(self):
@@ -231,6 +198,7 @@ class SDCardInstaller(object):
         """
         
         try:
+            self._sd.unmount()
             self._sd.check_filesystems()
         except DeviceException as e:
             self._l.error(e)

@@ -375,6 +375,8 @@ class SDCard(Device):
         Checks the integrity of the filesystems in the given device. Upon 
         error, tries to recover using the 'fsck' command.
         
+        Note: The device should be unmounted before running this check.
+        
         Returns true on success; false otherwise.
         """
         
@@ -389,7 +391,6 @@ class SDCard(Device):
                         128  : 'Shared-library error'}
         
         fs_ok = True
-        self.unmount()
         for i in range(1, len(self._partitions) + 1):
             states = []
             filename = self.partition_name(i)
