@@ -140,8 +140,8 @@ class SDCardInstaller(object):
         """
         Gets the complete filename for the partition (i.e. /dev/sdb1)
         """
-        
-        p = self._sd.name + self._sd.partition_suffix(partition_index)    
+            
+        p = self._sd._partition_name(partition_index)
         if self._mode == self.MODE_LOOPBACK:
             p = self._loopdevice_partitions[p]
         return p

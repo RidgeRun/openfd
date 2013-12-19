@@ -84,6 +84,10 @@ class DeviceTestCase(unittest.TestCase):
             self.ld.check_img_size(test_img_size_mb)
             self.assertRaises(DeviceException, self.ld.check_img_size, 1)
             self.ld.attach_device(test_img, test_img_size_mb)
+            self.assertTrue(self.ld.size_cyl >= self.ld.min_cyl_size())
+            self.ld.create_partitions()
+            self.ld.attach_partitions(test_img)
+            self.ld.detach_partitions()
             self.ld.detach_device()
 
 if __name__ == '__main__':

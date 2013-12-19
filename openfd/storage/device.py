@@ -282,6 +282,7 @@ class SDCard(Device):
         return min_cyl_size
         
     def _partition_name(self, index):
+        print 'partition_name = %s %s' % (self.name, index)
         if 'mmcblk' in self._device or 'loop' in self._device:
             return '%sp%s' % (self.name, index) # i.e. /dev/mmbclk0p1
         else:
@@ -505,10 +506,64 @@ class LoopDevice(Device):
             raise DeviceException('Failed to format a temporary filesystem on '
                                   '%s' % img_name)
     
+    def attach_partitions(self, img_name):
+        """
+        Attaches partitions of the image file to an available loop device.
+        
+        :exception DeviceException: Upon failure on associating a partition
+            with a loop device.
+        """
+        
+        for part in self._partitions:
+            device = self._get_free_device()
+            offset = int(part.start) * int(self.geometry.cyl_byte_size)
+            if part.size == self.geometry.full_size:
+                cmd = 'sudo losetup -o %s %s %s' % (offset, device, img_name)
+            else:
+                size_b = int(part.size) * int(self.geometry.cyl_byte_size)
+                cmd = ('sudo losetup -o %s --sizelimit %s %s %s' %
+                                        (offset, size_b, device, img_name))
+            ret = self._e.check_call(cmd)
+            if ret != 0:
+                raise DeviceException('Failed associating image %s to %s' %
+                                      (img_name, device))
+            part.device = device
+    
+    def create_partitions(self):
+        """
+        Create the partitions in the given device.
+        
+        :exception DeviceException: When unable to partition.
+        """
+        
+        self._l.info("Creating partitions")
+        cmd = ('sudo sfdisk -D' +
+              ' -C' + str(int(self.size_cyl)) +
+              ' -H' + str(int(self.geometry.heads)) +
+              ' -S' + str(int(self.geometry.sectors)) +
+              ' '   + self.name + ' << EOF\n')
+        for part in self._partitions:
+            cmd += str(part.start) + ','
+            cmd += str(part.size) + ','
+            cmd += str(part.type)
+            if part.is_bootable: cmd += ',*'
+            cmd += '\n'
+        cmd += 'EOF'
+        if self._e.check_call(cmd) != 0:
+            raise DeviceException('Unable to partition device %s' % self.name)
+    
     def detach_device(self):
         ret = self._e.check_call('sudo losetup -d %s' % self.name)
         if ret != 0:
             raise DeviceException('Failed detaching %s' % self.name)
+    
+    def detach_partitions(self):
+        for part in self._partitions:
+            if part.device:
+                ret = self._e.check_call('sudo losetup -d %s' % part.device)
+                if ret != 0:
+                    raise DeviceException('Failed detaching %s' % part.device)
+                part.device = None
     
     def read_partitions(self, filename):
         """
