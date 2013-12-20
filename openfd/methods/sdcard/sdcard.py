@@ -22,6 +22,7 @@
 
 import openfd.utils as utils
 from openfd.storage.partition import SDCardPartition
+from openfd.storage.partition import LoopDevicePartition
 from openfd.storage.device import SDCard
 from openfd.storage.device import LoopDevice
 from component import ComponentInstallerError
@@ -286,7 +287,7 @@ class LoopDeviceInstaller(object):
         
         if not self.dryrun:
             self._ld.check_img_size(img_size_mb)
-        self._l.info('Formatting %s (this may take a while)' % self._sd.name)
+        self._l.info('Formatting %s (this may take a while)' % self._ld.name)
         self._ld.attach_device(img_name, img_size_mb)
         self._ld.create_partitions()
         self._ld.attach_partitions(img_name)
@@ -309,28 +310,28 @@ class LoopDeviceInstaller(object):
         """
         
         i = 1
-        for part in self._sd.partitions:
+        for part in self._ld.partitions:
             cmd = 'mount | grep %s  | cut -f 3 -d " "' % part.device
             output = self._e.check_output(cmd)[1]
             mount_point = output.replace('\n', '')
             for comp in part.components:
                 try:
-                    if comp == SDCardPartition.COMPONENT_BOOTLOADER:
-                        self._comp_installer.install_uboot(self._sd.name)
+                    if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
+                        self._comp_installer.install_uboot(self._ld.name)
                         self._comp_installer.install_uboot_env(mount_point)
-                    elif comp == SDCardPartition.COMPONENT_KERNEL:
+                    elif comp == LoopDevicePartition.COMPONENT_KERNEL:
                         self._comp_installer.install_kernel(mount_point)
-                    elif comp == SDCardPartition.COMPONENT_ROOTFS:
+                    elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
                         if self._comp_installer.rootfs is None:
                             self._l.warning('No directory for "%s", omitting...'
-                                        % (SDCardPartition.COMPONENT_ROOTFS))
+                                    % (LoopDevicePartition.COMPONENT_ROOTFS))
                         else:
                             self._comp_installer.install_rootfs(mount_point)
                     else:
-                        raise SDCardInstallerError('Component %s is not valid'
-                                                   % comp)
+                        raise LoopDeviceInstallerError('Component %s is not '
+                                                       'valid' % comp)
                 except ComponentInstallerError as e:
-                    raise SDCardInstallerError(e)
+                    raise LoopDeviceInstallerError(e)
             i += 1
     
     def release(self):
