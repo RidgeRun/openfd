@@ -23,7 +23,18 @@
 import openfd.utils as utils
 from openfd.storage.partition import SDCardPartition
 from openfd.storage.device import SDCard
+from openfd.storage.device import LoopDevice
 from component import ComponentInstallerError
+
+# ==========================================================================
+# Public Classes
+# ==========================================================================
+
+#: Warn the user when manipulating a device above this size.
+WARN_DEVICE_SIZE_GB = 128
+
+#: Color for dangerous warning messages.
+WARN_COLOR = 'yellow'
 
 # ==========================================================================
 # Public Classes
@@ -31,6 +42,9 @@ from component import ComponentInstallerError
 
 class SDCardInstallerError(Exception):
     """Exceptions for SDCardInstaller"""
+
+class LoopDeviceInstallerError(Exception):
+    """Exceptions for LoopDeviceInstaller"""
 
 class SDCardInstaller(object):
     """
@@ -44,12 +58,6 @@ class SDCardInstaller(object):
         4. install_components()
         5. release()
     """
-
-    #: Warn the user when partitioning a device above this size.
-    WARN_DEVICE_SIZE_GB = 128
-    
-    #: Color for dangerous warning messages.
-    WARN_COLOR = 'yellow'
     
     def __init__(self, comp_installer, device='', dryrun=False,
                  interactive=True, enable_colors=True):
@@ -145,11 +153,11 @@ class SDCardInstaller(object):
                                        'fit in %s' % self._sd.name)
         
     def _format_confirms(self):
-        if self._sd.confirm_size_gb(self.WARN_DEVICE_SIZE_GB) is False:
+        if self._sd.confirm_size_gb(WARN_DEVICE_SIZE_GB) is False:
             raise SDCardInstallerError('User canceled')
         msg = ('You are about to repartition %s (all your data will be lost)' 
                % self._sd.name)
-        confirmed = self._e.prompt_user(msg, SDCardInstaller.WARN_COLOR)
+        confirmed = self._e.prompt_user(msg, WARN_COLOR)
         if not confirmed:
             raise SDCardInstallerError('User canceled')
         
@@ -222,3 +230,73 @@ class SDCardInstaller(object):
                 except ComponentInstallerError as e:
                     raise SDCardInstallerError(e)
             i += 1
+
+class LoopDeviceInstaller(object):
+    """
+    Class to handle SD-card operations to support the installer.
+    
+    Typical flow:
+    ::
+        1. read_partitions()
+        2. format()
+        3. mount_partitions()
+        4. install_components()
+        5. release()
+    """
+    
+    def __init__(self, comp_installer, dryrun=False):
+        """
+        :param comp_installer: :class:`ComponentInstaller` instance.
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
+        """
+        
+        self._l = utils.logger.get_global_logger()
+        self._e = utils.executer.get_global_executer()
+        self._comp_installer = comp_installer
+        self._ld = LoopDevice()
+        self._dryrun = dryrun
+        self._e.dryrun = dryrun
+        self._ld.dryrun = dryrun
+        self._comp_installer.dryrun = dryrun
+        self._partitions = []
+    
+    def __set_dryrun(self, dryrun):
+        self._dryrun = dryrun
+        self._comp_installer.dryrun = dryrun
+        self._e.dryrun = dryrun
+        self._ld.dryrun = dryrun
+    
+    def __get_dryrun(self):
+        return self._dryrun
+    
+    dryrun = property(__get_dryrun, __set_dryrun,
+                     doc="""Enable dryrun mode. Systems commands will be
+                     logged, but not executed.""")
+    
+    def format(self, img_name, img_size_mb):
+        """
+        Creates and formats the partitions in the SD card.
+        
+        :returns: Returns true on success; false otherwise.
+        :exception DeviceException: On failure formatting the device. 
+        """
+        
+        if not self.dryrun:
+            self._ld.check_img_size(img_size_mb)
+        self._l.info('Formatting %s (this may take a while)' % self._sd.name)
+        self._ld.attach_device(img_name, img_size_mb)
+        self._ld.create_partitions()
+        self._ld.attach_partitions(img_name)
+        self._ld.format_partitions()
+    
+    def read_partitions(self, filename):
+        """
+        Reads the partitions information from the given file.
+        
+        :param filename: Path to the file with the partitions information.
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        self._ld.read_partitions(filename)
