@@ -291,6 +291,15 @@ class LoopDeviceInstaller(object):
         self._ld.attach_partitions(img_name)
         self._ld.format_partitions()
     
+    def mount_partitions(self, directory):
+        """
+        Mounts the partitions in the specified directory.
+        
+        :exception DeviceException: When unable to mount.
+        """
+        
+        self._ld.mount(directory)
+    
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
