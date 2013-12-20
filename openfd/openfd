@@ -311,10 +311,7 @@ def _mode_nand(args):
     uboot = _setup_uboot(args)
     tftp_loader = _get_tftp_loader(args, uboot)
     try:
-        comp_requires_network = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL,
-                             COMP_FS]
-        if args.component in comp_requires_network:
-            tftp_loader.setup_uboot_network()
+        tftp_loader.setup_uboot_network()
         nand_installer = NandInstaller(uboot=uboot, loader=tftp_loader)
         if args.nand_blk_size:
             nand_installer.nand_block_size = args.nand_blk_size
@@ -334,10 +331,9 @@ def _mode_nand(args):
             nand_installer.install_kernel(force=args.kernel_force)
         if args.component == COMP_FS:
             nand_installer.install_fs(force=args.fs_force)
-        if args.component in comp_requires_network:
-            if uboot.get_env('autostart') == 'no':
-                uboot.set_env('autostart', 'yes')
-                uboot.save_env()
+        if uboot.get_env('autostart') == 'no':
+            uboot.set_env('autostart', 'yes')
+            uboot.save_env()
         uboot.cmd('echo Installation complete', prompt_timeout=None)
     except (UbootTimeoutException, RamLoaderException, NandInstallerError) as e:
         uboot.close_comm()
