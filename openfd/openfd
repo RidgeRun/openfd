@@ -54,6 +54,7 @@ from openfd.methods.sdcard import SDCardInstaller
 from openfd.methods.sdcard import SDCardInstallerError
 from openfd.methods.sdcard import LoopDeviceInstaller
 from openfd.methods.sdcard import LoopDeviceInstallerError
+from openfd.methods.sdcard import SDCardExternalInstaller
 from openfd.storage import DeviceException
 
 # ==========================================================================
@@ -253,9 +254,11 @@ def _get_comp_installer(args):
     comp_installer.uboot_entry_addr = args.uboot_entry_addr
     comp_installer.uboot_load_addr = args.uboot_load_addr
     comp_installer.bootargs = args.uboot_bootargs
-    comp_installer.kernel_image = args.kernel_file
-    comp_installer.rootfs = args.rootfs
-    comp_installer.workdir = args.workdir
+    if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
+        comp_installer.kernel_image = args.kernel_file
+    if hasattr(args, 'rootfs'): # sd-script mode doesn't need this
+        comp_installer.rootfs = args.rootfs
+    comp_installer.workdir = args.workdir 
     return comp_installer
 
 def _get_tftp_loader(args, uboot):
@@ -370,15 +373,30 @@ def _mode_env(args):
     uboot.close_comm()
 
 def _mode_sd_script(args):
+    _check_sudo()
     board = BoardFactory().make(args.board)
-    ext_installer = NandExternalInstaller(board=board)
-    ext_installer.read_partitions(args.flash_mmap_file)
-    ext_installer.install_boardinfo()
-    ext_installer.install_ipl()
-    ext_installer.install_bootloader()
-    ext_installer.install_kernel()
-    ext_installer.install_fs()
-    ext_installer.write(args.template_file, args.output_file)
+    ext_nand_installer = NandExternalInstaller(board=board)
+    ext_nand_installer.read_partitions(args.flash_mmap_file)
+    ext_nand_installer.install_boardinfo()
+    ext_nand_installer.install_ipl()
+    ext_nand_installer.install_bootloader()
+    ext_nand_installer.install_kernel()
+    ext_nand_installer.install_fs()
+    ext_nand_installer.write(args.template_file, args.output_file)
+    try:
+        comp_installer = _get_comp_installer(args)
+        ext_sd_installer = SDCardExternalInstaller(comp_installer)
+        ext_sd_installer.interactive = args.interactive
+        ext_sd_installer.dryrun = args.dryrun
+        ext_sd_installer.device = args.device
+        ext_sd_installer.read_partitions(args.sd_mmap_file)
+        ext_sd_installer.format()
+        ext_sd_installer.mount_partitions(args.workdir)
+        ext_sd_installer.install_components()
+        ext_sd_installer.release()
+    except (SDCardInstallerError, DeviceException) as e:
+        _logger.error(e)
+        _abort_install()
 
 # ==========================================================================
 # Main logic
@@ -402,7 +420,7 @@ def main():
     if args.mode == MODE_ENV:
         _mode_env(args)
     if args.mode == MODE_SD_SCRIPT:
-        _mode_sd_script()
+        _mode_sd_script(args)
     _logger.info('Installation complete')
     _clean_exit(0)
     
