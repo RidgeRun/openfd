@@ -66,7 +66,6 @@ class EnvInstaller(object):
         :param value: Value to set in the environment variable.
         :param force: Forces the installation.
         :type force: boolean
-        :returns: Returns true on success; false otherwise.
         """
         
         self._l.info("Installing %s" % variable)
@@ -77,12 +76,11 @@ class EnvInstaller(object):
             if value == value_on_board:
                 self._l.info("%s doesn't need to be installed" %
                              variable.capitalize())
-                return True
+                return
         if ' ' in value:
             self._u.set_env(variable, "'%s'" % value)
         else:
             self._u.set_env(variable, value)
         self._u.save_env()
         self._l.info("%s installation complete" % variable.capitalize())
-        return True
     
