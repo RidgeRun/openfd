@@ -299,6 +299,38 @@ class LoopDeviceInstaller(object):
         """
         
         self._ld.mount(directory)
+
+    def install_components(self):
+        """
+        Installs the specified components for each partition.
+        
+        :exception LoopDeviceInstallerError: On failure installing the components.
+        """
+        
+        i = 1
+        for part in self._sd.partitions:
+            cmd = 'mount | grep %s  | cut -f 3 -d " "' % part.device
+            output = self._e.check_output(cmd)[1]
+            mount_point = output.replace('\n', '')
+            for comp in part.components:
+                try:
+                    if comp == SDCardPartition.COMPONENT_BOOTLOADER:
+                        self._comp_installer.install_uboot(self._sd.name)
+                        self._comp_installer.install_uboot_env(mount_point)
+                    elif comp == SDCardPartition.COMPONENT_KERNEL:
+                        self._comp_installer.install_kernel(mount_point)
+                    elif comp == SDCardPartition.COMPONENT_ROOTFS:
+                        if self._comp_installer.rootfs is None:
+                            self._l.warning('No directory for "%s", omitting...'
+                                        % (SDCardPartition.COMPONENT_ROOTFS))
+                        else:
+                            self._comp_installer.install_rootfs(mount_point)
+                    else:
+                        raise SDCardInstallerError('Component %s is not valid'
+                                                   % comp)
+                except ComponentInstallerError as e:
+                    raise SDCardInstallerError(e)
+            i += 1
     
     def read_partitions(self, filename):
         """
