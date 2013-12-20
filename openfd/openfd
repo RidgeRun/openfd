@@ -296,6 +296,12 @@ def _mode_sd_img(args):
         ld_installer.mount_partitions(args.workdir)
         ld_installer.install_components()
         ld_installer.release()
+        _logger.info("<hint>")
+        _logger.info("  You can use the image file to flash an SD card:")
+        _logger.info("    1. Plug your SD card (say it is device /dev/sdX)")
+        _logger.info("    2. Unmount it ('sudo umount' should help)")
+        _logger.info("    3. Flash: sudo dd bs=1M if=%s of=/dev/sdX" % args.image)
+        _logger.info("</hint>")
     except (LoopDeviceInstallerError, DeviceException) as e:
         _logger.error(e)
         _abort_install()        
