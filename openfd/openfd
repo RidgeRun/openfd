@@ -133,21 +133,6 @@ def _sigint_handler(signal, frame):
     _logger.error('\nInstallation interrupted')
     _clean_exit(0)
 
-def _setup_uboot(args):
-    uboot = Uboot()
-    uboot.serial_logger = _logger
-    uboot.dryrun = args.dryrun
-    try:
-        ret = uboot.open_comm(port=args.serial_port, baud=args.serial_baud)
-        if ret is False: _abort_install()
-        ret = uboot.sync()
-        if ret is False: _abort_install()
-    except (serial.SerialException, UbootTimeoutException) as e:
-        uboot.close_comm()
-        _logger.error(e)
-        _abort_install()
-    return uboot
-
 def _get_args():
     parser = argparse.ArgumentParser()
     board_args = BoardArgs()
@@ -245,6 +230,21 @@ def _check_sudo():
 # Installation modes
 # ==========================================================================
 
+def _get_uboot(args):
+    uboot = Uboot()
+    uboot.serial_logger = _logger
+    uboot.dryrun = args.dryrun
+    try:
+        ret = uboot.open_comm(port=args.serial_port, baud=args.serial_baud)
+        if ret is False: _abort_install()
+        ret = uboot.sync()
+        if ret is False: _abort_install()
+    except (serial.SerialException, UbootTimeoutException) as e:
+        uboot.close_comm()
+        _logger.error(e)
+        _abort_install()
+    return uboot
+
 def _get_comp_installer(args):
     comp_installer = ComponentInstaller()
     comp_installer.uflash_bin = args.uflash_bin
@@ -308,7 +308,7 @@ def _mode_sd_img(args):
         _abort_install()        
     
 def _mode_nand(args):
-    uboot = _setup_uboot(args)
+    uboot = _get_uboot(args)
     tftp_loader = _get_tftp_loader(args, uboot)
     try:
         tftp_loader.setup_uboot_network()
@@ -342,7 +342,7 @@ def _mode_nand(args):
     uboot.close_comm()
 
 def _mode_ram(args):
-    uboot = _setup_uboot(args)
+    uboot = _get_uboot(args)
     tftp_loader = _get_tftp_loader(args, uboot)
     try:
         tftp_loader.setup_uboot_network()
@@ -357,7 +357,7 @@ def _mode_ram(args):
     uboot.close_comm()
 
 def _mode_env(args):
-    uboot = _setup_uboot(args)
+    uboot = _get_uboot(args)
     try:
         env_installer = EnvInstaller(uboot=uboot)
         env_installer.dryrun = args.dryrun
