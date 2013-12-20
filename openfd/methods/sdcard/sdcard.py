@@ -233,7 +233,8 @@ class SDCardInstaller(object):
 
 class LoopDeviceInstaller(object):
     """
-    Class to handle SD-card operations to support the installer.
+    Class to handle SD-card operations in a loopback file to support the
+    installer.
     
     Typical flow:
     ::
@@ -331,6 +332,18 @@ class LoopDeviceInstaller(object):
                 except ComponentInstallerError as e:
                     raise SDCardInstallerError(e)
             i += 1
+    
+    def release(self):
+        """
+        Unmounts all partitions and release the given device.
+        
+        :exception DeviceException: On failure releasing the device.
+        """
+        
+        self._ld.unmount()
+        self._ld.check_filesystems()
+        self._ld.detach_partitions()
+        self._ld.detach_device()
     
     def read_partitions(self, filename):
         """
