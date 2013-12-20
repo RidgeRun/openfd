@@ -252,8 +252,8 @@ class SDCard(Device):
     @property
     def partitions(self):
         """
-        Returns the list of partitions (type SD card partition) associated with
-        this SD card.
+        Returns the list of partitions (:class:`SDCardPartition`) associated
+        with this SD card.
         """
         
         return self._partitions
@@ -439,6 +439,15 @@ class LoopDevice(Device):
         if ret != 0:
             raise DeviceException('Failed obtaining a free loop device')
         return loop_device.strip()
+    
+    @property
+    def partitions(self):
+        """
+        Returns the list of partitions (:class:`LoopDevicePartition`) associated
+        with this loop device.
+        """
+        
+        return self._partitions
     
     def min_cyl_size(self):
         """
