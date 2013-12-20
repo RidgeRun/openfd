@@ -25,7 +25,6 @@ import time
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
 from openfd.storage.partition import read_nand_partitions
-import ram
 
 # ==========================================================================
 # Constants
@@ -43,6 +42,9 @@ DEFAULT_NAND_PAGE_SIZE = 2048 # bytes
 # ==========================================================================
 # Public Classes
 # ==========================================================================
+
+class NandInstallerError(Exception):
+    """Exceptions for NandInstaller"""
 
 class NandInstaller(object):
     """
@@ -120,8 +122,7 @@ class NandInstaller(object):
         
         device_found, line = self._u.expect('Device 0')
         if not device_found:
-            self._l.error('Can\'t find Device 0')
-            return 0
+            raise NandInstallerError('Can\'t find Device 0')
         
         # Two versions of uboot output:
         # old: Device 0: Samsung K9K1208Q0C at 0x2000000 (64 MB, 16 kB sector)
@@ -130,7 +131,7 @@ class NandInstaller(object):
         if m:
             self._nand_block_size = int(m.group('size_kb')) << 10 # to bytes
         else:
-            self._l.error('Unable to determine the NAND block size')
+            raise NandInstallerError('Unable to determine the NAND block size')
         self._l.info("NAND block size ... %s" % hex(self._nand_block_size))
         return self._nand_block_size
     
@@ -173,7 +174,7 @@ class NandInstaller(object):
                     break
                 
         if page_size == 0:
-            self._l.error('Unable to determine the NAND page size')
+            raise NandInstallerError('Unable to determine the NAND page size')
         else:
             self._nand_page_size = page_size
             
@@ -189,9 +190,9 @@ class NandInstaller(object):
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.to_hex(str(ram_load_addr))
         else:
-            self._l.error('Invalid RAM load address: %s' %
-                               ram_load_addr)
             self._ram_load_addr = None
+            raise NandInstallerError('Invalid RAM load address: %s' %
+                               ram_load_addr)
         
     def __get_ram_load_addr(self):
         return self._ram_load_addr
@@ -222,19 +223,13 @@ class NandInstaller(object):
     def _check_icache(self):
         self._u.cmd('icache', prompt_timeout=None)
         found_icache = self._u.expect('Instruction Cache is')[0]
-        if not found_icache:
-            self._l.error("Your uboot doesn't have icache command, refusing "
-               "to continue due to the risk of hanging, you can update your "
-               "bootloader by other means like an SD card.")
-            return False
-        return True    
+        if found_icache is False:
+            raise NandInstallerError("Your uboot doesn't have icache command, "
+                 "refusing to continue due to the risk of hanging, you can "
+                 "update your bootloader by other means like an SD card.")
 
     def _load_file_to_ram(self, filename, load_addr):
-        try:
-            self._loader.load_file_to_ram(filename, load_addr)
-        except ram.RamLoaderException as e:
-            self._l.error(e)
-            return False
+        self._loader.load_file_to_ram(filename, load_addr)
 
     def load_uboot_to_ram(self, img_filename, load_addr):
         """
@@ -243,37 +238,29 @@ class NandInstaller(object):
         
         :param img_filename: Path to the uboot image file.
         :param load_addr: Load address in RAM where to load the uboot image.
-        :returns: Returns true on success; false otherwise.
+        :exception RamLoaderException: On failure when loading to RAM.
+        :exception NandInstallerError: On failure communicating with the uboot
+            loaded to RAM.
         """
         
         self._l.info('Loading uboot to RAM')
-        
-        ret = self._check_icache()
-        if ret is False: return False
-        
+        self._check_icache()
         self._l.debug("Storing the current uboot's bootcmd")
         prev_bootcmd = self._u.get_env('bootcmd')
         self._u.set_env('bootcmd', '')
         self._u.save_env()
-        
-        ret = self._load_file_to_ram(img_filename, load_addr)
-        if ret is False: return False
-        
+        self._load_file_to_ram(img_filename, load_addr)
         self._l.debug('Running the new uboot')
         self._u.cmd('icache off')
         self._u.cmd('go %s' % load_addr, echo_timeout=None, prompt_timeout=None)
         time.sleep(2) # Give time to uboot to restart
         ret = self._u.sync()
         if ret is False:
-            self._l.error('Failed to detect the new uboot starting')
-            return False
-        
+            raise NandInstallerError('Failed to detect the new uboot starting')
         if prev_bootcmd:
             self._l.debug('Restoring the previous uboot bootcmd')
             self._u.set_env('bootcmd', prev_bootcmd)
             self._u.save_env()
-            
-        return True
     
     def _md5sum(self, filename):
         cmd = "md5sum %s | cut -f1 -d' '" % filename
@@ -311,7 +298,6 @@ class NandInstaller(object):
                             "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self.nand_block_size
-        
         self._l.debug('Verifying if %s installation is needed' % comp)
         img_env = {'md5sum': self._md5sum(filename),
                    'offset': hex(offset),
@@ -319,30 +305,23 @@ class NandInstaller(object):
                    'partitionsize': hex(part_size)}
         if not force and not self._is_img_install_needed(comp, img_env):
             self._l.info("%s doesn't need to be installed" % comp.capitalize())
-            return True
-        
+            return
         self._l.debug("Loading %s image to RAM" % comp)
         self._u.set_env('autostart', 'no')
-        ret = self._load_file_to_ram(filename, self._ram_load_addr)
-        if ret is False: return False
+        self._load_file_to_ram(filename, self._ram_load_addr)
         self._u.set_env('autostart', 'yes')
-        
         self._l.debug("Erasing %s NAND space" % comp)
         cmd = "%s %s %s" % \
                 (NandInstaller.erase_cmd[comp], hex(offset), hex(part_size))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
-        
         self._l.debug("Writing %s image from RAM to NAND" % comp)
         cmd = "%s %s %s %s" % (NandInstaller.write_cmd[comp],
                        self._ram_load_addr, hex(offset), hex(img_size_aligned))
         self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
-        
         self._l.debug("Saving %s partition info" % comp)
         self._save_img_env(comp, img_env)
         self._u.save_env()
-        
         self._l.info('%s installation complete' % comp.capitalize())
-        return True
     
     def install_ipl(self, force=False):
         """
@@ -360,65 +339,55 @@ class NandInstaller(object):
         
         :param force: Forces the IPL installation.
         :type force: boolean
-        :returns: Returns true on success; false otherwise.
+        :exception RamLoaderException: On failure when loading to RAM.
         """
         
         for part in self._partitions:
             if part.name == NandInstaller.names['ipl']:
-                return self._install_img(part.image, 'ipl', part.start_blk,
+                self._install_img(part.image, 'ipl', part.start_blk,
                                          part.size_blks, force)
-        return True
 
     def install_bootloader(self):
         """
         Installs the uboot image to NAND.
         
-        :returns: Returns true on success; false otherwise.
+        :exception RamLoaderException: On failure when loading to RAM.
+        :exception NandInstallerError: On failure communicating with the uboot
+            in NAND.
         """
         
         for part in self._partitions:
             if part.name == NandInstaller.names['bootloader']:
-                
                 self._l.info('Installing bootloader')
-                
                 self._l.debug("Loading uboot image to RAM")
-                ret = self._load_file_to_ram(part.image, self._ram_load_addr)
-                if ret is False: return False
-        
+                self._load_file_to_ram(part.image, self._ram_load_addr)
                 offset = part.start_blk * self.nand_block_size
                 img_size_blk = self._bytes_to_blks(os.path.getsize(part.image))
                 img_size_aligned = img_size_blk * self.nand_block_size
-        
                 self._u.set_env('autostart', 'no')
                 self._u.save_env()
-        
                 self._l.debug("Erasing uboot NAND space")
                 cmd = "%s %s %s" % (NandInstaller.erase_cmd['bootloader'],
                                         hex(offset), hex(img_size_aligned))
                 self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
-                
                 self._l.debug("Writing uboot image from RAM to NAND")
                 cmd = "%s %s %s %s" % (NandInstaller.write_cmd['bootloader'],
                         self._ram_load_addr, hex(offset), hex(img_size_aligned))
                 self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
-                
                 self._l.debug("Restarting to use the uboot in NAND")
                 self._u.cmd('reset', prompt_timeout=None)
                 found_reset_str = self._u.expect('U-Boot', timeout=10)[0]
                 if not found_reset_str:
-                    self._l.error("Failed to detect the uboot in NAND restarting")
-                    return False
+                    raise NandInstallerError("Failed to detect the uboot in "
+                                             "NAND restarting")
                 time.sleep(4) # Give uboot time to initialize
                 ret = self._u.sync()
                 if ret is False:
-                    self._l.error("Failed synchronizing with the uboot in NAND")
-                    return False
-                
+                    raise NandInstallerError("Failed synchronizing with the "
+                                            "uboot in NAND")
                 self._u.set_env('autostart', 'yes')
-                self._u.save_env()
-                
+                self._u.save_env()            
                 self._l.info('Bootloader installation complete')
-        return True
 
     def install_kernel(self, force=False):
         """
@@ -435,14 +404,13 @@ class NandInstaller(object):
         
         :param force: Forces the kernel installation.
         :type force: boolean
-        :returns: Returns true on success; false otherwise.
+        :exception RamLoaderException: On failure when loading to RAM.
         """
         
         for part in self._partitions:
             if part.name == NandInstaller.names['kernel']:
-                return self._install_img(part.image, 'kernel', part.start_blk,
+                self._install_img(part.image, 'kernel', part.start_blk,
                                          part.size_blks, force)
-        return True
     
     def install_fs(self, force=False):
         """
@@ -459,21 +427,19 @@ class NandInstaller(object):
         
         :param force: Forces the filesystem installation.
         :type force: boolean
-        :returns: Returns true on success; false otherwise.
+        :exception RamLoaderException: On failure when loading to RAM.
         """
         
         for part in self._partitions:
             if part.name == NandInstaller.names['filesystem']:
-                return self._install_img(part.image, 'filesystem',
-                                         part.start_blk, part.size_blks, force)
-        return True
+                self._install_img(part.image, 'filesystem', part.start_blk,
+                                  part.size_blks, force)
 
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
         
-        :param filename: Path to the file with the partitions information.
-        :returns: Returns true on success; false otherwise.  
+        :param filename: Path to the file with the partitions information.  
         """
         
         self._partitions[:] = []

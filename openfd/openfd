@@ -45,6 +45,7 @@ from openfd.methods.board import UbootTimeoutException
 from openfd.methods.board import TftpRamLoader
 from openfd.methods.board import RamLoaderException
 from openfd.methods.board import NandInstaller
+from openfd.methods.board import NandInstallerError
 from openfd.methods.board import NandExternalInstaller
 from openfd.methods.board import EnvInstaller
 from openfd.methods.sdcard import SdCardArgs
@@ -323,27 +324,22 @@ def _mode_nand(args):
         nand_installer.dryrun = args.dryrun
         nand_installer.read_partitions(args.mmap_file)
         if args.nand_uboot_file:
-            ret = nand_installer.load_uboot_to_ram(args.nand_uboot_file,
-                                                   args.ram_load_addr)
-            if ret is False: _abort_install()
+            nand_installer.load_uboot_to_ram(args.nand_uboot_file,
+                                             args.ram_load_addr)
         if args.component == COMP_IPL:
-            ret = nand_installer.install_ipl(force=args.ipl_force)
-            if ret is False: _abort_install()
+            nand_installer.install_ipl(force=args.ipl_force)
         if args.component == COMP_BOOTLOADER:
-            ret = nand_installer.install_bootloader()
-            if ret is False: _abort_install()
+            nand_installer.install_bootloader()
         if args.component == COMP_KERNEL:
-            ret = nand_installer.install_kernel(force=args.kernel_force)
-            if ret is False: _abort_install()
+            nand_installer.install_kernel(force=args.kernel_force)
         if args.component == COMP_FS:
-            ret = nand_installer.install_fs(force=args.fs_force)
-            if ret is False: _abort_install()
+            nand_installer.install_fs(force=args.fs_force)
         if args.component in comp_requires_network:
             if uboot.get_env('autostart') == 'no':
                 uboot.set_env('autostart', 'yes')
                 uboot.save_env()
         uboot.cmd('echo Installation complete', prompt_timeout=None)
-    except (UbootTimeoutException, RamLoaderException) as e:
+    except (UbootTimeoutException, RamLoaderException, NandInstallerError) as e:
         uboot.close_comm()
         _logger.error(e)
         _abort_install()
