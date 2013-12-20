@@ -217,7 +217,7 @@ class SdCardArgs(object):
         parser.add_argument('--sd-mmap-file',
                            help='SD card memory map config file',
                            metavar='<file>',
-                           dest='mmap_file',
+                           dest='sd_mmap_file',
                            required=True)
     
         self.add_args_sd_bootloader(parser)
@@ -231,4 +231,8 @@ class SdCardArgs(object):
     def check_args_sd_script(self, args):
         self.checker.is_file(args.flash_mmap_file, '--flash-mmap-file')
         self.checker.is_file(args.template_file, '--template-file')
+        self.checker.is_file(args.sd_mmap_file, '--sd-mmap-file')
+        self.check_args_sd_bootloader(args)
+        self.checker.is_dir(args.workdir, '--work-dir')
+        args.workdir = args.workdir.rstrip('/')
         
