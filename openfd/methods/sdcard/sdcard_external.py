@@ -48,13 +48,7 @@ class SDCardExternalInstaller(SDCardInstaller):
                                  interactive, enable_colors)
     
     def _install_uboot_env(self, uboot_env_file, uboot_script):
-        """
-        Installs the uboot environment (uEnv.txt) to the given mount point.
-        
-        :param mount_point: Path where to install the uboot environment.
-        :returns: Returns true on success; false otherwise.
-        """
-        
+        self._l.info("Installing uboot environment")
         if not self._dryrun:
             with open(uboot_env_file, "w") as uenv:
                 env = ("uenvcmd=echo Running Installer... ; "
@@ -65,6 +59,7 @@ class SDCardExternalInstaller(SDCardInstaller):
     
     def _install_files(self, files):
         i = 1
+        self._l.info("Copying files to SD card")
         for part in self._sd.partitions:
             for comp in part.components:
                 if comp == SDCardPartition.COMPONENT_BOOTLOADER:
@@ -73,14 +68,15 @@ class SDCardExternalInstaller(SDCardInstaller):
                     output = self._e.check_output(cmd)[1]
                     mnt_point = output.replace('\n', '')
                     for f in files:
-                        cmd = "sudo cp %s %s" % (f, mnt_point)
                         ret = self._e.check_call(cmd)
+                        cmd = "sudo cp %s %s" % (f, mnt_point)
                         if ret != 0:
                             raise SDCardInstallerError('Failed copying %s to %s'
                                                        % (f, mnt_point))
             i += 1
     
     def _generate_script(self, mkimage, script, uboot_script):
+        self._l.info("Installing uboot script")
         cmd = ("%s -A arm -T script -n 'Installer Script' -d %s %s" %
                 (mkimage, script, uboot_script))
         ret = self._e.check_call(cmd)
@@ -88,7 +84,7 @@ class SDCardExternalInstaller(SDCardInstaller):
             raise SDCardInstallerError("Failed generating uboot image")
     
     def install_components(self, workdir, imgs, mkimage, script):
-        SDCardInstaller.install_components(self)
+        self._comp_installer.install_uboot(self._sd.name)
         uboot_script = "%s.scr" % os.path.splitext(script)[0]
         self._generate_script(mkimage, script, uboot_script)
         uboot_env = "%s/uEnv.txt" % workdir
