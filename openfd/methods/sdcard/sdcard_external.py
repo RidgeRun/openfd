@@ -47,6 +47,22 @@ class SDCardExternalInstaller(SDCardInstaller):
         SDCardInstaller.__init__(self, comp_installer, device, dryrun,
                                  interactive, enable_colors)
     
+    def _install_uboot_env(self, uboot_env_file, uboot_script):
+        """
+        Installs the uboot environment (uEnv.txt) to the given mount point.
+        
+        :param mount_point: Path where to install the uboot environment.
+        :returns: Returns true on success; false otherwise.
+        """
+        
+        if not self._dryrun:
+            with open(uboot_env_file, "w") as uenv:
+                env = ("uenvcmd=echo Running Installer... ; "
+                       "fatload mmc 0 ${loadaddr} %s ; "
+                       "source ${loadaddr}" % os.path.basename(uboot_script))
+                self._l.debug("  uEnv.txt <= '%s'" % env)
+                uenv.write("%s\n" % env)
+    
     def _install_files(self, files):
         i = 1
         for part in self._sd.partitions:
@@ -71,13 +87,14 @@ class SDCardExternalInstaller(SDCardInstaller):
         if ret != 0:
             raise SDCardInstallerError("Failed generating uboot image")
     
-    def install_components(self, imgs, mkimage, script):
+    def install_components(self, workdir, imgs, mkimage, script):
         SDCardInstaller.install_components(self)
-        files = []
-        files += imgs
         uboot_script = "%s.scr" % os.path.splitext(script)[0]
         self._generate_script(mkimage, script, uboot_script)
-        files.append(script)
-        files.append(uboot_script)
+        uboot_env = "%s/uEnv.txt" % workdir
+        self._install_uboot_env(uboot_env, uboot_script)
+        files = []
+        files += imgs
+        files += [script, uboot_script, uboot_env]
         self._install_files(files)
     
