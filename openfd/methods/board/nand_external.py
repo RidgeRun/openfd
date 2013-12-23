@@ -151,7 +151,17 @@ class NandExternalInstaller(object):
                 name = self._board.fs_name
                 self._install_img(part.image, 'filesystem', name, cmds,
                                   part.start_blk, part.size_blks)
-
+    
+    def get_imgs(self):
+        """
+        Gets a list with all the images associated with partitions.
+        """
+        
+        imgs = []
+        for part in self._partitions:
+            imgs.append(part.image)
+        return imgs
+    
     def read_partitions(self, filename):
         """
         Reads the partitions information from the given file.
