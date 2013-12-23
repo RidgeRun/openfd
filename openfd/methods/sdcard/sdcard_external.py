@@ -20,6 +20,7 @@
 # Imports
 # ==========================================================================
 
+import os
 from openfd.storage.partition import SDCardPartition
 from sdcard import SDCardInstaller
 from sdcard import SDCardInstallerError
@@ -46,27 +47,37 @@ class SDCardExternalInstaller(SDCardInstaller):
         SDCardInstaller.__init__(self, comp_installer, device, dryrun,
                                  interactive, enable_colors)
     
-    def install_components(self, workdir, imgs):
+    def _install_files(self, files):
         i = 1
         for part in self._sd.partitions:
-            self._l.info("Partition: %s" % part.name)
-            self._l.info("Components: %s" % part.components)
             for comp in part.components:
                 if comp == SDCardPartition.COMPONENT_BOOTLOADER:
                     cmd = ('mount | grep %s | cut -f 3 -d " "' %
                            self._sd.partition_name(i))
                     output = self._e.check_output(cmd)[1]
                     mnt_point = output.replace('\n', '')
-                    for img in imgs:
-                        cmd = "sudo cp %s %s" % (img, mnt_point)
+                    for f in files:
+                        cmd = "sudo cp %s %s" % (f, mnt_point)
                         ret = self._e.check_call(cmd)
                         if ret != 0:
                             raise SDCardInstallerError('Failed copying %s to %s'
-                                                       % (img, mnt_point))
+                                                       % (f, mnt_point))
             i += 1
-        self._comp_installer.workdir = workdir
-        SDCardInstaller.install_components(self)    
     
-    def install_imgs(self):
-        pass
+    def _generate_script(self, mkimage, script, uboot_script):
+        cmd = ("%s -A arm -T script -n 'Installer Script' -d %s %s" %
+                (mkimage, script, uboot_script))
+        ret = self._e.check_call(cmd)
+        if ret != 0:
+            raise SDCardInstallerError("Failed generating uboot image")
+    
+    def install_components(self, imgs, mkimage, script):
+        SDCardInstaller.install_components(self)
+        files = []
+        files += imgs
+        uboot_script = "%s.scr" % os.path.splitext(script)[0]
+        self._generate_script(mkimage, script, uboot_script)
+        files.append(script)
+        files.append(uboot_script)
+        self._install_files(files)
     
