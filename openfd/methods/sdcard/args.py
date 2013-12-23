@@ -178,16 +178,22 @@ class SdCardArgs(object):
     # Mode sd-script args
     # ==========================================================================
 
-    def add_args_sd_script(self, parser):
-        
+    def add_args_sd_script_board(self, parser):
         boards = BoardFactory().supported_boards()
-        
         parser.add_argument('--board',
                            help="Board name. Supported: %s" % 
                            ''.join('%s, ' % b for b in boards).rstrip(', '),
                            metavar='<board>',
                            dest='board',
                            choices=boards,
+                           required=True)
+
+    def add_args_sd_script_files(self, parser):
+        
+        parser.add_argument('--sd-mmap-file',
+                           help='SD card memory map config file',
+                           metavar='<file>',
+                           dest='sd_mmap_file',
                            required=True)
         
         parser.add_argument('--flash-mmap-file',
@@ -207,20 +213,12 @@ class SdCardArgs(object):
                            metavar='<file>',
                            dest='output_file',
                            required=True)
-                
-        parser.add_argument('--device',
-                           help="Device to install",
-                           metavar='<dev>',
-                           dest='device',
+
+        parser.add_argument('--work-dir',
+                           help='Directory to perform temporary operations',
+                           metavar='<dir>',
+                           dest='workdir',
                            required=True)
-    
-        parser.add_argument('--sd-mmap-file',
-                           help='SD card memory map config file',
-                           metavar='<file>',
-                           dest='sd_mmap_file',
-                           required=True)
-    
-        self.add_args_sd_bootloader(parser)
         
         parser.add_argument('--mkimage-bin',
                            help='Path to the mkimage tool',
@@ -228,18 +226,46 @@ class SdCardArgs(object):
                            dest='mkimage_bin',
                            required=True)
         
-        parser.add_argument('--work-dir',
-                           help='Directory to perform temporary operations',
-                           metavar='<dir>',
-                           dest='workdir',
-                           required=True)
-    
-    def check_args_sd_script(self, args):
+    def check_args_sd_script_files(self, args):
         self.checker.is_file(args.flash_mmap_file, '--flash-mmap-file')
         self.checker.is_file(args.template_file, '--template-file')
         self.checker.is_file(args.sd_mmap_file, '--sd-mmap-file')
-        self.check_args_sd_bootloader(args)
-        self.checker.is_file(args.mkimage_bin, '--mkimage-bin')
-        self.checker.x_ok(args.mkimage_bin, '--mkimage-bin')
         self.checker.is_dir(args.workdir, '--work-dir')
         args.workdir = args.workdir.rstrip('/')
+        self.checker.is_file(args.mkimage_bin, '--mkimage-bin')
+        self.checker.x_ok(args.mkimage_bin, '--mkimage-bin')
+
+    def add_args_sd_script(self, parser):
+        self.add_args_sd_script_board(parser)
+        self.add_args_sd_script_files(parser)
+        parser.add_argument('--device',
+                           help="Device to install",
+                           metavar='<dev>',
+                           dest='device',
+                           required=True)
+        self.add_args_sd_bootloader(parser)
+    
+    def check_args_sd_script(self, args):
+        self.check_args_sd_script_files(args)      
+        self.check_args_sd_bootloader(args)
+
+    def add_args_sd_script_img(self, parser):
+        self.add_args_sd_script_board(parser)
+        self.add_args_sd_script_files(parser)
+        self.add_args_sd_bootloader(parser)
+        parser.add_argument('--image',
+                           help="Filename of the SD card image to create",
+                           metavar='<file>',
+                           dest='image',
+                           required=True)
+        parser.add_argument('--image-size-mb',
+                           help="Size in MB of the SD card image file to create",
+                           metavar='<size>',
+                           dest='imagesize_mb',
+                           required=True)
+
+    def check_args_sd_script_img(self, args):
+        self.check_args_sd_script_files(args)      
+        self.check_args_sd_bootloader(args)
+        self.checker.is_int(args.imagesize_mb, '--image-size-mb')
+        args.imagesize_mb = int(args.imagesize_mb)
