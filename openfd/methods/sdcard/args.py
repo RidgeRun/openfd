@@ -222,6 +222,12 @@ class SdCardArgs(object):
     
         self.add_args_sd_bootloader(parser)
         
+        parser.add_argument('--mkimage-bin',
+                           help='Path to the mkimage tool',
+                           metavar='<file>',
+                           dest='mkimage_bin',
+                           required=True)
+        
         parser.add_argument('--work-dir',
                            help='Directory to perform temporary operations',
                            metavar='<dir>',
@@ -233,6 +239,7 @@ class SdCardArgs(object):
         self.checker.is_file(args.template_file, '--template-file')
         self.checker.is_file(args.sd_mmap_file, '--sd-mmap-file')
         self.check_args_sd_bootloader(args)
+        self.checker.is_file(args.mkimage_bin, '--mkimage-bin')
+        self.checker.x_ok(args.mkimage_bin, '--mkimage-bin')
         self.checker.is_dir(args.workdir, '--work-dir')
         args.workdir = args.workdir.rstrip('/')
-        
