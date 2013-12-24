@@ -55,6 +55,7 @@ from openfd.methods.sdcard import SDCardInstallerError
 from openfd.methods.sdcard import LoopDeviceInstaller
 from openfd.methods.sdcard import LoopDeviceInstallerError
 from openfd.methods.sdcard import SDCardExternalInstaller
+from openfd.methods.sdcard import LoopDeviceExternalInstaller
 from openfd.storage import DeviceException
 
 # ==========================================================================
@@ -400,8 +401,40 @@ def _mode_sd_script(args):
         imgs = ext_nand_installer.get_imgs()
         ext_sd_installer.install_components(args.workdir, imgs,
                                             args.mkimage_bin, args.output_file)
-        ext_sd_installer.release()
+        ext_sd_installer.release()        
     except (SDCardInstallerError, DeviceException) as e:
+        _logger.error(e)
+        _abort_install()
+
+def _mode_sd_script_img(args):
+    _check_sudo()
+    board = BoardFactory().make(args.board)
+    ext_nand_installer = NandExternalInstaller(board=board)
+    ext_nand_installer.read_partitions(args.flash_mmap_file)
+    ext_nand_installer.install_boardinfo()
+    ext_nand_installer.install_ipl()
+    ext_nand_installer.install_bootloader()
+    ext_nand_installer.install_kernel()
+    ext_nand_installer.install_fs()
+    ext_nand_installer.write(args.template_file, args.output_file)
+    try:
+        comp_installer = _get_comp_installer(args)
+        ld_installer = LoopDeviceExternalInstaller(comp_installer)
+        ld_installer.dryrun = args.dryrun
+        ld_installer.read_partitions(args.sd_mmap_file)
+        ld_installer.format(args.image, args.imagesize_mb)
+        ld_installer.mount_partitions(args.workdir)
+        imgs = ext_nand_installer.get_imgs()
+        ld_installer.install_components(args.workdir, imgs,
+                                        args.mkimage_bin, args.output_file)
+        ld_installer.release()
+        _logger.info("<hint>")
+        _logger.info("  You can use the image file to flash an SD card:")
+        _logger.info("    1. Plug your SD card (say it is device /dev/sdX)")
+        _logger.info("    2. Unmount it ('sudo umount' should help)")
+        _logger.info("    3. Flash: sudo dd bs=1M if=%s of=/dev/sdX" % args.image)
+        _logger.info("</hint>")
+    except (LoopDeviceInstallerError, DeviceException) as e:
         _logger.error(e)
         _abort_install()
 
@@ -428,6 +461,8 @@ def main():
         _mode_env(args)
     if args.mode == MODE_SD_SCRIPT:
         _mode_sd_script(args)
+    if args.mode == MODE_SD_SCRIPT_IMG:
+        _mode_sd_script_img(args)
     _logger.info('Installation complete')
     _clean_exit(0)
     
