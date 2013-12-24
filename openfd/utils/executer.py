@@ -136,7 +136,7 @@ class Executer(object):
         
         retcode = 0
         if os.geteuid() != 0:
-            msg = "[sudo] password for %u:"
+            msg = "[sudo] password for %u: "
             retcode = self.call("sudo -v -p '%s'" % msg)
         return retcode
     
