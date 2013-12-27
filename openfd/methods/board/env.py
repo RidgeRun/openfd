@@ -77,10 +77,7 @@ class EnvInstaller(object):
                 self._l.info("%s doesn't need to be installed" %
                              variable.capitalize())
                 return
-        if ' ' in value:
-            self._u.set_env(variable, "'%s'" % value)
-        else:
-            self._u.set_env(variable, value)
+        self._u.set_env(variable, value)
         self._u.save_env()
         self._l.info("%s installation complete" % variable.capitalize())
     

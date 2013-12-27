@@ -343,7 +343,10 @@ class Uboot(object):
         :exception UbootTimeoutException: When a timeout is reached.
         """
         
-        self.cmd('setenv %s %s' % (variable, value))
+        if ' ' in value or ';' in value:
+            self.cmd("setenv %s '%s'" % (variable, value))
+        else:
+            self.cmd("setenv %s %s" % (variable, value))
     
     def get_env(self, variable):
         """
