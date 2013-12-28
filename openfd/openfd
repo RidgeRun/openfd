@@ -332,6 +332,7 @@ def _mode_nand(args):
         if args.nand_uboot_file:
             nand_installer.load_uboot_to_ram(args.nand_uboot_file,
                                              args.ram_load_addr)
+            tftp_loader.setup_uboot_network()
         if args.component == COMP_IPL:
             nand_installer.install_ipl(force=args.ipl_force)
         if args.component == COMP_BOOTLOADER:

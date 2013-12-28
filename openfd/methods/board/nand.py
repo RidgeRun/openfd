@@ -254,6 +254,7 @@ class NandInstaller(object):
         self._u.cmd('icache off')
         self._u.cmd('go %s' % load_addr, echo_timeout=None, prompt_timeout=None)
         time.sleep(2) # Give time to uboot to restart
+        self._u.cmd('') # Empty command just to interrupt autoboot
         ret = self._u.sync()
         if ret is False:
             raise NandInstallerError('Failed to detect the new uboot starting')
@@ -313,11 +314,11 @@ class NandInstaller(object):
         self._l.debug("Erasing %s NAND space" % comp)
         cmd = "%s %s %s" % \
                 (NandInstaller.erase_cmd[comp], hex(offset), hex(part_size))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Writing %s image from RAM to NAND" % comp)
         cmd = "%s %s %s %s" % (NandInstaller.write_cmd[comp],
                        self._ram_load_addr, hex(offset), hex(img_size_aligned))
-        self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Saving %s partition info" % comp)
         self._save_img_env(comp, img_env)
         self._u.save_env()
@@ -360,27 +361,28 @@ class NandInstaller(object):
             if part.name == NandInstaller.names['bootloader']:
                 self._l.info('Installing bootloader')
                 self._l.debug("Loading uboot image to RAM")
+                self._u.set_env('autostart', 'no')
+                self._u.save_env()
                 self._load_file_to_ram(part.image, self._ram_load_addr)
                 offset = part.start_blk * self.nand_block_size
                 img_size_blk = self._bytes_to_blks(os.path.getsize(part.image))
                 img_size_aligned = img_size_blk * self.nand_block_size
-                self._u.set_env('autostart', 'no')
-                self._u.save_env()
                 self._l.debug("Erasing uboot NAND space")
                 cmd = "%s %s %s" % (NandInstaller.erase_cmd['bootloader'],
                                         hex(offset), hex(img_size_aligned))
-                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+                self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Writing uboot image from RAM to NAND")
                 cmd = "%s %s %s %s" % (NandInstaller.write_cmd['bootloader'],
                         self._ram_load_addr, hex(offset), hex(img_size_aligned))
-                self._u.cmd(cmd, echo_timeout=None, prompt_timeout=None)
+                self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Restarting to use the uboot in NAND")
                 self._u.cmd('reset', prompt_timeout=None)
                 found_reset_str = self._u.expect('U-Boot', timeout=10)[0]
                 if not found_reset_str:
                     raise NandInstallerError("Failed to detect the uboot in "
                                              "NAND restarting")
-                time.sleep(4) # Give uboot time to initialize
+                time.sleep(2) # Give uboot time to initialize
+                self._u.cmd('') # Emtpy command to stop autoboot
                 ret = self._u.sync()
                 if ret is False:
                     raise NandInstallerError("Failed synchronizing with the "

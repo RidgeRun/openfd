@@ -196,7 +196,7 @@ class TftpRamLoader(RamLoader):
         # Copy the file to the host's TFTP directory
         basename = os.path.basename(filename)
         tftp_filename = '%s/%s' % (self._dir, basename)
-        cmd = 'cp %s %s' % (filename, tftp_filename)
+        cmd = 'cp -f %s %s' % (filename, tftp_filename)
         ret, output = self._e.check_output(cmd)
         if ret != 0:
             raise RamLoaderException(output)
