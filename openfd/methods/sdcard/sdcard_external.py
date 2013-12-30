@@ -112,7 +112,7 @@ class LoopDeviceExternalInstaller(LoopDeviceInstaller):
                 uenv.write("%s\n" % env)
     
     def _install_files(self, files):
-        self._l.info("Copying files to SD card")
+        self._l.info("Copying files to loop device")
         for part in self._ld.partitions:
             for comp in part.components:
                 if comp == SDCardPartition.COMPONENT_BOOTLOADER:

@@ -229,7 +229,7 @@ class Device(object):
                    'unmounted:\n' % self.name)
             for part in mounted_partitions:
                 msg += part + '\n'
-            confirmed = self._e.prompt_user(msg, self.WARN_COLOR)
+            confirmed = self._e.prompt_user(msg.rstrip('\n'), self.WARN_COLOR)
             if confirmed:
                 self.unmount()
             else:
