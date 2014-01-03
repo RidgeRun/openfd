@@ -373,6 +373,7 @@ def _mode_env(args):
         env_installer.dryrun = args.dryrun
         env_installer.install_variable(args.env_variable, args.env_value,
                                        args.env_force)
+        uboot.cmd('echo Installation complete', prompt_timeout=None)
     except UbootTimeoutException as e:
         uboot.close_comm()
         _logger.error(e)
