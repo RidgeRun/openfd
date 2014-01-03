@@ -270,13 +270,16 @@ class NandInstaller(object):
 
     def _is_img_install_needed(self, comp, img_env):
         md5sum_on_board = self._u.get_env('%s_md5sum' % comp)
+        if img_env['md5sum'] != md5sum_on_board:
+            return True
         off_on_board = self._u.get_env('%s_offset' % comp)
+        if img_env['offset'] != off_on_board:
+            return True
         size_on_board = self._u.get_env('%s_size' % comp)
+        if img_env['size'] != size_on_board:
+            return True
         part_size_on_board = self._u.get_env('%s_partitionsize' % comp)
-        if (img_env['md5sum'] != md5sum_on_board or
-            img_env['offset'] != off_on_board or
-            img_env['size'] != size_on_board or
-            img_env['partitionsize'] != part_size_on_board):
+        if img_env['partitionsize'] != part_size_on_board:
             return True
         return False
 
