@@ -2,15 +2,13 @@
 # ==========================================================================
 #
 # Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
-# All Rights Reserved.
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #          Diego Benavides <diego.benavides@ridgerun.com>
 #
-# The contents of this software are proprietary and confidential to RidgeRun,
-# LLC.  No part of this program may be photocopied, reproduced or translated
-# into another programming language without prior written consent of 
-# RidgeRun, LLC.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
 #
 # SD-card operations to support the installer.
 #
