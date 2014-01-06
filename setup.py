@@ -19,8 +19,8 @@ from distutils.core import setup
 
 setup(name='openfd',
       version='0.0.1',
-      description='Open Firmware Installer',
-      url='https://github.com/RidgeRun/u-boot-installer',
+      description='Open Firmware Deployer',
+      url='https://github.com/RidgeRun/openfd',
       packages=['openfd', 'openfd/boards', 'openfd/utils', 'openfd/methods',
                 'openfd/methods.board', 'openfd/methods.sdcard',
                 'openfd/storage'],
