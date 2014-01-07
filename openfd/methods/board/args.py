@@ -138,6 +138,7 @@ class BoardArgs():
     
     def check_args_nand(self, args):
         self.check_args_nand_dimensions(args)
+        self.checker.is_file(args.mmap_file, '--mmap-file')
         if args.nand_uboot_file:
             self.checker.is_file(args.nand_uboot_file, '--uboot-file')
         self.checker.is_valid_addr(args.ram_load_addr, '--ram-load-addr')
