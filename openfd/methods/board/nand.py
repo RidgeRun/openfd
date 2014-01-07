@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -23,6 +23,7 @@ import time
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
 from openfd.storage.partition import read_nand_partitions
+from openfd.utils.hexutils import to_hex
 
 # ==========================================================================
 # Constants
@@ -250,7 +251,8 @@ class NandInstaller(object):
         self._load_file_to_ram(img_filename, load_addr)
         self._l.debug('Running the new uboot')
         self._u.cmd('icache off')
-        self._u.cmd('go %s' % load_addr, echo_timeout=None, prompt_timeout=None)
+        self._u.cmd('go %s' % to_hex(load_addr),
+                    echo_timeout=None, prompt_timeout=None)
         time.sleep(2) # Give time to uboot to restart
         self._u.cmd('') # Empty command just to interrupt autoboot
         ret = self._u.sync()
@@ -304,7 +306,7 @@ class NandInstaller(object):
         img_env = {'md5sum': self._md5sum(filename),
                    'offset': hex(offset),
                    'size': hex(img_size_aligned),
-                   'partitionsize': hex(part_size)}
+                   'partitionsize': to_hex(part_size)}
         if not force and not self._is_img_install_needed(comp, img_env):
             self._l.info("%s doesn't need to be installed" % comp.capitalize())
             return
@@ -314,11 +316,12 @@ class NandInstaller(object):
         self._u.set_env('autostart', 'yes')
         self._l.debug("Erasing %s NAND space" % comp)
         cmd = "%s %s %s" % \
-                (NandInstaller.erase_cmd[comp], hex(offset), hex(part_size))
+            (NandInstaller.erase_cmd[comp], to_hex(offset), to_hex(part_size))
         self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Writing %s image from RAM to NAND" % comp)
         cmd = "%s %s %s %s" % (NandInstaller.write_cmd[comp],
-                       self._ram_load_addr, hex(offset), hex(img_size_aligned))
+                               to_hex(self._ram_load_addr), to_hex(offset),
+                               to_hex(img_size_aligned))
         self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Saving %s partition info" % comp)
         self._save_img_env(comp, img_env)
@@ -370,11 +373,12 @@ class NandInstaller(object):
                 img_size_aligned = img_size_blk * self.nand_block_size
                 self._l.debug("Erasing uboot NAND space")
                 cmd = "%s %s %s" % (NandInstaller.erase_cmd['bootloader'],
-                                        hex(offset), hex(img_size_aligned))
+                                    to_hex(offset), to_hex(img_size_aligned))
                 self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Writing uboot image from RAM to NAND")
                 cmd = "%s %s %s %s" % (NandInstaller.write_cmd['bootloader'],
-                        self._ram_load_addr, hex(offset), hex(img_size_aligned))
+                                   to_hex(self._ram_load_addr), to_hex(offset),
+                                   to_hex(img_size_aligned))
                 self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Restarting to use the uboot in NAND")
                 self._u.cmd('reset', prompt_timeout=None)

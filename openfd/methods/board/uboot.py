@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -21,6 +21,7 @@ import time
 import re
 import serial
 import openfd.utils as utils
+from openfd.utils.hexutils import to_hex
 
 # ==========================================================================
 # Constants
@@ -344,7 +345,10 @@ class Uboot(object):
         if ' ' in value or ';' in value:
             self.cmd("setenv %s '%s'" % (variable, value))
         else:
-            self.cmd("setenv %s %s" % (variable, value))
+            if value.strip().startswith('0x') and to_hex(value):
+                self.cmd("setenv %s %s" % (variable, to_hex(value)))
+            else:
+                self.cmd("setenv %s %s" % (variable, value))
     
     def get_env(self, variable):
         """

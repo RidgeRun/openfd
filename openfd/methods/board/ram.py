@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -20,6 +20,7 @@
 import os
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
+from openfd.utils.hexutils import to_hex
 from uboot import UbootTimeoutException
 
 # ==========================================================================
@@ -206,7 +207,7 @@ class TftpRamLoader(RamLoader):
         hex_load_addr = hexutils.to_hex(load_addr)
         self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
                       "'%s'" % (tftp_filename, hex_load_addr))
-        cmd = 'tftp %s %s' % (hex_load_addr, basename)
+        cmd = 'tftp %s %s' % (to_hex(hex_load_addr), basename)
         try:
             self._u.cmd(cmd, prompt_timeout=self._transfer_timeout(size_b))
         except UbootTimeoutException:
