@@ -79,6 +79,8 @@ def str_to_hex(value, upper=True):
         except ValueError:
             # This is not a valid value
             return ''
+    if hex_value.endswith('L'): 
+        hex_value = value.rstrip('L')
     if upper:
         hex_value = '0x%s' % hex_value.upper().replace('0X', '')
     return hex_value
