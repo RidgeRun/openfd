@@ -54,7 +54,7 @@ def hex_format(decimal_value, width=8, upper=True):
 #: Alias for :func:`hex_format` 
 hex_addr = hex_format
 
-def str_to_hex(value, upper=True):
+def str_to_hex(value, upper=False):
     """
     Converts the string that may contain a decimal number (like '12'), or
     a hexadecimal number (like '0xC', or 'c'), into a hexadecimal number
