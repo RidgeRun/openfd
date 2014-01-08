@@ -304,8 +304,8 @@ class NandInstaller(object):
                 part_size = size_blks * self.nand_block_size
         self._l.debug('Verifying if %s installation is needed' % comp)
         img_env = {'md5sum': self._md5sum(filename),
-                   'offset': hex(offset),
-                   'size': hex(img_size_aligned),
+                   'offset': to_hex(offset),
+                   'size': to_hex(img_size_aligned),
                    'partitionsize': to_hex(part_size)}
         if not force and not self._is_img_install_needed(comp, img_env):
             self._l.info("%s doesn't need to be installed" % comp.capitalize())

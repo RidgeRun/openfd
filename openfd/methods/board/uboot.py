@@ -342,10 +342,11 @@ class Uboot(object):
         :exception UbootTimeoutException: When a timeout is reached.
         """
         
+        value = value.strip()
         if ' ' in value or ';' in value:
             self.cmd("setenv %s '%s'" % (variable, value))
         else:
-            if value.strip().startswith('0x') and to_hex(value):
+            if value.startswith('0x') and value.endswith('L'):
                 self.cmd("setenv %s %s" % (variable, to_hex(value)))
             else:
                 self.cmd("setenv %s %s" % (variable, value))
