@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -20,7 +20,8 @@
 import os
 import openfd.utils as utils
 from string import Template
-from openfd.storage.partition import read_nand_partitions  
+from openfd.storage.partition import read_nand_partitions
+from openfd.utils import to_hex
 
 # ==========================================================================
 # Public Classes
@@ -87,17 +88,17 @@ class NandExternalInstaller(object):
         self._save_substitution('%s_name' % comp, comp_name)
         self._save_substitution('%s_image' % comp, os.path.basename(filename))
         self._save_substitution('%s_erase_cmd' % comp, cmds['erase'])
-        self._save_substitution('%s_erase_offset' % comp, hex(offset))
-        self._save_substitution('%s_erase_size' % comp, hex(part_size))
+        self._save_substitution('%s_erase_offset' % comp, to_hex(offset))
+        self._save_substitution('%s_erase_size' % comp, to_hex(part_size))
         self._save_substitution('%s_pre_write_cmd' % comp, cmds['pre_write'])
         self._save_substitution('%s_write_cmd' % comp, cmds['write'])
-        self._save_substitution('%s_write_offset' % comp, hex(offset))
-        self._save_substitution('%s_write_size' % comp, hex(img_size_aligned))
+        self._save_substitution('%s_write_offset' % comp, to_hex(offset))
+        self._save_substitution('%s_write_size' % comp, to_hex(img_size_aligned))
         self._save_substitution('%s_post_write_cmd' % comp, cmds['post_write'])
         self._save_substitution('%s_md5sum' % comp, self._md5sum(filename))
-        self._save_substitution('%s_offset' % comp, hex(offset))
-        self._save_substitution('%s_size' % comp, hex(img_size_aligned))
-        self._save_substitution('%s_partitionsize' % comp, hex(part_size))
+        self._save_substitution('%s_offset' % comp, to_hex(offset))
+        self._save_substitution('%s_size' % comp, to_hex(img_size_aligned))
+        self._save_substitution('%s_partitionsize' % comp, to_hex(part_size))
     
     def install_ipl(self):
         for part in self._partitions:
