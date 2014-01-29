@@ -132,11 +132,10 @@ class Executer(object):
             access; false otherwise.
         """
         
-        retcode = 0
-        if os.geteuid() != 0:
-            msg = "[sudo] password for %u: "
-            retcode = self.call("sudo -v -p '%s'" % msg)
-        return retcode
+        access = False
+        if os.geteuid() != 0 and self.call("sudo true") == 0:
+                access = True
+        return access
     
     def prompt_user(self, message, color=''):
         """
