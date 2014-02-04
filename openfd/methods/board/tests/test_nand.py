@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -20,10 +20,11 @@ import check_env
 
 sys.path.insert(1, os.path.abspath('..'))
 
-import rrutils
-from nand import NandInstaller
-from ram import TftpRamLoader
-from env import EnvInstaller
+import openfd.utils as utils
+from openfd.methods.board.nand import NandInstaller
+from openfd.methods.board.ram import TftpRamLoader
+from openfd.methods.board.env import EnvInstaller
+from openfd.methods.board.uboot import Uboot
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
@@ -41,7 +42,8 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         verbose = True
-        logger = rrutils.logger.get_global_logger('NandInstaller')
+        dryrun = False
+        logger = utils.logger.init_global_logger('NandInstaller')
         logger.setLevel(logging.DEBUG)
         streamhandler = logging.StreamHandler()
         streamhandler.setFormatter(logging.Formatter('%(msg)s'))
@@ -50,13 +52,13 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         else:
             streamhandler.setLevel(logging.INFO)
         logger.addHandler(streamhandler)
-            
+        utils.executer.init_global_executer(dryrun=dryrun, enable_colors=False,
+                                            verbose=verbose)
+    
     def setUp(self):
-        
         dryrun = False
-        
-        self.uboot = rrutils.uboot.Uboot()
-        self.uboot.serial_logger = rrutils.logger.get_global_logger()
+        self.uboot = Uboot()
+        self.uboot.serial_logger = utils.logger.get_global_logger()
         self.uboot.dryrun = dryrun
         ret = self.uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
         self.assertTrue(ret)
@@ -156,44 +158,36 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     def load_uboot(self):
         print "---- Loading uboot to RAM ----"
         uboot_img = "%s/images/bootloader" % devdir
-        ret = self.inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
-        self.assertTrue(ret)
+        self.inst.load_uboot_to_ram(uboot_img, test_uboot_load_addr)
             
     def install_bootloader(self):
         print "---- Installing bootloader ----"
-        ret = self.inst.install_ipl()
-        self.assertTrue(ret)
-        ret = self.inst.install_bootloader()
-        self.assertTrue(ret)
+        self.inst.install_ipl()
+        self.inst.install_bootloader()
     
     def install_kernel(self):
         print "---- Installing kernel ----"
-        ret = self.inst.install_kernel(force=True)
-        self.assertTrue(ret)
+        self.inst.install_kernel(force=True)
     
     def install_fs(self):
         print "---- Installing fs ----"
-        ret = self.inst.install_fs(force=True)
-        self.assertTrue(ret)
+        self.inst.install_fs(force=True)
     
     def install_cmdline(self):
         print "---- Installing cmdline ----"
         # cmdline for ubifs
         cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
-        ret = self.env_inst.install_variable('bootargs', cmdline)
-        self.assertTrue(ret)
+        self.env_inst.install_variable('bootargs', cmdline)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
         bootcmd = "'nboot 0x82000000 0 ${koffset}'"
-        ret = self.env_inst.install_variable('bootcmd', bootcmd)
-        self.assertTrue(ret)
+        self.env_inst.install_variable('bootcmd', bootcmd)
         
     def install_mtdparts(self):
         print "---- Installing mtdparts ----"
         mtdparts = "mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
-        ret = self.env_inst.install_variable('mtdparts', mtdparts, force=True)
-        self.assertTrue(ret)
+        self.env_inst.install_variable('mtdparts', mtdparts, force=True)
 
 # ==========================================================================
 # Test cases - Install methods 
@@ -207,7 +201,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_bootloader()
             
     def test_install_kernel(self):
-        test_install_k = True
+        test_install_k = False
         if test_install_k:
             self.setup_network()
             self.load_uboot()
@@ -236,7 +230,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_mtdparts()
             
     def test_install_all(self):
-        install_all = False
+        install_all = True
         if install_all:
             self.setup_network()
             self.load_uboot()
