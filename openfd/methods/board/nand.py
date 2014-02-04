@@ -50,31 +50,11 @@ class NandInstaller(object):
     Install components to NAND memory.
     """
     
-    names = {
-        'ipl': 'ubl',
-        'bootloader': 'uboot',
-        'kernel': 'kernel',
-        'filesystem': 'rootfs'
-    }
-    
-    erase_cmd = {
-        'ipl': 'nand erase',
-        'bootloader': 'nand erase',
-        'kernel': 'nand erase',
-        'filesystem': 'nand erase'
-    }
-    
-    write_cmd = {
-        'ipl': 'nand write.ubl',
-        'bootloader': 'nand write.ubl',
-        'kernel': 'nand write',
-        'filesystem': 'nand write'
-    }
-    
-    def __init__(self, uboot, loader, nand_block_size=0, nand_page_size=0,
-                 ram_load_addr=None, dryrun=False):
+    def __init__(self, uboot, board, loader, nand_block_size=0,
+                 nand_page_size=0, ram_load_addr=None, dryrun=False):
         """
         :param uboot: :class:`Uboot` instance.
+        :param board: :class:`Board` instance.
         :param loader: :class:`RamLoader` instance.
         :param nand_block_size: NAND block size (bytes). If not given, the
             value will be obtained from uboot (once).
@@ -90,6 +70,7 @@ class NandInstaller(object):
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._u = uboot
+        self._board = board
         self._loader = loader
         self._nand_block_size = nand_block_size
         self._nand_page_size = nand_page_size
@@ -316,10 +297,10 @@ class NandInstaller(object):
         self._u.set_env('autostart', 'yes')
         self._l.debug("Erasing %s NAND space" % comp)
         cmd = "%s %s %s" % \
-            (NandInstaller.erase_cmd[comp], to_hex(offset), to_hex(part_size))
+            (self._board.erase_cmd(comp), to_hex(offset), to_hex(part_size))
         self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Writing %s image from RAM to NAND" % comp)
-        cmd = "%s %s %s %s" % (NandInstaller.write_cmd[comp],
+        cmd = "%s %s %s %s" % (self._board.write_cmd(comp),
                                to_hex(self._ram_load_addr), to_hex(offset),
                                to_hex(img_size_aligned))
         self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
@@ -348,7 +329,7 @@ class NandInstaller(object):
         """
         
         for part in self._partitions:
-            if part.name == NandInstaller.names['ipl']:
+            if part.name == self._board.comp_name('ipl'):
                 self._install_img(part.image, 'ipl', part.start_blk,
                                          part.size_blks, force)
 
@@ -361,8 +342,9 @@ class NandInstaller(object):
             in NAND.
         """
         
+        comp_name = self._board.comp_name('bootloader')
         for part in self._partitions:
-            if part.name == NandInstaller.names['bootloader']:
+            if part.name == comp_name:
                 self._l.info('Installing bootloader')
                 self._l.debug("Loading uboot image to RAM")
                 self._u.set_env('autostart', 'no')
@@ -372,11 +354,11 @@ class NandInstaller(object):
                 img_size_blk = self._bytes_to_blks(os.path.getsize(part.image))
                 img_size_aligned = img_size_blk * self.nand_block_size
                 self._l.debug("Erasing uboot NAND space")
-                cmd = "%s %s %s" % (NandInstaller.erase_cmd['bootloader'],
+                cmd = "%s %s %s" % (self._board.erase_cmd('bootloader'),
                                     to_hex(offset), to_hex(img_size_aligned))
                 self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Writing uboot image from RAM to NAND")
-                cmd = "%s %s %s %s" % (NandInstaller.write_cmd['bootloader'],
+                cmd = "%s %s %s %s" % (self._board.write_cmd('bootloader'),
                                    to_hex(self._ram_load_addr), to_hex(offset),
                                    to_hex(img_size_aligned))
                 self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
@@ -415,7 +397,7 @@ class NandInstaller(object):
         """
         
         for part in self._partitions:
-            if part.name == NandInstaller.names['kernel']:
+            if part.name == self._board.comp_name('kernel'):
                 self._install_img(part.image, 'kernel', part.start_blk,
                                          part.size_blks, force)
     
@@ -438,7 +420,7 @@ class NandInstaller(object):
         """
         
         for part in self._partitions:
-            if part.name == NandInstaller.names['filesystem']:
+            if part.name == self._board.comp_name('filesystem'):
                 self._install_img(part.image, 'filesystem', part.start_blk,
                                   part.size_blks, force)
 

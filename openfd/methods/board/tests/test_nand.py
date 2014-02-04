@@ -25,6 +25,7 @@ from openfd.methods.board.nand import NandInstaller
 from openfd.methods.board.ram import TftpRamLoader
 from openfd.methods.board.env import EnvInstaller
 from openfd.methods.board.uboot import Uboot
+from openfd.boards import BoardFactory
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
@@ -74,7 +75,10 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self.env_inst = EnvInstaller(uboot=self.uboot)
         self.env_inst.dryrun = dryrun
         
-        self.inst = NandInstaller(uboot=self.uboot, loader=self.loader)
+        self.board = BoardFactory().make('dm36x-leopard')
+        
+        self.inst = NandInstaller(uboot=self.uboot, board=self.board,
+                                  loader=self.loader)
         self.inst.ram_load_addr = test_ram_load_addr
         self.inst.verbose = True
         self.inst.dryrun = dryrun
