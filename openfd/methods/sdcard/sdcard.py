@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2012-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #          Diego Benavides <diego.benavides@ridgerun.com>
@@ -185,6 +185,7 @@ class SDCardInstaller(object):
         """
         
         self._sd.unmount()
+        self._sd.optimize_filesystems()
         self._sd.check_filesystems()
     
     def read_partitions(self, filename):
@@ -340,6 +341,7 @@ class LoopDeviceInstaller(object):
         """
         
         self._ld.unmount()
+        self._ld.optimize_filesystems()
         self._ld.check_filesystems()
         self._ld.detach_partitions()
         self._ld.detach_device()

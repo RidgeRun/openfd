@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -47,6 +47,11 @@ class DeviceGeometry(object):
     
     #: String used to represent the max available size of a given storage device.
     full_size = "-"
+    
+    def mb_to_cyl(self, size_mb):
+        size_b = int(size_mb) << 20
+        size_cyl = size_b / self.cyl_byte_size
+        return long(math.floor(size_cyl))
 
 class Device(object):
     """Representation of a device, like /dev/sda or /dev/sdb or so. """
@@ -323,6 +328,9 @@ class SDCard(Device):
                 cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (filename, part.name)
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 cmd = 'sudo mkfs.ext3 %s -L %s'  % (filename, part.name)
+            elif (part.filesystem == SDCardPartition.FILESYSTEM_EXT4 or
+                  part.filesystem == SDCardPartition.FILESYSTEM_EXT4_WRITEBACK):
+                cmd = 'sudo mkfs.ext4 %s -L %s'  % (filename, part.name)
             else:
                 raise DeviceException("Can't format partition %s, unknown "
                               "filesystem: %s" % (part.name, part.filesystem))
@@ -359,6 +367,9 @@ class SDCard(Device):
                 fs_type = 'vfat'
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 fs_type = 'ext3'
+            elif (part.filesystem == SDCardPartition.FILESYSTEM_EXT4 or 
+                  part.filesystem == SDCardPartition.FILESYSTEM_EXT4_WRITEBACK):
+                fs_type = 'ext4'
             if fs_type:
                 cmd = 'sudo mount -t %s %s %s' % (fs_type, name, mnt_dir)
             else:
@@ -368,6 +379,33 @@ class SDCard(Device):
                                       (name, mnt_dir))
             i += 1
 
+    def optimize_filesystems(self):
+        """
+        Optimize the filesystems, if applies.
+        
+        Optimizations supported:
+          - FILESYSTEM_EXT4_WRITEBACK: Sets the data mode to "writeback",
+              disabling journaling.
+            
+        Note: The device should be unmounted before running optimizations.
+        
+        :exception DeviceException: When unable to optimize.
+        """
+        
+        i = 1
+        for part in self._partitions:
+            filename = self.partition_name(i)
+            if part.filesystem == SDCardPartition.FILESYSTEM_EXT4_WRITEBACK:
+                cmd = "sudo tune2fs -o journal_data_writeback %s" % filename
+                ret = self._e.check_call(cmd)
+                if ret != 0:
+                    raise DeviceException('Failed optimizing %s' % filename)
+                cmd = "sudo tune2fs -O ^has_journal %s" % filename
+                ret = self._e.check_call(cmd)
+                if ret != 0:
+                    raise DeviceException('Failed optimizing %s' % filename)
+            i = i + 1
+
     def check_filesystems(self):
         """
         Checks the integrity of the filesystems in the given device. Upon 
@@ -375,7 +413,7 @@ class SDCard(Device):
         
         Note: The device should be unmounted before running this check.
         
-        Returns true on success; false otherwise.
+        :exception DeviceException: When a filesystem has an error.
         """
         
         # The exit code returned by fsck is the sum of the following conditions
@@ -471,8 +509,7 @@ class LoopDevice(Device):
         return min_cyl_size
     
     def check_img_size(self, img_size_mb):
-        img_size_b = int(img_size_mb) << 20
-        img_size_cyl = img_size_b / self.geometry.cyl_byte_size
+        img_size_cyl = self.geometry.mb_to_cyl(img_size_mb)
         if img_size_cyl < self.min_cyl_size():
             size_needed_b = (self.min_cyl_size() * self.geometry.cyl_byte_size)
             size_needed_mb = int(size_needed_b) >> 20
@@ -480,7 +517,7 @@ class LoopDevice(Device):
                    'the partitions, the image must be bigger than %s MB to '
                    'hold them.' % (img_size_mb, size_needed_mb))
     
-    def attach_device(self, img_name, img_size):
+    def attach_device(self, img_name, img_size_mb):
         """
         Creates the image file with a valid format and associates the file
         with the loop device. 
@@ -489,7 +526,7 @@ class LoopDevice(Device):
             file with the loop device.
         """
         
-        cmd = 'dd if=/dev/zero of=%s bs=1M count=%s' % (img_name, img_size)
+        cmd = 'dd if=/dev/zero of=%s bs=1M count=%s' % (img_name, img_size_mb)
         ret = self._e.check_call(cmd)
         if ret != 0:
             raise DeviceException('Failed creating file for %s' % img_name)
@@ -569,6 +606,9 @@ class LoopDevice(Device):
                 cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (part.device, part.name)
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 cmd = 'sudo mkfs.ext3 %s -L %s'  % (part.device, part.name)
+            elif (part.filesystem == SDCardPartition.FILESYSTEM_EXT4 or
+                  part.filesystem == SDCardPartition.FILESYSTEM_EXT4_WRITEBACK):
+                cmd = 'sudo mkfs.ext4 %s -L %s'  % (part.device, part.name)
             else:
                 raise DeviceException("Can't format partition %s, unknown "
                               "filesystem: %s" % (part.name, part.filesystem))
@@ -604,6 +644,9 @@ class LoopDevice(Device):
                 fs_type = 'vfat'
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 fs_type = 'ext3'
+            elif (part.filesystem == SDCardPartition.FILESYSTEM_EXT4 or
+                  part.filesystem == SDCardPartition.FILESYSTEM_EXT4_WRITEBACK):
+                fs_type = 'ext4'
             if fs_type:
                 cmd = 'sudo mount -t %s %s %s' % (fs_type, part.device, mnt_dir)
             else:
@@ -622,6 +665,30 @@ class LoopDevice(Device):
                     raise DeviceException('Failed to unmount %s' % part.device)
         Device.unmount(self)
     
+    def optimize_filesystems(self):
+        """
+        Optimize the filesystems, if applies.
+        
+        Optimizations supported:
+          - FILESYSTEM_EXT4_WRITEBACK: Sets the data mode to "writeback",
+              disabling journaling.
+            
+        Note: The device should be unmounted before running optimizations.
+        
+        :exception DeviceException: When unable to optimize.
+        """
+        
+        for part in self._partitions:
+            if part.filesystem == SDCardPartition.FILESYSTEM_EXT4_WRITEBACK:
+                cmd = "sudo tune2fs -o journal_data_writeback %s" % part.device
+                ret = self._e.check_call(cmd)
+                if ret != 0:
+                    raise DeviceException('Failed optimizing %s' % self.name)
+                cmd = "sudo tune2fs -O ^has_journal %s" % part.device
+                ret = self._e.check_call(cmd)
+                if ret != 0:
+                    raise DeviceException('Failed optimizing %s' % self.name)
+    
     def check_filesystems(self):
         """
         Checks the integrity of the filesystems in the given device. Upon 
@@ -629,7 +696,7 @@ class LoopDevice(Device):
         
         Note: The device should be unmounted before running this check.
         
-        Returns true on success; false otherwise.
+        :exception DeviceException: When a fileystem has an error.
         """
         
         # The exit code returned by fsck is the sum of the following conditions
