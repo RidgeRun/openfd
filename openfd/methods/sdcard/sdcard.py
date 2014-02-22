@@ -289,7 +289,7 @@ class LoopDeviceInstaller(object):
         self._l.info('Formatting %s (this may take a while)' % self._ld.name)
         self._ld.attach_device(img_name, img_size_mb)
         self._ld.create_partitions()
-        self._ld.attach_partitions(img_name)
+        self._ld.attach_partitions(img_name, img_size_mb)
         self._ld.format_partitions()
     
     def mount_partitions(self, directory):

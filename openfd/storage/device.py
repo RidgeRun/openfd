@@ -545,7 +545,7 @@ class LoopDevice(Device):
             raise DeviceException('Failed to format a temporary filesystem on '
                                   '%s' % img_name)
     
-    def attach_partitions(self, img_name):
+    def attach_partitions(self, img_name, img_size_mb):
         """
         Attaches partitions of the image file to an available loop device.
         
@@ -557,10 +557,12 @@ class LoopDevice(Device):
             device = self._get_free_device()
             offset = int(part.start) * int(self.geometry.cyl_byte_size)
             if part.size == self.geometry.full_size:
-                cmd = 'sudo losetup -o %s %s %s' % (offset, device, img_name)
+                part_size_cyl = self.geometry.mb_to_cyl(img_size_mb) - \
+                    int(part.start)
+                size_b = part_size_cyl * int(self.geometry.cyl_byte_size)
             else:
                 size_b = int(part.size) * int(self.geometry.cyl_byte_size)
-                cmd = ('sudo losetup -o %s --sizelimit %s %s %s' %
+            cmd = ('sudo losetup -o %s --sizelimit %s %s %s' %
                                         (offset, size_b, device, img_name))
             ret = self._e.check_call(cmd)
             if ret != 0:
