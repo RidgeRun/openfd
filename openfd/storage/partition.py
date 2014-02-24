@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2012-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -228,6 +228,8 @@ class SDCardPartition(Partition):
     FILESYSTEM_UNKNOWN = 'unknown'
     FILESYSTEM_VFAT = 'vfat'
     FILESYSTEM_EXT3 = 'ext3'
+    FILESYSTEM_EXT4 = 'ext4'
+    FILESYSTEM_EXT4_WRITEBACK = 'ext4-writeback'
     
     # Common partition components
     
@@ -249,7 +251,8 @@ class SDCardPartition(Partition):
             :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
             :const:`TYPE_UNKNOWN`.
         :param filesystem: Partition filesystem. Possible values:
-            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`, 
+            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
+            :const:`FILESYSTEM_EXT4`, :const:`FILESYSTEM_EXT4_WRITEBACK`,
             :const:`FILESYSTEM_UNKNOWN`.
         :param components: A list of partition components. Possible values:
             :const:`COMPONENT_BOOTLOADER`, :const:`COMPONENT_KERNEL`,
@@ -330,6 +333,8 @@ class SDCardPartition(Partition):
     filesystem = property(__get_filesystem, __set_filesystem,
                           doc="""Partition filesystem. Possible values: 
                           :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
+                          :const:`FILESYSTEM_EXT4`,
+                          :const:`FILESYSTEM_EXT4_WRITEBACK`,
                           :const:`FILESYSTEM_UNKNOWN`.""")
     
     def __set_bootable(self, bootable):
@@ -372,7 +377,8 @@ class LoopDevicePartition(SDCardPartition):
             :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
             :const:`TYPE_UNKNOWN`.
         :param filesystem: Partition filesystem. Possible values:
-            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`, 
+            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
+            :const:`FILESYSTEM_EXT4`, :const:`FILESYSTEM_EXT4_WRITEBACK`, 
             :const:`FILESYSTEM_UNKNOWN`.
         :param components: A list of partition components. Possible values:
             :const:`COMPONENT_BOOTLOADER`, :const:`COMPONENT_KERNEL`,

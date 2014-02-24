@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -72,6 +72,7 @@ class DeviceTestCase(unittest.TestCase):
             self.sd.format_partitions()
             self.sd.mount(test_work_dir)
             self.sd.unmount()
+            self.sd.optimize_filesystems()
             self.sd.check_filesystems()
     
     def testLoopDevice(self):
@@ -88,6 +89,7 @@ class DeviceTestCase(unittest.TestCase):
             self.ld.format_partitions()
             self.ld.mount(test_work_dir)
             self.ld.unmount()
+            self.ld.optimize_filesystems()
             self.ld.check_filesystems()
             self.ld.detach_partitions()
             self.ld.detach_device()
