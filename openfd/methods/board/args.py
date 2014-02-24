@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -15,6 +15,7 @@
 
 from openfd.utils import ArgChecker
 from openfd.methods.board import TftpRamLoader
+from openfd.boards import BoardFactory
 
 class BoardArgs():
     
@@ -110,8 +111,19 @@ class BoardArgs():
         if args.nand_page_size:
             self.checker.is_int(args.nand_page_size, '--nand-page-size')
             args.nand_page_size = int(args.nand_page_size)
+    
+    def add_args_nand_board(self, parser):
+        boards = BoardFactory().supported_boards()
+        parser.add_argument('--board',
+                           help="Board name. Supported: %s" % 
+                           ''.join('%s, ' % b for b in boards).rstrip(', '),
+                           metavar='<board>',
+                           dest='board',
+                           choices=boards,
+                           required=True)
         
     def add_args_nand(self, parser):
+        self.add_args_nand_board(parser)
         
         parser.add_argument('--mmap-file',
                            help='Memory map config file',

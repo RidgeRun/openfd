@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -45,23 +45,32 @@ class Dm36xLeopard(Board):
     fs_write_cmd = "nand write"
     fs_post_write_cmd = ""
 
-    def comp_name(self, comp):
+    def _check_comp(self, comp):
         if comp not in self.COMPONENTS:
             raise AttributeError('Unknown component: %s' % comp)
+
+    def comp_name(self, comp):
+        self._check_comp(comp)
         if comp is 'ipl': return 'ubl'
         elif comp is 'bootloader': return 'uboot'
         elif comp is 'kernel': return 'kernel'
         elif comp is 'filesystem': return 'rootfs'
 
     def erase_cmd(self, comp):
-        if comp not in self.COMPONENTS:
-            raise AttributeError('Unknown component: %s' % comp)
+        self._check_comp(comp)
         return 'nand erase'
     
+    def pre_write_cmd(self, comp):
+        self._check_comp(comp)
+        return ''
+    
     def write_cmd(self, comp):
-        if comp not in self.COMPONENTS:
-            raise AttributeError('Unknown component: %s' % comp)
+        self._check_comp(comp)
         if comp is 'ipl' or comp is 'bootloader':
             return 'nand write.ubl'
         else:
             return 'nand write'
+    
+    def post_write_cmd(self, comp):
+        self._check_comp(comp)
+        return ''

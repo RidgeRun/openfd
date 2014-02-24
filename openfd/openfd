@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2012-2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2012-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #          Diego Benavides <diego.benavides@ridgerun.com>
@@ -318,9 +318,11 @@ def _mode_sd_img(args):
 def _mode_nand(args):
     uboot = _get_uboot(args)
     tftp_loader = _get_tftp_loader(args, uboot)
+    board = BoardFactory().make(args.board)
     try:
         tftp_loader.setup_uboot_network()
-        nand_installer = NandInstaller(uboot=uboot, loader=tftp_loader)
+        nand_installer = NandInstaller(uboot=uboot, board=board,
+                                       loader=tftp_loader)
         if args.nand_blk_size:
             nand_installer.nand_block_size = args.nand_blk_size
         if args.nand_page_size:

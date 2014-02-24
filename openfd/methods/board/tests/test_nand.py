@@ -37,6 +37,7 @@ test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 test_mmap_file = '%s/images/nand-mmap.config' % devdir
 test_tftp_dir = '/srv/tftp'
+test_port = '/dev/ttyUSB0'
 
 class NandInstallerTFTPTestCase(unittest.TestCase):
     
@@ -61,7 +62,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self.uboot = Uboot()
         self.uboot.serial_logger = utils.logger.get_global_logger()
         self.uboot.dryrun = dryrun
-        ret = self.uboot.open_comm(port='/dev/ttyUSB0', baud=115200)
+        ret = self.uboot.open_comm(port=test_port, baud=115200)
         self.assertTrue(ret)
         ret = self.uboot.sync()
         self.assertTrue(ret)
