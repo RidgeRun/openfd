@@ -34,4 +34,3 @@ class Board(object):
     
     def post_write_cmd(self, comp):
         raise NotImplementedError
-        

@@ -14,6 +14,7 @@
 # firmware to the target board. 
 #
 # ==========================================================================
+from openfd.boards.dm36x_leopard import Dm36xLeopard
 
 """
 Main entry point for the installer.
@@ -116,11 +117,7 @@ def _sigint_handler(signal, frame):
 
 def _get_args():
     parser = argparse.ArgumentParser()
-    board_args = BoardArgs()
-    sd_args = SdCardArgs()
-    subparsers = parser.add_subparsers(help="installation mode (--help available)",
-                                         dest="mode")
-    
+
     parser.add_argument('-y', '--assume-yes',
                        help='Automatic \'yes\' to prompts; '
                        'runs non-interactively',
@@ -152,34 +149,8 @@ def _get_args():
                        action='store_true',
                        default=False)
     
-    parser_sd = subparsers.add_parser(MODE_SD)
-    parser_sd_img = subparsers.add_parser(MODE_SD_IMG)
-    parser_sd_script = subparsers.add_parser(MODE_SD_SCRIPT)
-    parser_sd_script_img = subparsers.add_parser(MODE_SD_SCRIPT_IMG)
-    parser_ram = subparsers.add_parser(MODE_RAM)
-    parser_env = subparsers.add_parser(MODE_ENV)
-    parser_nand = subparsers.add_parser(MODE_NAND)
-    
-    subparsers_nand = parser_nand.add_subparsers(help="component "
-                                       "(--help available)", dest="component")
-    parser_nand_ipl = subparsers_nand.add_parser(COMP_IPL,
-                                       help="Initial Program Loader (UBL)")
-    parser_nand_bootloader = subparsers_nand.add_parser(COMP_BOOTLOADER,
-                                                  help="Bootloader (U-Boot)")
-    parser_nand_kernel = subparsers_nand.add_parser(COMP_KERNEL, help="Kernel")
-    parser_nand_fs = subparsers_nand.add_parser(COMP_FS, help="Filesystem")
-    
-    sd_args.add_args_sd(parser_sd)
-    sd_args.add_args_sd_img(parser_sd_img)
-    sd_args.add_args_sd_script(parser_sd_script)
-    sd_args.add_args_sd_script_img(parser_sd_script_img)
-    board_args.add_args_nand(parser_nand)
-    board_args.add_args_nand_ipl(parser_nand_ipl)
-    board_args.add_args_nand_bootloader(parser_nand_bootloader)
-    board_args.add_args_nand_kernel(parser_nand_kernel)
-    board_args.add_args_nand_fs(parser_nand_fs)
-    board_args.add_args_ram(parser_ram)
-    board_args.add_args_env(parser_env)
+    board = Dm36xLeopard()
+    board.add_args(parser)
     
     return parser.parse_args()
     
