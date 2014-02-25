@@ -72,8 +72,7 @@ class NandExternalInstaller(object):
         self._l.debug('Board substitutions')
         self._save_substitution('mach_desc', self._board.mach_description)
     
-    def _install_img(self, filename, comp, comp_name, cmds, start_blk,
-                     size_blks=0):
+    def _install_img(self, filename, comp, start_blk, size_blks=0):
         self._l.debug('%s substitutions' % comp.capitalize())
         offset = start_blk * self._board.nand_block_size
         img_size_blks = self._bytes_to_blks(os.path.getsize(filename))
@@ -85,16 +84,16 @@ class NandExternalInstaller(object):
                             "%s partition" % (img_size_blks, size_blks, comp))
             else:
                 part_size = size_blks * self._board.nand_block_size
-        self._save_substitution('%s_name' % comp, comp_name)
+        self._save_substitution('%s_name' % comp, self._board.comp_name(comp))
         self._save_substitution('%s_image' % comp, os.path.basename(filename))
-        self._save_substitution('%s_erase_cmd' % comp, cmds['erase'])
+        self._save_substitution('%s_erase_cmd' % comp, self._board.erase_cmd(comp))
         self._save_substitution('%s_erase_offset' % comp, to_hex(offset))
         self._save_substitution('%s_erase_size' % comp, to_hex(part_size))
-        self._save_substitution('%s_pre_write_cmd' % comp, cmds['pre_write'])
-        self._save_substitution('%s_write_cmd' % comp, cmds['write'])
+        self._save_substitution('%s_pre_write_cmd' % comp, self._board.pre_write_cmd(comp))
+        self._save_substitution('%s_write_cmd' % comp, self._board.write_cmd(comp))
         self._save_substitution('%s_write_offset' % comp, to_hex(offset))
         self._save_substitution('%s_write_size' % comp, to_hex(img_size_aligned))
-        self._save_substitution('%s_post_write_cmd' % comp, cmds['post_write'])
+        self._save_substitution('%s_post_write_cmd' % comp, self._board.post_write_cmd(comp))
         self._save_substitution('%s_md5sum' % comp, self._md5sum(filename))
         self._save_substitution('%s_offset' % comp, to_hex(offset))
         self._save_substitution('%s_size' % comp, to_hex(img_size_aligned))
@@ -102,54 +101,27 @@ class NandExternalInstaller(object):
     
     def install_ipl(self):
         for part in self._partitions:
-            if part.name == self._board.ipl_name:
-                cmds = {
-                    'erase': self._board.ipl_erase_cmd,
-                    'pre_write': self._board.ipl_pre_write_cmd,
-                    'write': self._board.ipl_write_cmd,
-                    'post_write': self._board.ipl_post_write_cmd
-                }
-                name = self._board.ipl_name 
-                self._install_img(part.image, 'ipl', name, cmds,
-                                  part.start_blk, part.size_blks)
+            if part.name == self._board.comp_name('ipl'): 
+                self._install_img(part.image, 'ipl', part.start_blk,
+                                  part.size_blks)
 
     def install_bootloader(self):
         for part in self._partitions:
-            if part.name == self._board.bootloader_name:
-                cmds = {
-                    'erase': self._board.bootloader_erase_cmd,
-                    'pre_write': self._board.bootloader_pre_write_cmd,
-                    'write': self._board.bootloader_write_cmd,
-                    'post_write': self._board.bootloader_post_write_cmd
-                }
-                name = self._board.bootloader_name
-                self._install_img(part.image, 'bootloader', name, cmds,
-                                  part.start_blk, part.size_blks)
+            if part.name == self._board.comp_name('bootloader'): 
+                self._install_img(part.image, 'bootloader', part.start_blk,
+                                  part.size_blks)
                 
     def install_kernel(self):
         for part in self._partitions:
-            if part.name == self._board.kernel_name:
-                cmds = {
-                    'erase': self._board.kernel_erase_cmd,
-                    'pre_write': self._board.kernel_pre_write_cmd,
-                    'write': self._board.kernel_write_cmd,
-                    'post_write': self._board.kernel_post_write_cmd
-                }
-                name = self._board.kernel_name
-                self._install_img(part.image, 'kernel', name, cmds,
-                                  part.start_blk, part.size_blks)
+            if part.name == self._board.comp_name('kernel'): 
+                self._install_img(part.image, 'kernel', part.start_blk,
+                                  part.size_blks)
+                
     def install_fs(self):
         for part in self._partitions:
-            if part.name == self._board.fs_name:
-                cmds = {
-                    'erase': self._board.fs_erase_cmd,
-                    'pre_write': self._board.fs_pre_write_cmd,
-                    'write': self._board.fs_write_cmd,
-                    'post_write': self._board.fs_post_write_cmd
-                }
-                name = self._board.fs_name
-                self._install_img(part.image, 'filesystem', name, cmds,
-                                  part.start_blk, part.size_blks)
+            if part.name == self._board.comp_name('filesystem'): 
+                self._install_img(part.image, 'filesystem', part.start_blk,
+                                  part.size_blks)
     
     def get_imgs(self):
         """
