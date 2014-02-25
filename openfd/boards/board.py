@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -19,3 +19,19 @@
 
 class Board(object):
     """Board base class."""
+
+    def comp_name(self, comp):
+        raise NotImplementedError
+    
+    def erase_cmd(self):
+        raise NotImplementedError
+    
+    def pre_write_cmd(self, comp):
+        raise NotImplementedError
+    
+    def write_cmd(self, comp):
+        raise NotImplementedError
+    
+    def post_write_cmd(self, comp):
+        raise NotImplementedError
+        
