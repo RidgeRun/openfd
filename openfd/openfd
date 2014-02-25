@@ -26,34 +26,14 @@ this installer.
 # Imports
 # ==========================================================================
 
-import time
-import os
 import sys
 import argparse
-import serial
 import signal
 import logging
 
-import openfd.utils as utils
 from openfd.utils.args import ArgCheckerError
-from openfd.boards import BoardFactory
-from openfd.methods.board import BoardArgs
-from openfd.methods.board import Uboot
-from openfd.methods.board import UbootTimeoutException
-from openfd.methods.board import TftpRamLoader
-from openfd.methods.board import RamLoaderException
-from openfd.methods.board import NandInstaller
-from openfd.methods.board import NandInstallerError
-from openfd.methods.board import NandExternalInstaller
-from openfd.methods.board import EnvInstaller
-from openfd.methods.sdcard import SdCardArgs
-from openfd.methods.sdcard import ComponentInstaller
-from openfd.methods.sdcard import SDCardInstaller
-from openfd.methods.sdcard import SDCardInstallerError
-from openfd.methods.sdcard import LoopDeviceInstaller
-from openfd.methods.sdcard import LoopDeviceInstallerError
-from openfd.methods.sdcard import SDCardExternalInstaller
-from openfd.methods.sdcard import LoopDeviceExternalInstaller
+from openfd.methods.board import *
+from openfd.methods.sdcard import *
 from openfd.storage import DeviceException
 
 # ==========================================================================
