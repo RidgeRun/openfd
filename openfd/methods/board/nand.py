@@ -420,8 +420,8 @@ class NandInstaller(object):
         """
         
         for part in self._partitions:
-            if part.name == self._board.comp_name('filesystem'):
-                self._install_img(part.image, 'filesystem', part.start_blk,
+            if part.name == self._board.comp_name('fs'):
+                self._install_img(part.image, 'fs', part.start_blk,
                                   part.size_blks, force)
 
     def read_partitions(self, filename):
