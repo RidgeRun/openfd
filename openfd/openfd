@@ -14,7 +14,6 @@
 # firmware to the target board. 
 #
 # ==========================================================================
-from openfd.boards.dm36x_leopard import Dm36xLeopard
 
 """
 Main entry point for the installer.
@@ -33,6 +32,7 @@ import signal
 import logging
 
 from openfd.utils.args import ArgCheckerError
+from openfd.boards import BoardFactory
 from openfd.methods.board import *
 from openfd.methods.sdcard import *
 from openfd.storage import DeviceException
@@ -42,6 +42,7 @@ from openfd.storage import DeviceException
 # ==========================================================================
 
 _logger  = None
+_board = None
 
 # ==========================================================================
 # Constants
@@ -116,6 +117,7 @@ def _sigint_handler(signal, frame):
     _clean_exit(0)
 
 def _get_args():
+    global _board
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-y', '--assume-yes',
@@ -149,29 +151,21 @@ def _get_args():
                        action='store_true',
                        default=False)
     
-    board = Dm36xLeopard()
-    board.add_args(parser)
+    board_subparsers = parser.add_subparsers(help="board (--help available)", dest="board")
+    for board_name in BoardFactory().supported_boards():
+        board = BoardFactory().make(board_name)
+        board_parser = board_subparsers.add_parser(board_name)
+        board.add_args(board_parser)
+    
+    args = parser.parse_known_args()[0]
+    _board = BoardFactory().make(args.board)
+    print _board.mach_description
     
     return parser.parse_args()
     
 def _check_args(args):
-    board_args = BoardArgs()
-    sd_args = SdCardArgs()
     try:
-        if args.mode == MODE_SD:
-            sd_args.check_args_sd(args)
-        elif args.mode == MODE_SD_IMG:
-            sd_args.check_args_sd_img(args)
-        elif args.mode == MODE_SD_SCRIPT:
-            sd_args.check_args_sd_script(args)
-        elif args.mode == MODE_SD_SCRIPT_IMG:
-            sd_args.check_args_sd_script_img(args)
-        elif args.mode == MODE_NAND:
-            board_args.check_args_nand(args)
-        elif args.mode == MODE_RAM:
-            board_args.check_args_ram(args)
-        elif args.mode == MODE_ENV:
-            board_args.check_args_env(args)
+        _board.check_args(args)
     except ArgCheckerError as e:
         _logger.error(e)
         _abort_install()

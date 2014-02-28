@@ -19,3 +19,6 @@ BOARD_NAME = 'dummy-evm'
 
 class DummyEvm(Board):
     mach_description = "Dummy Board"
+    
+    def add_args(self, parser):
+        pass

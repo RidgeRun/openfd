@@ -110,3 +110,19 @@ class Dm36xLeopard(Board):
         self._parser.add_args_nand_fs(parser_nand_fs)
         self._parser.add_args_ram(parser_ram)
         self._parser.add_args_env(parser_env)
+
+    def check_args(self, args):
+        if args.mode == MODE_SD:
+            self._parser.check_args_sd(args)
+        elif args.mode == MODE_SD_IMG:
+            self._parser.check_args_sd_img(args)
+        elif args.mode == MODE_SD_SCRIPT:
+            self._parser.check_args_sd_script(args)
+        elif args.mode == MODE_SD_SCRIPT_IMG:
+            self._parser.check_args_sd_script_img(args)
+        elif args.mode == MODE_NAND:
+            self._parser.check_args_nand(args)
+        elif args.mode == MODE_RAM:
+            self._parser.check_args_ram(args)
+        elif args.mode == MODE_ENV:
+            self._parser.check_args_env(args)
