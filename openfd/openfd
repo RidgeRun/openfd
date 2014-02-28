@@ -11,7 +11,7 @@
 # published by the Free Software Foundation.
 #
 # The installer tool objective is to provide several ways to deploy the
-# firmware to the target board. 
+# firmware to the target boards. 
 #
 # ==========================================================================
 
@@ -42,7 +42,6 @@ from openfd.storage import DeviceException
 # ==========================================================================
 
 _logger  = None
-_board = None
 
 # ==========================================================================
 # Constants
@@ -117,7 +116,6 @@ def _sigint_handler(signal, frame):
     _clean_exit(0)
 
 def _get_args():
-    global _board
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-y', '--assume-yes',
@@ -151,21 +149,19 @@ def _get_args():
                        action='store_true',
                        default=False)
     
-    board_subparsers = parser.add_subparsers(help="board (--help available)", dest="board")
+    board_subparsers = parser.add_subparsers(help="board (--help available)",
+                                             dest="board")
     for board_name in BoardFactory().supported_boards():
         board = BoardFactory().make(board_name)
         board_parser = board_subparsers.add_parser(board_name)
         board.add_args(board_parser)
     
-    args = parser.parse_known_args()[0]
-    _board = BoardFactory().make(args.board)
-    print _board.mach_description
-    
     return parser.parse_args()
     
 def _check_args(args):
     try:
-        _board.check_args(args)
+        board = BoardFactory().make(args.board)
+        board.check_args(args)
     except ArgCheckerError as e:
         _logger.error(e)
         _abort_install()
@@ -397,6 +393,12 @@ def main():
     _init_logging(args)
     _init_executer(args)
     _check_args(args)
+    try:
+        board = BoardFactory().make(args.board)
+        board.check_args(args)
+    except ArgCheckerError as e:
+        _logger.error(e)
+        _abort_install()
     if args.mode == MODE_SD:
         _mode_sd(args)
     if args.mode == MODE_SD_IMG:
