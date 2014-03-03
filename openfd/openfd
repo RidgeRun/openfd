@@ -192,21 +192,6 @@ def _get_uboot(args):
         _abort_install()
     return uboot
 
-def _get_comp_installer(args):
-    comp_installer = ComponentInstaller()
-    comp_installer.uflash_bin = args.uflash_bin
-    comp_installer.ubl_file = args.ubl_file
-    comp_installer.uboot_file = args.uboot_file
-    comp_installer.uboot_entry_addr = args.uboot_entry_addr
-    comp_installer.uboot_load_addr = args.uboot_load_addr
-    comp_installer.bootargs = args.uboot_bootargs
-    if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
-        comp_installer.kernel_image = args.kernel_file
-    if hasattr(args, 'rootfs'): # sd-script mode doesn't need this
-        comp_installer.rootfs = args.rootfs
-    comp_installer.workdir = args.workdir 
-    return comp_installer
-
 def _get_tftp_loader(args, uboot):
     tftp_loader = TftpRamLoader(uboot, args.board_net_mode)
     tftp_loader.dir = args.tftp_dir
@@ -221,8 +206,9 @@ def _get_tftp_loader(args, uboot):
 def _mode_sd(args):
     _check_sudo()
     try:
-        comp_installer = _get_comp_installer(args)
-        sd_installer = SDCardInstaller(comp_installer)
+        board = BoardFactory().make(args.board)
+        board.sd_init_comp_installer(args)
+        sd_installer = SDCardInstaller(board=board)
         sd_installer.interactive = args.interactive
         sd_installer.dryrun = args.dryrun
         sd_installer.device = args.device
@@ -238,8 +224,9 @@ def _mode_sd(args):
 def _mode_sd_img(args):
     _check_sudo()
     try:
-        comp_installer = _get_comp_installer(args)
-        ld_installer = LoopDeviceInstaller(comp_installer)
+        board = BoardFactory().make(args.board)
+        board.sd_init_comp_installer(args)
+        ld_installer = LoopDeviceInstaller(board=board)
         ld_installer.dryrun = args.dryrun
         ld_installer.read_partitions(args.mmap_file)
         ld_installer.format(args.image, args.imagesize_mb)
@@ -334,8 +321,8 @@ def _mode_sd_script(args):
     ext_nand_installer.install_fs()
     ext_nand_installer.write(args.template_file, args.output_file)
     try:
-        comp_installer = _get_comp_installer(args)
-        ext_sd_installer = SDCardExternalInstaller(comp_installer)
+        board.sd_init_comp_installer(args)
+        ext_sd_installer = SDCardExternalInstaller(board=board)
         ext_sd_installer.interactive = args.interactive
         ext_sd_installer.dryrun = args.dryrun
         ext_sd_installer.device = args.device
@@ -362,8 +349,8 @@ def _mode_sd_script_img(args):
     ext_nand_installer.install_fs()
     ext_nand_installer.write(args.template_file, args.output_file)
     try:
-        comp_installer = _get_comp_installer(args)
-        ld_installer = LoopDeviceExternalInstaller(comp_installer)
+        board.sd_init_comp_installer(args)
+        ld_installer = LoopDeviceExternalInstaller(board=board)
         ld_installer.dryrun = args.dryrun
         ld_installer.read_partitions(args.sd_mmap_file)
         ld_installer.format(args.image, args.imagesize_mb)

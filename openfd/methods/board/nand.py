@@ -78,6 +78,7 @@ class NandInstaller(object):
         if hexutils.is_valid_addr(ram_load_addr):
             self._ram_load_addr = hexutils.str_to_hex(str(ram_load_addr))
         self._dryrun = dryrun
+        self._board.dryrun = dryrun
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
         self._loader.dryrun = dryrun
@@ -185,6 +186,7 @@ class NandInstaller(object):
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._u.dryrun = dryrun
+        self._board.dryrun = dryrun
         self._loader.dryrun = dryrun
     
     def __get_dryrun(self):

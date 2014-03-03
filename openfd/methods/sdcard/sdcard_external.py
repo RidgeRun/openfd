@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -20,6 +20,7 @@
 
 import os
 from openfd.storage.partition import SDCardPartition
+from openfd.boards.board import BoardError
 from sdcard import SDCardInstaller
 from sdcard import SDCardInstallerError
 from sdcard import LoopDeviceInstaller
@@ -31,10 +32,10 @@ from sdcard import LoopDeviceInstallerError
 
 class SDCardExternalInstaller(SDCardInstaller):
     
-    def __init__(self, comp_installer, device='', dryrun=False,
+    def __init__(self, board, device='', dryrun=False,
                  interactive=True, enable_colors=True):
         """
-        :param comp_installer: :class:`ComponentInstaller` instance.
+        :param board: :class:`Board` instance.
         :param device: Device name (i.e. '/dev/sdb').
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
             but not executed.
@@ -44,7 +45,7 @@ class SDCardExternalInstaller(SDCardInstaller):
         :type interactive: boolean
         """
         
-        SDCardInstaller.__init__(self, comp_installer, device, dryrun,
+        SDCardInstaller.__init__(self, board, device, dryrun,
                                  interactive, enable_colors)
     
     def _install_uboot_env(self, uboot_env_file, uboot_script):
@@ -84,7 +85,10 @@ class SDCardExternalInstaller(SDCardInstaller):
             raise SDCardInstallerError("Failed generating uboot image")
     
     def install_components(self, workdir, imgs, mkimage, script):
-        self._comp_installer.install_uboot(self._sd.name)
+        try:
+            self._board.sd_install_bootloader(self._sd.name)
+        except BoardError as e:
+            raise SDCardInstallerError(e)
         uboot_script = "%s.scr" % os.path.splitext(script)[0]
         self._generate_script(mkimage, script, uboot_script)
         uboot_env = "%s/uEnv.txt" % workdir
@@ -96,8 +100,8 @@ class SDCardExternalInstaller(SDCardInstaller):
     
 class LoopDeviceExternalInstaller(LoopDeviceInstaller):
     
-    def __init__(self, comp_installer, dryrun=False):
-        LoopDeviceInstaller.__init__(self, comp_installer, dryrun)
+    def __init__(self, board, dryrun=False):
+        LoopDeviceInstaller.__init__(self, board, dryrun)
 
     def _install_uboot_env(self, uboot_env_file, uboot_script):
         self._l.info("Installing uboot environment")
@@ -121,8 +125,8 @@ class LoopDeviceExternalInstaller(LoopDeviceInstaller):
                         cmd = "sudo cp %s %s" % (f, mnt_point)
                         ret = self._e.check_call(cmd)
                         if ret != 0:
-                            raise SDCardInstallerError('Failed copying %s to %s'
-                                                       % (f, mnt_point))
+                            raise LoopDeviceInstallerError('Failed copying %s'
+                                                    ' to %s' % (f, mnt_point))
     
     def _generate_script(self, mkimage, script, uboot_script):
         self._l.info("Installing uboot script")
@@ -133,7 +137,10 @@ class LoopDeviceExternalInstaller(LoopDeviceInstaller):
             raise LoopDeviceInstallerError("Failed generating uboot image")
     
     def install_components(self, workdir, imgs, mkimage, script):
-        self._comp_installer.install_uboot(self._ld.name)
+        try:
+            self._board.sd_install_bootloader(self._ld.name)
+        except BoardError as e:
+            raise LoopDeviceInstallerError(e)
         uboot_script = "%s.scr" % os.path.splitext(script)[0]
         self._generate_script(mkimage, script, uboot_script)
         uboot_env = "%s/uEnv.txt" % workdir

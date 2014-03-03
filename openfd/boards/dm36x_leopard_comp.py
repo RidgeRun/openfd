@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #          Diego Benavides <diego.benavides@ridgerun.com>
@@ -10,7 +10,7 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# Components operations to support the installer.
+# Component-related operations
 #
 # ==========================================================================
 
@@ -21,15 +21,14 @@
 import os
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
+from openfd.storage import SDCardPartition
+from board import BoardError
 
 # ==========================================================================
 # Public Classes
 # ==========================================================================
 
-class ComponentInstallerError(Exception):
-    """Exceptions for ComponentInstaller"""
-
-class ComponentInstaller(object):
+class Dm36xLeopardCompInstaller(object):
     """
     Class to handle components-related operations.
     """
@@ -168,12 +167,11 @@ class ComponentInstaller(object):
         :attr:`uboot_load_addr` to be already set.
         
         :param device: Device where to flash UBL and uboot (i.e. '/dev/sdb').
-        :returns: Returns true on success; false otherwise.
+        :exception BoardError: On error.
         """
         
         uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
-        
         self._l.info('Installing uboot')
         cmd = ('sudo ' + self._uflash_bin +
               ' -d ' + device +
@@ -182,8 +180,7 @@ class ComponentInstaller(object):
               ' -e ' + uboot_entry_addr + 
               ' -l ' + uboot_load_addr)
         if self._e.check_call(cmd) != 0:
-            raise ComponentInstallerError('Failed to flash UBL and uboot '
-                                          'into %s' % device)
+            raise BoardError('Failed to flash UBL and uboot into %s' % device)
         return True
     
     def install_uboot_env(self, mount_point):
@@ -194,7 +191,7 @@ class ComponentInstaller(object):
         to be already set.
         
         :param mount_point: Path where to install the uboot environment.
-        :returns: Returns true on success; false otherwise.
+        :exception BoardError: On error.
         """
         
         self._l.info('Installing uboot environment')
@@ -211,7 +208,7 @@ class ComponentInstaller(object):
                 uenv.write("%s\n" % uenvcmd)
         cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
         if self._e.check_call(cmd) != 0:
-            raise ComponentInstallerError('Failed to install uboot env file.')
+            raise BoardError('Failed to install uboot env file.')
         
     def install_kernel(self, mount_point):
         """
@@ -220,13 +217,13 @@ class ComponentInstaller(object):
         This methods needs :attr:`kernel_image` to be already set.
         
         :param mount_point: Path to where install the kernel image.
-        :returns: Returns true on success, false otherwise.
+        :exception BoardError: On error.
         """
 
         self._l.info('Installing kernel')
         cmd = 'sudo cp %s %s/uImage' % (self._kernel_image, mount_point)
         if self._e.check_call(cmd) != 0:
-            raise ComponentInstallerError('Failed copying %s to %s' %
+            raise BoardError('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))
     
     def install_rootfs(self, mount_point):
@@ -234,15 +231,19 @@ class ComponentInstaller(object):
         If any, installs :attr:`rootfs` to the given mount point.
         
         :param mount_point: Path to where install rootfs.
-        :returns: Returns true on success, false otherwise.
+        :exception BoardError: On error.
         """
-        
+                                 
         if self._rootfs:
             self._l.info('Installing rootfs (this may take a while)')
             cmd = 'cd %s ; find . | sudo cpio -pdum %s' % (self._rootfs,
                                                            mount_point)
             if self._e.check_call(cmd) != 0:
-                raise ComponentInstallerError('Failed installing rootfs '
+                raise BoardError('Failed installing rootfs '
                                               'into %s' % mount_point)
             if self._e.check_call('sync') != 0:
-                raise ComponentInstallerError('Unable  to sync')
+                raise BoardError('Unable  to sync')
+        else:
+            self._l.warning('No directory for "%s", omitting...'
+                                        % (SDCardPartition.COMPONENT_ROOTFS))
+

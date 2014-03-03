@@ -15,6 +15,7 @@
 
 from board import Board
 from dm36x_leopard_args import Dm36xLeopardArgsParser
+from dm36x_leopard_comp import Dm36xLeopardCompInstaller
 
 BOARD_NAME = 'dm36x-leopard'
 
@@ -43,13 +44,37 @@ class Dm36xLeopard(Board):
     nand_block_size = 131072
     nand_page_size = 2048
 
-    def __init__(self):
+    def __init__(self, dryrun=False):
+        """
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
+        """
         self._parser = Dm36xLeopardArgsParser()
-        
+        self._comp_installer = None
+        self._dryrun = dryrun 
+    
     @property
     def parser(self):
         """CLI args parser."""
         return self._parser
+
+    @property
+    def sd_comp_installer(self):
+        """Component installer for sdcard method."""
+        return self._comp_installer
+
+    def __set_dryrun(self, dryrun):
+        self._dryrun = dryrun
+        if self._comp_installer:
+            self._comp_installer.dryrun = dryrun
+    
+    def __get_dryrun(self):
+        return self._dryrun
+    
+    dryrun = property(__get_dryrun, __set_dryrun,
+                      doc="""Enable dryrun mode. Systems commands will be
+                     logged, but not executed.""")
 
     def _check_comp(self, comp):
         if comp not in self.COMPONENTS:
@@ -76,7 +101,6 @@ class Dm36xLeopard(Board):
             return 'nand write.ubl'
         else:
             return 'nand write'
-    
     
     def post_write_cmd(self, comp):
         self._check_comp(comp)
@@ -126,3 +150,30 @@ class Dm36xLeopard(Board):
             self._parser.check_args_ram(args)
         elif args.mode == MODE_ENV:
             self._parser.check_args_env(args)
+
+    def sd_init_comp_installer(self, args):
+        self._comp_installer = Dm36xLeopardCompInstaller()
+        self._comp_installer.dryrun = self._dryrun
+        self._comp_installer.uflash_bin = args.uflash_bin
+        self._comp_installer.ubl_file = args.ubl_file
+        self._comp_installer.uboot_file = args.uboot_file
+        self._comp_installer.uboot_entry_addr = args.uboot_entry_addr
+        self._comp_installer.uboot_load_addr = args.uboot_load_addr
+        self._comp_installer.bootargs = args.uboot_bootargs
+        if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
+            self._comp_installer.kernel_image = args.kernel_file
+        if hasattr(args, 'rootfs'): # sd-script mode doesn't need this
+            self._comp_installer.rootfs = args.rootfs
+        self._comp_installer.workdir = args.workdir
+
+    def sd_install_bootloader(self, device):
+        self._comp_installer.install_uboot(device)
+    
+    def sd_install_bootloader_env(self, mount_point):
+        self._comp_installer.install_uboot_env(mount_point)
+
+    def sd_install_kernel(self, mount_point):
+        self._comp_installer.install_kernel(mount_point)
+    
+    def sd_install_rootfs(self, mount_point):
+        self._comp_installer.install_rootfs(mount_point)

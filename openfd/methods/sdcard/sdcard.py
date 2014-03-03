@@ -23,7 +23,7 @@ from openfd.storage.partition import SDCardPartition
 from openfd.storage.partition import LoopDevicePartition
 from openfd.storage.device import SDCard
 from openfd.storage.device import LoopDevice
-from component import ComponentInstallerError
+from openfd.boards.board import BoardError
 
 # ==========================================================================
 # Public Classes
@@ -58,10 +58,10 @@ class SDCardInstaller(object):
         5. release()
     """
     
-    def __init__(self, comp_installer, device='', dryrun=False,
+    def __init__(self, board, device='', dryrun=False,
                  interactive=True, enable_colors=True):
         """
-        :param comp_installer: :class:`ComponentInstaller` instance.
+        :param board: :class:`Board` instance.
         :param device: Device name (i.e. '/dev/sdb').
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
             but not executed.
@@ -74,12 +74,12 @@ class SDCardInstaller(object):
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._e.enable_colors = enable_colors
-        self._comp_installer = comp_installer
+        self._board = board
         self._sd = SDCard(device)
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._sd.dryrun = dryrun
-        self._comp_installer.dryrun = dryrun
+        self._board.dryrun = dryrun
         self._interactive = interactive
         self._partitions = []
         self._loopdevice_partitions = {}
@@ -96,7 +96,7 @@ class SDCardInstaller(object):
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
-        self._comp_installer.dryrun = dryrun
+        self._board.dryrun = dryrun
         self._e.dryrun = dryrun
         self._sd.dryrun = dryrun
     
@@ -214,20 +214,16 @@ class SDCardInstaller(object):
             for comp in part.components:
                 try:
                     if comp == SDCardPartition.COMPONENT_BOOTLOADER:
-                        self._comp_installer.install_uboot(self._sd.name)
-                        self._comp_installer.install_uboot_env(mount_point)
+                        self._board.sd_install_bootloader(self._sd.name)
+                        self._board.sd_install_bootloader_env(mount_point)
                     elif comp == SDCardPartition.COMPONENT_KERNEL:
-                        self._comp_installer.install_kernel(mount_point)
+                        self._board.sd_install_kernel(mount_point)
                     elif comp == SDCardPartition.COMPONENT_ROOTFS:
-                        if self._comp_installer.rootfs is None:
-                            self._l.warning('No directory for "%s", omitting...'
-                                        % (SDCardPartition.COMPONENT_ROOTFS))
-                        else:
-                            self._comp_installer.install_rootfs(mount_point)
+                        self._board.sd_install_rootfs(mount_point)
                     else:
                         raise SDCardInstallerError('Component %s is not valid'
                                                    % comp)
-                except ComponentInstallerError as e:
+                except BoardError as e:
                     raise SDCardInstallerError(e)
             i += 1
 
@@ -245,9 +241,9 @@ class LoopDeviceInstaller(object):
         5. release()
     """
     
-    def __init__(self, comp_installer, dryrun=False):
+    def __init__(self, board, dryrun=False):
         """
-        :param comp_installer: :class:`ComponentInstaller` instance.
+        :param board: :class:`Board` instance.
         :param dryrun: Enable dryrun mode. Systems commands will be logged,
             but not executed.
         :type dryrun: boolean
@@ -255,17 +251,17 @@ class LoopDeviceInstaller(object):
         
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
-        self._comp_installer = comp_installer
+        self._board = board
         self._ld = LoopDevice()
         self._dryrun = dryrun
         self._e.dryrun = dryrun
         self._ld.dryrun = dryrun
-        self._comp_installer.dryrun = dryrun
+        self._board.dryrun = dryrun
         self._partitions = []
     
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
-        self._comp_installer.dryrun = dryrun
+        self._board.dryrun = dryrun
         self._e.dryrun = dryrun
         self._ld.dryrun = dryrun
     
@@ -316,20 +312,16 @@ class LoopDeviceInstaller(object):
             for comp in part.components:
                 try:
                     if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
-                        self._comp_installer.install_uboot(self._ld.name)
-                        self._comp_installer.install_uboot_env(mount_point)
+                        self._board.sd_install_bootloader(self._ld.name)
+                        self._board.sd_install_bootloader_env(mount_point)
                     elif comp == LoopDevicePartition.COMPONENT_KERNEL:
-                        self._comp_installer.install_kernel(mount_point)
+                        self._board.sd_install_kernel(mount_point)
                     elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
-                        if self._comp_installer.rootfs is None:
-                            self._l.warning('No directory for "%s", omitting...'
-                                    % (LoopDevicePartition.COMPONENT_ROOTFS))
-                        else:
-                            self._comp_installer.install_rootfs(mount_point)
+                        self._board.sd_install_rootfs(mount_point)
                     else:
                         raise LoopDeviceInstallerError('Component %s is not '
                                                        'valid' % comp)
-                except ComponentInstallerError as e:
+                except BoardError as e:
                     raise LoopDeviceInstallerError(e)
             i += 1
     

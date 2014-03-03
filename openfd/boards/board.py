@@ -17,9 +17,22 @@
 # Public Classes
 # ==========================================================================
 
+class BoardError(Exception):
+    """Exceptions for Board"""
+
 class Board(object):
     """Board base class."""
+    
+    # Command-line arguments
+    
+    def add_args(self, parser):
+        raise NotImplementedError
+    
+    def check_args(self, args):
+        raise NotImplementedError
 
+    # Flash-related interfaces
+    
     def comp_name(self, comp):
         raise NotImplementedError
     
@@ -34,3 +47,22 @@ class Board(object):
     
     def post_write_cmd(self, comp):
         raise NotImplementedError
+    
+    # Method sdcard - Component installation
+    
+    def sd_init_comp_installer(self, args):
+        raise NotImplementedError
+    
+    def sd_install_bootloader(self, device):
+        raise NotImplementedError
+    
+    def sd_install_bootloader_env(self, mount_point):
+        raise NotImplementedError
+
+    def sd_install_kernel(self, mount_point):
+        raise NotImplementedError
+    
+    def sd_install_rootfs(self, mount_point):
+        raise NotImplementedError
+    
+    
