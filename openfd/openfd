@@ -167,7 +167,7 @@ def _check_args(args):
         _abort_install()
 
 def _check_sudo():
-    _logger.warning("This installation mode requires superuser access")
+    _logger.warning("This installation mode requires to execute commands via sudo")
     ret = utils.get_global_executer().prompt_sudo()
     if ret is False:
         _logger.error("Failed obtaining superuser access via sudo")
