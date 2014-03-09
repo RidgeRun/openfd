@@ -33,6 +33,8 @@ if not devdir: sys.exit(-1)
 
 test_host_ip_addr = '10.251.101.24'
 #test_host_ip_addr = '192.168.1.110'
+#test_board = 'dm36x-leopard'
+test_board = 'dm816x-z3'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 test_mmap_file = '%s/images/nand-mmap.config' % devdir
@@ -76,7 +78,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
         self.env_inst = EnvInstaller(uboot=self.uboot)
         self.env_inst.dryrun = dryrun
         
-        self.board = BoardFactory().make('dm36x-leopard')
+        self.board = BoardFactory().make(test_board)
         
         self.inst = NandInstaller(uboot=self.uboot, board=self.board,
                                   loader=self.loader)
@@ -199,7 +201,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 # ==========================================================================
 
     def test_install_bootloader(self):
-        test_install_uboot = False
+        test_install_uboot = True
         if test_install_uboot:
             self.setup_network()
             self.load_uboot()
@@ -235,7 +237,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_mtdparts()
             
     def test_install_all(self):
-        install_all = True
+        install_all = False
         if install_all:
             self.setup_network()
             self.load_uboot()

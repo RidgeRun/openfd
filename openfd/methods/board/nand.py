@@ -302,10 +302,14 @@ class NandInstaller(object):
             (self._board.erase_cmd(comp), to_hex(offset), to_hex(part_size))
         self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Writing %s image from RAM to NAND" % comp)
+        cmd = self._board.pre_write_cmd(comp)
+        if cmd: self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         cmd = "%s %s %s %s" % (self._board.write_cmd(comp),
                                to_hex(self._ram_load_addr), to_hex(offset),
                                to_hex(img_size_aligned))
         self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        cmd = self._board.post_write_cmd(comp)
+        if cmd: self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
         self._l.debug("Saving %s partition info" % comp)
         self._save_img_env(comp, img_env)
         self._u.save_env()
@@ -313,9 +317,9 @@ class NandInstaller(object):
     
     def install_ipl(self, force=False):
         """
-        Installs the UBL (initial program loader) image to NAND. After 
-        installing the image it will save in uboot's environment the following
-        variables:
+        Installs the Initial Program Loader (also referred as pre-bootloader or
+        first stage bootloader) image to NAND. After installing the image it
+        will save in uboot's environment the following variables:
         
         * `iploffset`: IPL offset address, hexadecimal.
         * `iplmd5sum`: IPL image md5sum.
@@ -344,7 +348,8 @@ class NandInstaller(object):
             in NAND.
         """
         
-        comp_name = self._board.comp_name('bootloader')
+        comp = 'bootloader'
+        comp_name = self._board.comp_name(comp)
         for part in self._partitions:
             if part.name == comp_name:
                 self._l.info('Installing bootloader')
@@ -356,14 +361,18 @@ class NandInstaller(object):
                 img_size_blk = self._bytes_to_blks(os.path.getsize(part.image))
                 img_size_aligned = img_size_blk * self.nand_block_size
                 self._l.debug("Erasing uboot NAND space")
-                cmd = "%s %s %s" % (self._board.erase_cmd('bootloader'),
+                cmd = "%s %s %s" % (self._board.erase_cmd(comp),
                                     to_hex(offset), to_hex(img_size_aligned))
                 self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Writing uboot image from RAM to NAND")
-                cmd = "%s %s %s %s" % (self._board.write_cmd('bootloader'),
+                cmd = self._board.pre_write_cmd('bootloader')
+                if cmd: self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+                cmd = "%s %s %s %s" % (self._board.write_cmd(comp),
                                    to_hex(self._ram_load_addr), to_hex(offset),
                                    to_hex(img_size_aligned))
                 self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+                cmd = self._board.post_write_cmd(comp)
+                if cmd: self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
                 self._l.debug("Restarting to use the uboot in NAND")
                 self._u.cmd('reset', prompt_timeout=None)
                 found_reset_str = self._u.expect('U-Boot', timeout=10)[0]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -20,6 +20,7 @@
 import os
 import importlib
 import dm36x_leopard
+import dm816x_z3
 import dummy_evm
 import openfd.boards
 
@@ -43,6 +44,8 @@ class BoardFactory(object):
         
         if name == dm36x_leopard.BOARD_NAME:
             return dm36x_leopard.Dm36xLeopard()
+        if name == dm816x_z3.BOARD_NAME:
+            return dm816x_z3.Dm36xLeopard()
         elif name == dummy_evm.BOARD_NAME:
             return dummy_evm.DummyEvm()
         else:
