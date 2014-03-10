@@ -68,7 +68,7 @@ def str_to_hex(value, upper=False):
         that given value is not decimal nor hexadecimal.
     """
     
-    if not value: return ''
+    if not value and value != 0: return ''
     
     hex_value = value
     try:
