@@ -28,7 +28,7 @@ from board import BoardError
 # Public Classes
 # ==========================================================================
 
-class Dm816xZ3CompInstaller(object):
+class Dm816xZ3SdCompInstaller(object):
     """
     Class to handle components-related operations.
     """

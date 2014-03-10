@@ -15,7 +15,7 @@
 
 from board import Board
 from dm36x_leopard_args import Dm36xLeopardArgsParser
-from dm36x_leopard_comp import Dm36xLeopardCompInstaller
+from dm36x_leopard_comp import Dm36xLeopardSdCompInstaller
 
 BOARD_NAME = 'dm36x-leopard'
 
@@ -152,7 +152,7 @@ class Dm36xLeopard(Board):
             self._parser.check_args_env(args)
 
     def sd_init_comp_installer(self, args):
-        self._comp_installer = Dm36xLeopardCompInstaller()
+        self._comp_installer = Dm36xLeopardSdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uflash_bin = args.uflash_bin
         self._comp_installer.ubl_file = args.ubl_file

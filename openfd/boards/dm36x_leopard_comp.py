@@ -28,7 +28,7 @@ from board import BoardError
 # Public Classes
 # ==========================================================================
 
-class Dm36xLeopardCompInstaller(object):
+class Dm36xLeopardSdCompInstaller(object):
     """
     Class to handle components-related operations.
     """

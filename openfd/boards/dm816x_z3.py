@@ -15,7 +15,7 @@
 
 from board import Board
 from dm816x_z3_args import Dm816xZ3ArgsParser
-from dm816x_z3_comp import Dm816xZ3CompInstaller
+from dm816x_z3_comp import Dm816xZ3SdCompInstaller
 
 BOARD_NAME = 'dm816x-z3'
 
@@ -113,7 +113,7 @@ class Dm36xLeopard(Board):
         #parser_sd_img = subparsers.add_parser(MODE_SD_IMG)
         #parser_sd_script = subparsers.add_parser(MODE_SD_SCRIPT)
         #parser_sd_script_img = subparsers.add_parser(MODE_SD_SCRIPT_IMG)
-        #parser_ram = subparsers.add_parser(MODE_RAM)
+        parser_ram = subparsers.add_parser(MODE_RAM)
         parser_env = subparsers.add_parser(MODE_ENV)
         parser_nand = subparsers.add_parser(MODE_NAND)
         
@@ -132,7 +132,7 @@ class Dm36xLeopard(Board):
         self._parser.add_args_nand_bootloader(parser_nand_bootloader)
         self._parser.add_args_nand_kernel(parser_nand_kernel)
         self._parser.add_args_nand_fs(parser_nand_fs)
-        #self._parser.add_args_ram(parser_ram)
+        self._parser.add_args_ram(parser_ram)
         self._parser.add_args_env(parser_env)
 
     def check_args(self, args):
@@ -152,7 +152,7 @@ class Dm36xLeopard(Board):
             self._parser.check_args_env(args)
 
     def sd_init_comp_installer(self, args):
-        self._comp_installer = Dm816xZ3CompInstaller()
+        self._comp_installer = Dm816xZ3SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uflash_bin = args.uflash_bin
         self._comp_installer.ubl_file = args.ubl_file
