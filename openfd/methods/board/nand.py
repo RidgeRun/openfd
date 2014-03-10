@@ -273,7 +273,7 @@ class NandInstaller(object):
         self._u.set_env('%s_partitionsize' % comp, img_env['partitionsize'])
 
     def _install_img(self, filename, comp, start_blk, size_blks=0,
-                     force=False):
+                     timeout=DEFAULT_NAND_TIMEOUT, force=False):
         self._l.info('Installing %s' % comp)
         offset = start_blk * self.nand_block_size
         img_size_blks = self._bytes_to_blks(os.path.getsize(filename))
@@ -300,16 +300,16 @@ class NandInstaller(object):
         self._l.debug("Erasing %s NAND space" % comp)
         cmd = "%s %s %s" % \
             (self._board.erase_cmd(comp), to_hex(offset), to_hex(part_size))
-        self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, prompt_timeout=timeout)
         self._l.debug("Writing %s image from RAM to NAND" % comp)
         cmd = self._board.pre_write_cmd(comp)
-        if cmd: self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        if cmd: self._u.cmd(cmd, prompt_timeout=timeout)
         cmd = "%s %s %s %s" % (self._board.write_cmd(comp),
                                to_hex(self._ram_load_addr), to_hex(offset),
                                to_hex(img_size_aligned))
-        self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        self._u.cmd(cmd, prompt_timeout=timeout)
         cmd = self._board.post_write_cmd(comp)
-        if cmd: self._u.cmd(cmd, prompt_timeout=DEFAULT_NAND_TIMEOUT)
+        if cmd: self._u.cmd(cmd, prompt_timeout=timeout)
         self._l.debug("Saving %s partition info" % comp)
         self._save_img_env(comp, img_env)
         self._u.save_env()
@@ -337,7 +337,7 @@ class NandInstaller(object):
         for part in self._partitions:
             if part.name == self._board.comp_name('ipl'):
                 self._install_img(part.image, 'ipl', part.start_blk,
-                                         part.size_blks, force)
+                                         part.size_blks, force=force)
 
     def install_bootloader(self):
         """
@@ -410,7 +410,7 @@ class NandInstaller(object):
         for part in self._partitions:
             if part.name == self._board.comp_name('kernel'):
                 self._install_img(part.image, 'kernel', part.start_blk,
-                                         part.size_blks, force)
+                                         part.size_blks, force=force)
     
     def install_fs(self, force=False):
         """
@@ -433,7 +433,7 @@ class NandInstaller(object):
         for part in self._partitions:
             if part.name == self._board.comp_name('fs'):
                 self._install_img(part.image, 'fs', part.start_blk,
-                                  part.size_blks, force)
+                  part.size_blks, timeout=3*DEFAULT_NAND_TIMEOUT, force=force)
 
     def read_partitions(self, filename):
         """
