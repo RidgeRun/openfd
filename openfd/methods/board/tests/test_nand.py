@@ -183,17 +183,23 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     def install_cmdline(self):
         print "---- Installing cmdline ----"
         # cmdline for ubifs
-        cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
+        if test_board == 'dm36x-leopard':
+            cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
+        elif test_board == 'dm816x-z3':
+            cmdline = "console=ttyO2,115200n8 notifyk.vpssm3_sva=0xBF900000 ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mem=364M@0x80000000 mem=320M@0x9FC00000 vmalloc=512M vram=81M mtdparts=omap2-nand.0:256k@0k(UBOOT-MIN),256k@256k(UBOOT),4352k@2560k(KERNEL),63232k@6912k(ROOTFS)"
         self.env_inst.install_variable('bootargs', cmdline)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
-        bootcmd = "'nboot 0x82000000 0 ${koffset}'"
+        bootcmd = "'nboot 0x82000000 0 ${kernel_offset}'"
         self.env_inst.install_variable('bootcmd', bootcmd)
         
     def install_mtdparts(self):
         print "---- Installing mtdparts ----"
-        mtdparts = "mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
+        if test_board == 'dm36x-leopard':
+            mtdparts = "mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
+        elif test_board == 'dm816x-z3':
+            mtdparts = "mtdparts=omap2-nand.0:256k@0k(UBOOT-MIN),256k@256k(UBOOT),4352k@2560k(KERNEL),63232k@6912k(ROOTFS)"
         self.env_inst.install_variable('mtdparts', mtdparts, force=True)
 
 # ==========================================================================
@@ -201,7 +207,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
 # ==========================================================================
 
     def test_install_bootloader(self):
-        test_install_uboot = True
+        test_install_uboot = False
         if test_install_uboot:
             self.setup_network()
             self.load_uboot()
@@ -237,7 +243,7 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             self.install_mtdparts()
             
     def test_install_all(self):
-        install_all = False
+        install_all = True
         if install_all:
             self.setup_network()
             self.load_uboot()
