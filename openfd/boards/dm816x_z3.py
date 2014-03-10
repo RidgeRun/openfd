@@ -25,7 +25,7 @@ BOARD_NAME = 'dm816x-z3'
 #MODE_SD_SCRIPT = 'sd-script'
 #MODE_SD_SCRIPT_IMG = 'sd-script-img'
 MODE_NAND = 'nand'
-#MODE_RAM = 'ram'
+MODE_RAM = 'ram'
 MODE_ENV = 'env'
 
 # Supported components
@@ -38,7 +38,7 @@ class Dm36xLeopard(Board):
     
     #MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
     #         MODE_NAND, MODE_RAM, MODE_ENV]
-    MODES = [MODE_NAND, MODE_ENV]
+    MODES = [MODE_NAND, MODE_RAM, MODE_ENV]
     COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
     
     mach_description = "DM816x Z3 Board"
@@ -146,8 +146,8 @@ class Dm36xLeopard(Board):
 #            self._parser.check_args_sd_script_img(args)
         if args.mode == MODE_NAND:
             self._parser.check_args_nand(args)
-#        elif args.mode == MODE_RAM:
-#            self._parser.check_args_ram(args)
+        elif args.mode == MODE_RAM:
+            self._parser.check_args_ram(args)
         elif args.mode == MODE_ENV:
             self._parser.check_args_env(args)
 
