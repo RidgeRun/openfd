@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -47,6 +47,11 @@ class DeviceGeometry(object):
     
     #: String used to represent the max available size of a given storage device.
     full_size = "-"
+
+    def mb_to_cyl(self, size_mb):
+        size_b = int(size_mb) << 20
+        size_cyl = size_b / self.cyl_byte_size
+        return long(math.floor(size_cyl))
 
 class Device(object):
     """Representation of a device, like /dev/sda or /dev/sdb or so. """
@@ -508,7 +513,7 @@ class LoopDevice(Device):
             raise DeviceException('Failed to format a temporary filesystem on '
                                   '%s' % img_name)
     
-    def attach_partitions(self, img_name):
+    def attach_partitions(self, img_name, img_size_mb):
         """
         Attaches partitions of the image file to an available loop device.
         
@@ -520,10 +525,12 @@ class LoopDevice(Device):
             device = self._get_free_device()
             offset = int(part.start) * int(self.geometry.cyl_byte_size)
             if part.size == self.geometry.full_size:
-                cmd = 'sudo losetup -o %s %s %s' % (offset, device, img_name)
+                part_size_cyl = self.geometry.mb_to_cyl(img_size_mb) - \
+                    int(part.start)
+                size_b = part_size_cyl * int(self.geometry.cyl_byte_size)
             else:
                 size_b = int(part.size) * int(self.geometry.cyl_byte_size)
-                cmd = ('sudo losetup -o %s --sizelimit %s %s %s' %
+            cmd = ('sudo losetup -o %s --sizelimit %s %s %s' %
                                         (offset, size_b, device, img_name))
             ret = self._e.check_call(cmd)
             if ret != 0:
