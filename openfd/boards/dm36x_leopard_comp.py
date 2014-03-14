@@ -22,6 +22,7 @@ import os
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
 from openfd.storage import SDCardPartition
+from openfd.storage import LoopDevicePartition
 from board import BoardError
 
 # ==========================================================================
@@ -247,3 +248,49 @@ class Dm36xLeopardSdCompInstaller(object):
             self._l.warning('No directory for "%s", omitting...'
                                         % (SDCardPartition.COMPONENT_ROOTFS))
 
+
+    def install_sd_components(self, sd):
+        """
+        Installs the specified components for each partition.
+        
+        :exception BoardError: On failure installing the components.
+        """
+        
+        i = 1
+        for part in sd.partitions:
+            cmd = 'mount | grep %s  | cut -f 3 -d " "' % sd.partition_name(i)
+            output = self._e.check_output(cmd)[1]
+            mount_point = output.replace('\n', '')
+            for comp in part.components:
+                if comp == SDCardPartition.COMPONENT_BOOTLOADER:
+                    self.install_uboot(sd.name)
+                    self.install_uboot_env(mount_point)
+                elif comp == SDCardPartition.COMPONENT_KERNEL:
+                    self.install_kernel(mount_point)
+                elif comp == SDCardPartition.COMPONENT_ROOTFS:
+                    self.install_rootfs(mount_point)
+                else:
+                    raise BoardError('Invalid component: %s' % comp)
+            i += 1
+
+    def install_ld_components(self, ld):
+        """
+        Installs the specified components for each partition.
+        
+        :exception BoardError: On failure installing the components.
+        """
+        
+        for part in self._ld.partitions:
+            cmd = 'mount | grep %s  | cut -f 3 -d " "' % part.device
+            output = self._e.check_output(cmd)[1]
+            mount_point = output.replace('\n', '')
+            for comp in part.components:
+                if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
+                    self.install_uboot(ld.name)
+                    self.install_uboot_env(mount_point)
+                elif comp == LoopDevicePartition.COMPONENT_KERNEL:
+                    self.install_kernel(mount_point)
+                elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
+                    self.install_rootfs(mount_point)
+                else:
+                    raise BoardError('Invalid component: %s' % comp)

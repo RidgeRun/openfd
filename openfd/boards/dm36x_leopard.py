@@ -166,14 +166,8 @@ class Dm36xLeopard(Board):
             self._comp_installer.rootfs = args.rootfs
         self._comp_installer.workdir = args.workdir
 
-    def sd_install_bootloader(self, device):
-        self._comp_installer.install_uboot(device)
-    
-    def sd_install_bootloader_env(self, mount_point):
-        self._comp_installer.install_uboot_env(mount_point)
+    def sd_install_components(self, sd):
+        self._comp_installer.install_sd_components(sd)
 
-    def sd_install_kernel(self, mount_point):
-        self._comp_installer.install_kernel(mount_point)
-    
-    def sd_install_rootfs(self, mount_point):
-        self._comp_installer.install_rootfs(mount_point)
+    def ld_install_components(self, ld):
+        self._comp_installer.install_ld_components(ld)

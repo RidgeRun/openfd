@@ -205,27 +205,10 @@ class SDCardInstaller(object):
         :exception SDCardInstallerError: On failure installing the components.
         """
         
-        i = 1
-        for part in self._sd.partitions:
-            device_part = self._sd.partition_name(i)
-            cmd = 'mount | grep %s  | cut -f 3 -d " "' % device_part
-            output = self._e.check_output(cmd)[1]
-            mount_point = output.replace('\n', '')
-            for comp in part.components:
-                try:
-                    if comp == SDCardPartition.COMPONENT_BOOTLOADER:
-                        self._board.sd_install_bootloader(self._sd.name)
-                        self._board.sd_install_bootloader_env(mount_point)
-                    elif comp == SDCardPartition.COMPONENT_KERNEL:
-                        self._board.sd_install_kernel(mount_point)
-                    elif comp == SDCardPartition.COMPONENT_ROOTFS:
-                        self._board.sd_install_rootfs(mount_point)
-                    else:
-                        raise SDCardInstallerError('Component %s is not valid'
-                                                   % comp)
-                except BoardError as e:
-                    raise SDCardInstallerError(e)
-            i += 1
+        try:
+            self._board.sd_install_components(self._sd)
+        except BoardError as e:
+            raise SDCardInstallerError(e)
 
 class LoopDeviceInstaller(object):
     """
@@ -304,26 +287,10 @@ class LoopDeviceInstaller(object):
         :exception LoopDeviceInstallerError: On failure installing the components.
         """
         
-        i = 1
-        for part in self._ld.partitions:
-            cmd = 'mount | grep %s  | cut -f 3 -d " "' % part.device
-            output = self._e.check_output(cmd)[1]
-            mount_point = output.replace('\n', '')
-            for comp in part.components:
-                try:
-                    if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
-                        self._board.sd_install_bootloader(self._ld.name)
-                        self._board.sd_install_bootloader_env(mount_point)
-                    elif comp == LoopDevicePartition.COMPONENT_KERNEL:
-                        self._board.sd_install_kernel(mount_point)
-                    elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
-                        self._board.sd_install_rootfs(mount_point)
-                    else:
-                        raise LoopDeviceInstallerError('Component %s is not '
-                                                       'valid' % comp)
-                except BoardError as e:
-                    raise LoopDeviceInstallerError(e)
-            i += 1
+        try:
+            self._board.ld_install_components(self._ld)
+        except BoardError as e:
+            raise LoopDeviceInstallerError(e)
     
     def release(self):
         """

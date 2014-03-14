@@ -53,16 +53,9 @@ class Board(object):
     def sd_init_comp_installer(self, args):
         raise NotImplementedError
     
-    def sd_install_bootloader(self, device):
+    def sd_install_components(self):
         raise NotImplementedError
     
-    def sd_install_bootloader_env(self, mount_point):
-        raise NotImplementedError
-
-    def sd_install_kernel(self, mount_point):
-        raise NotImplementedError
-    
-    def sd_install_rootfs(self, mount_point):
-        raise NotImplementedError
-    
+    def ld_install_components(self):
+        raise NotImplementedError    
     
