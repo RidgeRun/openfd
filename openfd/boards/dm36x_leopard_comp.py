@@ -280,7 +280,7 @@ class Dm36xLeopardSdCompInstaller(object):
         :exception BoardError: On failure installing the components.
         """
         
-        for part in self._ld.partitions:
+        for part in ld.partitions:
             cmd = 'mount | grep %s  | cut -f 3 -d " "' % part.device
             output = self._e.check_output(cmd)[1]
             mount_point = output.replace('\n', '')
