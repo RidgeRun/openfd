@@ -20,7 +20,7 @@ from dm816x_z3_comp import Dm816xZ3SdCompInstaller
 BOARD_NAME = 'dm816x-z3'
 
 # Supported modes
-#MODE_SD = 'sd'
+MODE_SD = 'sd'
 #MODE_SD_IMG = 'sd-img'
 #MODE_SD_SCRIPT = 'sd-script'
 #MODE_SD_SCRIPT_IMG = 'sd-script-img'
@@ -38,7 +38,7 @@ class Dm36xLeopard(Board):
     
     #MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
     #         MODE_NAND, MODE_RAM, MODE_ENV]
-    MODES = [MODE_NAND, MODE_RAM, MODE_ENV]
+    MODES = [MODE_SD, MODE_NAND, MODE_RAM, MODE_ENV]
     COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
     
     mach_description = "DM816x Z3 Board"
@@ -109,7 +109,7 @@ class Dm36xLeopard(Board):
     def add_args(self, parser):
         subparsers = parser.add_subparsers(help="installation mode (--help available)", dest="mode")
 
-        #parser_sd = subparsers.add_parser(MODE_SD)
+        parser_sd = subparsers.add_parser(MODE_SD)
         #parser_sd_img = subparsers.add_parser(MODE_SD_IMG)
         #parser_sd_script = subparsers.add_parser(MODE_SD_SCRIPT)
         #parser_sd_script_img = subparsers.add_parser(MODE_SD_SCRIPT_IMG)
@@ -123,7 +123,7 @@ class Dm36xLeopard(Board):
         parser_nand_kernel = subparsers_nand.add_parser(COMP_KERNEL, help="Kernel")
         parser_nand_fs = subparsers_nand.add_parser(COMP_FS, help="Filesystem")
         
-        #self._parser.add_args_sd(parser_sd)
+        self._parser.add_args_sd(parser_sd)
         #self._parser.add_args_sd_img(parser_sd_img)
         #self._parser.add_args_sd_script(parser_sd_script)
         #self._parser.add_args_sd_script_img(parser_sd_script_img)
@@ -136,8 +136,8 @@ class Dm36xLeopard(Board):
         self._parser.add_args_env(parser_env)
 
     def check_args(self, args):
-#        if args.mode == MODE_SD:
-#            self._parser.check_args_sd(args)
+        if args.mode == MODE_SD:
+            self._parser.check_args_sd(args)
 #        elif args.mode == MODE_SD_IMG:
 #            self._parser.check_args_sd_img(args)
 #        elif args.mode == MODE_SD_SCRIPT:
@@ -154,10 +154,8 @@ class Dm36xLeopard(Board):
     def sd_init_comp_installer(self, args):
         self._comp_installer = Dm816xZ3SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
-        self._comp_installer.uflash_bin = args.uflash_bin
-        self._comp_installer.ubl_file = args.ubl_file
+        self._comp_installer.uboot_min_file = args.uboot_min_file
         self._comp_installer.uboot_file = args.uboot_file
-        self._comp_installer.uboot_entry_addr = args.uboot_entry_addr
         self._comp_installer.uboot_load_addr = args.uboot_load_addr
         self._comp_installer.bootargs = args.uboot_bootargs
         if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
@@ -166,14 +164,9 @@ class Dm36xLeopard(Board):
             self._comp_installer.rootfs = args.rootfs
         self._comp_installer.workdir = args.workdir
 
-    def sd_install_bootloader(self, device):
-        self._comp_installer.install_uboot(device)
-    
-    def sd_install_bootloader_env(self, mount_point):
-        self._comp_installer.install_uboot_env(mount_point)
+    def sd_install_components(self, sd):
+        self._comp_installer.install_sd_components(sd)
 
-    def sd_install_kernel(self, mount_point):
-        self._comp_installer.install_kernel(mount_point)
+    def ld_install_components(self, ld):
+        self._comp_installer.install_ld_components(ld)
     
-    def sd_install_rootfs(self, mount_point):
-        self._comp_installer.install_rootfs(mount_point)

@@ -182,7 +182,6 @@ class Dm36xLeopardSdCompInstaller(object):
               ' -l ' + uboot_load_addr)
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed to flash UBL and uboot into %s' % device)
-        return True
     
     def install_uboot_env(self, mount_point):
         """

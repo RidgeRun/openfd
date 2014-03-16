@@ -71,28 +71,16 @@ class Dm816xZ3ArgsParser(object):
     
     def add_args_sd_bootloader(self, parser):
         
-        parser.add_argument('--uflash-bin',
-                           help='Path to the uflash tool',
+        parser.add_argument('--uboot-min-file',
+                           help='Path to the U-Boot MIN file',
                            metavar='<file>',
-                           dest='uflash_bin',
-                           required=True)
-        
-        parser.add_argument('--ubl-file',
-                           help='Path to the UBL file',
-                           metavar='<file>',
-                           dest='ubl_file',
+                           dest='uboot_min_file',
                            required=True)
         
         parser.add_argument('--uboot-file',
                            help='Path to the U-Boot file',
                            metavar='<file>',
                            dest='uboot_file',
-                           required=True)
-        
-        parser.add_argument('--uboot-entry-addr',
-                           help='U-Boot entry address (decimal or hex)',
-                           metavar='<addr>',
-                           dest='uboot_entry_addr',
                            required=True)
         
         parser.add_argument('--uboot-load-addr',
@@ -109,10 +97,8 @@ class Dm816xZ3ArgsParser(object):
         
     def check_args_sd_bootloader(self, args):
         self.checker.is_file(args.uflash_bin, '--uflash-bin')
-        self.checker.x_ok(args.uflash_bin, '--uflash-bin')
-        self.checker.is_file(args.ubl_file, '--ubl-file')
+        self.checker.is_file(args.uboot_min_file, '--uboot-min-file')
         self.checker.is_file(args.uboot_file, '--uboot-file')
-        self.checker.is_valid_addr(args.uboot_entry_addr, '--uboot-entry-addr')
         self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')
         
     def add_args_sd_fs(self, parser):

@@ -4,7 +4,6 @@
 # Copyright (C) 2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
-#          Diego Benavides <diego.benavides@ridgerun.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -22,6 +21,7 @@ import os
 import openfd.utils as utils
 import openfd.utils.hexutils as hexutils
 from openfd.storage import SDCardPartition
+from openfd.storage import LoopDevicePartition
 from board import BoardError
 
 # ==========================================================================
@@ -43,10 +43,8 @@ class Dm816xZ3SdCompInstaller(object):
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._workdir = None
-        self._uflash_bin = None
-        self._ubl_file = None
+        self._uboot_min_file = None
         self._uboot_file = None
-        self._uboot_entry_addr = None
         self._uboot_load_addr = None
         self._bootargs = None
         self._kernel_image = None
@@ -64,25 +62,16 @@ class Dm816xZ3SdCompInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
+  
+    def __set_uboot_min_file(self, uboot_min_file):
+        self._uboot_min_file = uboot_min_file
         
-    def __set_uflash_bin(self, uflash_bin):
-        self._uflash_bin = uflash_bin
-        
-    def __get_uflash_bin(self):
-        return self._uflash_bin
+    def __get_uboot_min_file(self):
+        return self._uboot_min_file
     
-    uflash_bin = property(__get_uflash_bin, __set_uflash_bin,
-                          doc="""Path to the uflash tool.""")
-    
-    def __set_ubl_file(self, ubl_file):
-        self._ubl_file = ubl_file
-        
-    def __get_ubl_file(self):
-        return self._ubl_file
-    
-    ubl_file = property(__get_ubl_file, __set_ubl_file,
-                        doc="""Path to the UBL file.""")
-    
+    uboot_min_file = property(__get_uboot_min_file, __set_uboot_min_file,
+                          doc="""Path to the uboot min file.""")
+  
     def __set_uboot_file(self, uboot_file):
         self._uboot_file = uboot_file
         
@@ -91,20 +80,6 @@ class Dm816xZ3SdCompInstaller(object):
     
     uboot_file = property(__get_uboot_file, __set_uboot_file,
                           doc="""Path to the uboot file.""")
-    
-    def __set_uboot_entry_addr(self, uboot_entry_addr):
-        if hexutils.is_valid_addr(uboot_entry_addr):
-            self._uboot_entry_addr = uboot_entry_addr
-        else:
-            self._l.error('Invalid u-boot entry address: %s' % uboot_entry_addr)
-            self._uboot_entry_addr = None
-        
-    def __get_uboot_entry_addr(self):
-        return self._uboot_entry_addr
-    
-    uboot_entry_addr = property(__get_uboot_entry_addr, __set_uboot_entry_addr,
-                                doc="""Uboot entry address, in decimal or
-                                hexadecimal (`'0x'` prefix).""")
     
     def __set_uboot_load_addr(self, uboot_load_addr):
         if hexutils.is_valid_addr(uboot_load_addr):
@@ -158,37 +133,27 @@ class Dm816xZ3SdCompInstaller(object):
                doc="""Path to the workdir - a directory where this installer
                can write files and perform other temporary operations.""")
     
-    def install_uboot(self, device):
+    def install_uboot(self, mount_point):
         """
-        Flashes UBL and uboot to the given device, using the uflash tool.
+        Copies the uboot min and uboot images to the given mount point.
         
-        This method needs :attr:`uflash_bin`, :attr:`ubl_file`, 
-        :attr:`uboot_file`, :attr:`uboot_entry_addr`, and  
-        :attr:`uboot_load_addr` to be already set.
-        
-        :param device: Device where to flash UBL and uboot (i.e. '/dev/sdb').
+        :param mount_point: Path where to install the uboot images.
         :exception BoardError: On error.
         """
         
-        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
-        uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
         self._l.info('Installing uboot')
-        cmd = ('sudo ' + self._uflash_bin +
-              ' -d ' + device +
-              ' -u ' + self._ubl_file + 
-              ' -b ' + self._uboot_file + 
-              ' -e ' + uboot_entry_addr + 
-              ' -l ' + uboot_load_addr)
+        cmd = 'sudo cp %s %s/MLO' % (self._uboot_min_file, mount_point)
         if self._e.check_call(cmd) != 0:
-            raise BoardError('Failed to flash UBL and uboot into %s' % device)
-        return True
+            raise BoardError('Failed copying %s to %s' %
+                               (self._uboot_min_file, mount_point))
+        cmd = 'sudo cp %s %s/u-boot.bin' % (self._uboot_file, mount_point)
+        if self._e.check_call(cmd) != 0:
+            raise BoardError('Failed copying %s to %s' %
+                               (self._uboot_file, mount_point))
     
     def install_uboot_env(self, mount_point):
         """
         Installs the uboot environment (uEnv.txt) to the given mount point.
-        
-        This methods needs :attr:`uboot_load_addr` and :attr:`workdir`
-        to be already set.
         
         :param mount_point: Path where to install the uboot environment.
         :exception BoardError: On error.
@@ -247,3 +212,48 @@ class Dm816xZ3SdCompInstaller(object):
             self._l.warning('No directory for "%s", omitting...'
                                         % (SDCardPartition.COMPONENT_ROOTFS))
 
+    def install_sd_components(self, sd):
+        """
+        Installs the specified components for each partition.
+        
+        :exception BoardError: On failure installing the components.
+        """
+        
+        i = 1
+        for part in sd.partitions:
+            cmd = 'mount | grep %s  | cut -f 3 -d " "' % sd.partition_name(i)
+            output = self._e.check_output(cmd)[1]
+            mount_point = output.replace('\n', '')
+            for comp in part.components:
+                if comp == SDCardPartition.COMPONENT_BOOTLOADER:
+                    self.install_uboot(mount_point)
+                    self.install_uboot_env(mount_point)
+                elif comp == SDCardPartition.COMPONENT_KERNEL:
+                    self.install_kernel(mount_point)
+                elif comp == SDCardPartition.COMPONENT_ROOTFS:
+                    self.install_rootfs(mount_point)
+                else:
+                    raise BoardError('Invalid component: %s' % comp)
+            i += 1
+
+    def install_ld_components(self, ld):
+        """
+        Installs the specified components for each partition.
+        
+        :exception BoardError: On failure installing the components.
+        """
+        
+        for part in ld.partitions:
+            cmd = 'mount | grep %s  | cut -f 3 -d " "' % part.device
+            output = self._e.check_output(cmd)[1]
+            mount_point = output.replace('\n', '')
+            for comp in part.components:
+                if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
+                    self.install_uboot(mount_point)
+                    self.install_uboot_env(mount_point)
+                elif comp == LoopDevicePartition.COMPONENT_KERNEL:
+                    self.install_kernel(mount_point)
+                elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
+                    self.install_rootfs(mount_point)
+                else:
+                    raise BoardError('Invalid component: %s' % comp)
