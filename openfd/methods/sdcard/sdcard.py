@@ -19,8 +19,6 @@
 # ==========================================================================
 
 import openfd.utils as utils
-from openfd.storage.partition import SDCardPartition
-from openfd.storage.partition import LoopDevicePartition
 from openfd.storage.device import SDCard
 from openfd.storage.device import LoopDevice
 from openfd.boards.board import BoardError
