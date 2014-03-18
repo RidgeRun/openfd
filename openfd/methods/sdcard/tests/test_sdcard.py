@@ -22,7 +22,8 @@ import check_env
 sys.path.insert(1, os.path.abspath('..'))
 
 import openfd.utils as utils
-from openfd.methods.sdcard import SDCardInstaller 
+from openfd.methods.sdcard import SDCardInstaller
+from openfd.methods.sdcard import LoopDeviceInstaller 
 from openfd.boards import BoardFactory
 
 # DEVDIR environment variable
@@ -93,6 +94,7 @@ class SDCardInstallerTestCase(unittest.TestCase):
         if test_board == 'dm816x-z3':
             uboot = 'u-boot-2010.06'
             self.args = argparse.Namespace()
+            self.args.mmap_file = '%s/images/sd-mmap.config' % devdir
             self.args.uboot_min_file = '%s/images/u-boot.min.sd' % devdir
             self.args.uboot_file = '%s/images/bootloader' % devdir
             self.args.uboot_load_addr = '0x82000000'
@@ -102,75 +104,52 @@ class SDCardInstallerTestCase(unittest.TestCase):
                'vmalloc=512M vram=81M')
             self.args.kernel_file = '%s/images/kernel.uImage' % devdir
             self.args.rootfs = '%s/fs/fs' % devdir
-            self.args.workdir = "%s/images" % devdir
+            self.args.workdir = '%s/images' % devdir
+            self.args.image = '%s/images/test-sdcard.img' % devdir
+            #self.args.imagesize_mb = 256 * 8
+            self.args.imagesize_mb = 1024 * 8
             self.board = BoardFactory().make(test_board)
             self.board.sd_init_comp_installer(self.args)
         
-        # SDCard Installer
         dryrun = False
         interactive = False
+        
+        # SDCard Installer
         self._inst = SDCardInstaller(board=self.board)
         self._inst.enable_colors = False
         self._inst.dryrun = dryrun
         self._inst.interactive = interactive
         self._inst.device = test_device
         
+        # LoopDevice Installer
+        self._ld_inst = LoopDeviceInstaller(board=self.board)
+        self._ld_inst.enable_colors = False
+        self._ld_inst.dryrun = dryrun
+        self._ld_inst.interactive = interactive
+        self._ld_inst.device = test_device
+        
     def tearDown(self):
         pass
         
     def test_install_sd(self, dryrun=False):
-        mmap_file = '%s/images/sd-mmap.config' % devdir
-        self._inst.read_partitions(mmap_file)
-        self._inst.format()
-        self._inst.mount_partitions(self.args.workdir)
-        self._inst.install_components()
-        self._inst.release()
-        
-    def test_interactive_sd(self):
-        
-        # Enable/Disable interactive tests
-        test_interactive = False
-        
-        if test_interactive:
-            
-            # Confirm device size
-            self._inst.device = '/dev/sda'  # CAREFUL!
-            ret = self._inst._confirm_device_size()
-            if ret:
-                print 'Device %s confirmed as SD card' % self._inst.device
-            else:
-                print 'Device %s NOT confirmed as SD card'
-            self._inst.device = test_device # Restore to test device
-            
-            # Confirm auto-unmount
-            if self._inst._device_is_mounted():
-                ret = self._inst._confirm_device_auto_unmount()
-                if ret:
-                    print "User accepted auto-unmount"
-                else:
-                    print "User declined auto-unmount"
+        test_sd = True
+        if test_sd:
+            self._inst.read_partitions(self.args.mmap_file)
+            self._inst.format()
+            self._inst.mount_partitions(self.args.workdir)
+            self._inst.install_components()
+            self._inst.release()
 
     def test_install_loopback(self, dryrun=False):
-        # TODO: Adapt to use LoopDeviceInstaller
-        return
-        
-        sdcard_mmap_filename = '%s/images/sd-mmap.config' % devdir
-        image_name = '%s/images/test_image.img' % devdir
-        
-        ret = self._inst.read_partitions(sdcard_mmap_filename)
-        self.assertTrue(ret)
-        
-        ret = self._inst.format_loopdevice(image_name, image_size_mb=1)
-        self.assertFalse(ret) # Fail with small image size
-        
-        ret = self._inst.format_loopdevice(image_name, image_size_mb=256)
-        self.assertTrue(ret)
-        
-        ret = self._inst.mount_partitions('%s/images' % devdir)
-        self.assertTrue(ret)
-        
-        ret = self._inst.release_device()
-        self.assertTrue(ret)        
+        test_ld = False
+        if test_ld:
+            self._ld_inst.read_partitions(self.args.mmap_file)
+            self._ld_inst.format(self.args.image, self.args.imagesize_mb)
+            self._ld_inst.mount_partitions(self.args.workdir)
+            self._ld_inst.install_components()
+            self._ld_inst.release()
+        #ret = self._inst.format_loopdevice(image, image_size_mb=1)
+        #self.assertFalse(ret) # Fail with small image size
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SDCardInstallerTestCase)
