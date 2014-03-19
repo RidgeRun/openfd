@@ -119,8 +119,8 @@ class Device(object):
         
         if self._size_b != 0:
             return self._size_b
-        cmd = ('sudo fdisk -l %s | grep %s | grep Disk | cut -f 5 -d " "' %
-            (self._device, self._device))
+        cmd = ('sudo fdisk -l %s 2> /dev/null | grep %s | grep Disk | '
+               'cut -f 5 -d " "' % (self._device, self._device))
         output = self._e.check_output(cmd)[1]
         if not self._dryrun:
             if not output:
@@ -539,7 +539,7 @@ class LoopDevice(Device):
         
         # If we want to reuse the code for creating and formatting partitions
         # the image needs to have a valid format
-        cmd = 'sudo mkfs.vfat -F 32 %s -n tmp' % self.name
+        cmd = 'sudo mkfs.ext4 %s -L tmp' % self.name
         ret = self._e.check_call(cmd)
         if ret != 0:
             raise DeviceException('Failed to format a temporary filesystem on '
@@ -555,13 +555,22 @@ class LoopDevice(Device):
         
         for part in self._partitions:
             device = self._get_free_device()
-            offset = int(part.start) * int(self.geometry.cyl_byte_size)
             if part.size == self.geometry.full_size:
                 part_size_cyl = self.geometry.mb_to_cyl(img_size_mb) - \
                     int(part.start)
                 size_b = part_size_cyl * int(self.geometry.cyl_byte_size)
             else:
                 size_b = int(part.size) * int(self.geometry.cyl_byte_size)
+            if int(part.start) == 0:
+                # DOS compatibility: We use sfdisk with the -D option, if the
+                # partition starts at offset 0, some space have to be wasted.
+                # See the corresponding documentation.
+                track_offset = int(1 * self.geometry.sectors *
+                                        self.geometry.sector_byte_size)
+                offset = track_offset
+                size_b -= track_offset
+            else:
+                offset = int(part.start) * int(self.geometry.cyl_byte_size)
             cmd = ('sudo losetup -o %s --sizelimit %s %s %s' %
                                         (offset, size_b, device, img_name))
             ret = self._e.check_call(cmd)
