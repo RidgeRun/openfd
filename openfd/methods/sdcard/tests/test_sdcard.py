@@ -25,6 +25,7 @@ import openfd.utils as utils
 from openfd.methods.sdcard import SDCardInstaller
 from openfd.methods.sdcard import LoopDeviceInstaller 
 from openfd.boards import BoardFactory
+from openfd.storage import DeviceException
 
 # DEVDIR environment variable
 devdir = check_env.get_devdir()
@@ -106,34 +107,37 @@ class SDCardInstallerTestCase(unittest.TestCase):
             self.args.rootfs = '%s/fs/fs' % devdir
             self.args.workdir = '%s/images' % devdir
             self.args.image = '%s/images/test-sdcard.img' % devdir
-            #self.args.imagesize_mb = 256 * 8
-            self.args.imagesize_mb = 1024 * 8
+            self.args.imagesize_mb = 256
             self.board = BoardFactory().make(test_board)
             self.board.sd_init_comp_installer(self.args)
-        
+            
         dryrun = False
         interactive = False
         
+        self._test_sd = False
+        self._test_ld = True
+        
         # SDCard Installer
-        self._inst = SDCardInstaller(board=self.board)
-        self._inst.enable_colors = False
-        self._inst.dryrun = dryrun
-        self._inst.interactive = interactive
-        self._inst.device = test_device
+        if self._test_sd:
+            self._inst = SDCardInstaller(board=self.board)
+            self._inst.enable_colors = False
+            self._inst.dryrun = dryrun
+            self._inst.interactive = interactive
+            self._inst.device = test_device
         
         # LoopDevice Installer
-        self._ld_inst = LoopDeviceInstaller(board=self.board)
-        self._ld_inst.enable_colors = False
-        self._ld_inst.dryrun = dryrun
-        self._ld_inst.interactive = interactive
-        self._ld_inst.device = test_device
+        if self._test_ld:
+            self._ld_inst = LoopDeviceInstaller(board=self.board)
+            self._ld_inst.enable_colors = False
+            self._ld_inst.dryrun = dryrun
+            self._ld_inst.interactive = interactive
+            self._ld_inst.device = test_device
         
     def tearDown(self):
         pass
         
     def test_install_sd(self, dryrun=False):
-        test_sd = True
-        if test_sd:
+        if self._test_sd:
             self._inst.read_partitions(self.args.mmap_file)
             self._inst.format()
             self._inst.mount_partitions(self.args.workdir)
@@ -141,15 +145,15 @@ class SDCardInstallerTestCase(unittest.TestCase):
             self._inst.release()
 
     def test_install_loopback(self, dryrun=False):
-        test_ld = False
-        if test_ld:
+        if self._test_ld:
             self._ld_inst.read_partitions(self.args.mmap_file)
+            self.assertRaises(DeviceException, self._ld_inst.format,
+                              self.args.image, 1)
             self._ld_inst.format(self.args.image, self.args.imagesize_mb)
             self._ld_inst.mount_partitions(self.args.workdir)
             self._ld_inst.install_components()
             self._ld_inst.release()
         #ret = self._inst.format_loopdevice(image, image_size_mb=1)
-        #self.assertFalse(ret) # Fail with small image size
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(SDCardInstallerTestCase)
