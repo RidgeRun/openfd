@@ -78,15 +78,15 @@ class SDCardExternalInstaller(SDCardInstaller):
     
     def _generate_script(self, mkimage, script, uboot_script):
         self._l.info("Installing uboot script")
-        cmd = ("%s -A arm -T script -n 'Installer Script' -d %s %s" %
-                (mkimage, script, uboot_script))
+        cmd = ("%s -A %s -T script -n 'Installer Script' -d %s %s" %
+                (mkimage, self._board.mkimage_arch, script, uboot_script))
         ret = self._e.check_call(cmd)
         if ret != 0:
             raise SDCardInstallerError("Failed generating uboot image")
     
     def install_components(self, workdir, imgs, mkimage, script):
         try:
-            self._board.sd_install_bootloader(self._sd.name)
+            self._board.sd_install_components_external(self._sd)
         except BoardError as e:
             raise SDCardInstallerError(e)
         uboot_script = "%s.scr" % os.path.splitext(script)[0]
@@ -130,15 +130,15 @@ class LoopDeviceExternalInstaller(LoopDeviceInstaller):
     
     def _generate_script(self, mkimage, script, uboot_script):
         self._l.info("Installing uboot script")
-        cmd = ("%s -A arm -T script -n 'Installer Script' -d %s %s" %
-                (mkimage, script, uboot_script))
+        cmd = ("%s -A %s -T script -n 'Installer Script' -d %s %s" %
+                (mkimage, self._board.mkimage_arch, script, uboot_script))
         ret = self._e.check_call(cmd)
         if ret != 0:
             raise LoopDeviceInstallerError("Failed generating uboot image")
     
     def install_components(self, workdir, imgs, mkimage, script):
         try:
-            self._board.sd_install_bootloader(self._ld.name)
+            self._board.ld_install_components_external(self._ld)
         except BoardError as e:
             raise LoopDeviceInstallerError(e)
         uboot_script = "%s.scr" % os.path.splitext(script)[0]
