@@ -45,7 +45,7 @@ class BoardFactory(object):
         if name == dm36x_leopard.BOARD_NAME:
             return dm36x_leopard.Dm36xLeopard()
         if name == dm816x_z3.BOARD_NAME:
-            return dm816x_z3.Dm36xLeopard()
+            return dm816x_z3.Dm816xZ3()
         elif name == dummy_evm.BOARD_NAME:
             return dummy_evm.DummyEvm()
         else:

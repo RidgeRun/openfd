@@ -43,6 +43,7 @@ class Dm36xLeopard(Board):
     mach_description = "Leopard Board DM36x"
     nand_block_size = 131072
     nand_page_size = 2048
+    mkimage_arch = 'arm'
 
     def __init__(self, dryrun=False):
         """
@@ -171,3 +172,9 @@ class Dm36xLeopard(Board):
 
     def ld_install_components(self, ld):
         self._comp_installer.install_ld_components(ld)
+        
+    def sd_install_components_external(self, sd):
+        self._comp_installer.install_sd_components_external(sd)
+
+    def ld_install_components_external(self, ld):
+        self._comp_installer.install_ld_components_external(ld)

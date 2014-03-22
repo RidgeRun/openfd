@@ -293,3 +293,33 @@ class Dm36xLeopardSdCompInstaller(object):
                     self.install_rootfs(mount_point)
                 else:
                     raise BoardError('Invalid component: %s' % comp)
+                
+    def install_sd_components_external(self, sd):
+        """
+        Installs the specified components for each partition, as required
+        in external (sd-script) mode.
+        
+        :exception BoardError: On failure installing the components.
+        """
+        
+        for part in sd.partitions:
+            for comp in part.components:
+                if comp == SDCardPartition.COMPONENT_BOOTLOADER:
+                    self.install_uboot(sd.name)
+                else:
+                    raise BoardError('Invalid component: %s' % comp)
+
+    def install_ld_components_external(self, ld):
+        """
+        Installs the specified components for each partition, as required
+        in external (sd-script) mode.
+        
+        :exception BoardError: On failure installing the components.
+        """
+        
+        for part in ld.partitions:
+            for comp in part.components:
+                if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
+                    self.install_uboot(ld.name)
+                else:
+                    raise BoardError('Invalid component: %s' % comp)

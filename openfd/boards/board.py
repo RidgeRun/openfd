@@ -57,5 +57,11 @@ class Board(object):
         raise NotImplementedError
     
     def ld_install_components(self):
-        raise NotImplementedError    
+        raise NotImplementedError
+    
+    def sd_install_components_external(self, sd):
+        raise NotImplementedError
+    
+    def ld_install_components_external(self, ld):
+        raise NotImplementedError
     
