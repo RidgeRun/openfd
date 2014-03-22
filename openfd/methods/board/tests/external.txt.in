@@ -36,17 +36,17 @@ setenv kernel_offset ${kernel_offset}
 setenv kernel_size ${kernel_size}
 setenv kernel_partitionsize ${kernel_partitionsize}
 echo
-echo  ====== Installing ${filesystem_name} ======
+echo  ====== Installing ${fs_name} ======
 echo
-fatload mmc 0 ${loadaddr} ${filesystem_image}
-${filesystem_erase_cmd} ${filesystem_erase_offset} ${filesystem_erase_size}
-${filesystem_pre_write_cmd}
-${filesystem_write_cmd} ${loadaddr} ${filesystem_write_offset} ${filesystem_write_size}
-${filesystem_post_write_cmd}
-setenv filesystem_md5sum ${filesystem_md5sum}
-setenv filesystem_offset ${filesystem_offset}
-setenv filesystem_size ${filesystem_size}
-setenv filesystem_partitionsize ${filesystem_partitionsize}
+fatload mmc 0 ${loadaddr} ${fs_image}
+${fs_erase_cmd} ${fs_erase_offset} ${fs_erase_size}
+${fs_pre_write_cmd}
+${fs_write_cmd} ${loadaddr} ${fs_write_offset} ${fs_write_size}
+${fs_post_write_cmd}
+setenv fs_md5sum ${fs_md5sum}
+setenv fs_offset ${fs_offset}
+setenv fs_size ${fs_size}
+setenv fs_partitionsize ${fs_partitionsize}
 echo
 echo  ====== Installing Environment ======
 echo
