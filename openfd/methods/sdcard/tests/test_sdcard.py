@@ -98,7 +98,6 @@ class SDCardInstallerTestCase(unittest.TestCase):
             self.args.mmap_file = '%s/images/sd-mmap.config' % devdir
             self.args.uboot_min_file = '%s/images/u-boot.min.sd' % devdir
             self.args.uboot_file = '%s/images/bootloader' % devdir
-            self.args.uboot_load_addr = '0x82000000'
             self.args.uboot_bootargs = ('console=ttyO2,115200n8 '
                'notifyk.vpssm3_sva=0xBF900000 root=/dev/mmcblk0p2 rootdelay=2 '
                'rootfstype=ext4 mem=364M@0x80000000 mem=320M@0x9FC00000 '
