@@ -83,12 +83,6 @@ class Dm816xZ3ArgsParser(object):
                            dest='uboot_file',
                            required=True)
         
-        parser.add_argument('--uboot-load-addr',
-                           help='U-Boot load address (decimal or hex)',
-                           metavar='<addr>',
-                           dest='uboot_load_addr',
-                           required=True)
-        
         parser.add_argument('--uboot-bootargs',
                            help="U-Boot bootargs environment variable",
                            metavar='<bootargs>',
@@ -96,10 +90,8 @@ class Dm816xZ3ArgsParser(object):
                            required=True)
         
     def check_args_sd_bootloader(self, args):
-        self.checker.is_file(args.uflash_bin, '--uflash-bin')
         self.checker.is_file(args.uboot_min_file, '--uboot-min-file')
         self.checker.is_file(args.uboot_file, '--uboot-file')
-        self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')
         
     def add_args_sd_fs(self, parser):
         

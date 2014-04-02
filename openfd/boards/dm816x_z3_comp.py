@@ -45,7 +45,6 @@ class Dm816xZ3SdCompInstaller(object):
         self._workdir = None
         self._uboot_min_file = None
         self._uboot_file = None
-        self._uboot_load_addr = None
         self._bootargs = None
         self._kernel_image = None
         self._rootfs = None
@@ -80,20 +79,6 @@ class Dm816xZ3SdCompInstaller(object):
     
     uboot_file = property(__get_uboot_file, __set_uboot_file,
                           doc="""Path to the uboot file.""")
-    
-    def __set_uboot_load_addr(self, uboot_load_addr):
-        if hexutils.is_valid_addr(uboot_load_addr):
-            self._uboot_load_addr = uboot_load_addr
-        else:
-            self._l.error('Invalid u-boot load address: %s' % uboot_load_addr)
-            self._uboot_load_addr = None
-        
-    def __get_uboot_load_addr(self):
-        return self._uboot_load_addr
-    
-    uboot_load_addr = property(__get_uboot_load_addr, __set_uboot_load_addr,
-                               doc="""Uboot load address, in decimal or
-                                hexadecimal (`'0x'` prefix).""")
     
     def __set_bootargs(self,bootargs):
         self._bootargs = bootargs
@@ -160,13 +145,12 @@ class Dm816xZ3SdCompInstaller(object):
         """
         
         self._l.info('Installing uboot environment')
-        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
         uenv_file = os.path.join(self._workdir, "uEnv.txt")
         if not self._dryrun:
             with open(uenv_file, "w") as uenv:
                 bootargs = 'bootargs=%s' % self._bootargs.strip()
                 uenvcmd = ('uenvcmd=echo Running uenvcmd ...; run loaduimage; '
-                           'bootm %s' % uboot_load_addr)
+                           'bootm ${loadaddr}')
                 self._l.debug("  uEnv.txt <= '%s'" % bootargs)
                 uenv.write("%s\n" % bootargs)
                 self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)

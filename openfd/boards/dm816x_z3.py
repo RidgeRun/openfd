@@ -156,7 +156,6 @@ class Dm816xZ3(Board):
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uboot_min_file = args.uboot_min_file
         self._comp_installer.uboot_file = args.uboot_file
-        self._comp_installer.uboot_load_addr = args.uboot_load_addr
         if hasattr(args, 'uboot_bootargs'): # sd-script mode doesn't need this
             self._comp_installer.bootargs = args.uboot_bootargs
         if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
