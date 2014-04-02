@@ -168,7 +168,7 @@ class TftpRamLoader(RamLoader):
         # the host already
         board_ipaddr = self._u.get_env('ipaddr')
         self._u.cmd('ping %s' % self._host_ipaddr, prompt_timeout=None)
-        host_is_reachable = self._u.expect('is alive', timeout=2)[0]
+        host_is_reachable = self._u.expect('is alive', timeout=8)[0]
         if not host_is_reachable or not board_ipaddr:
             self._u.cancel_cmd()
             if self._net_mode == TftpRamLoader.MODE_STATIC:
