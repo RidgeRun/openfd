@@ -216,7 +216,7 @@ class Uboot(object):
         return found, line
 
     def _identify_prompt(self, line):
-        m = re.match('(?P<prompt>.*) $', line)
+        m = re.match('(?P<prompt>.*)[ |$|#]', line)
         if m:
             self._prompt = m.group('prompt').strip()
             self._l.debug('Uboot prompt: %s' % self._prompt)
