@@ -221,7 +221,7 @@ class SDCardPartition(Partition):
     
     TYPE_UNKNOWN = 'unknown'
     TYPE_LINUX_NATIVE = 'L'
-    TYPE_FAT32 = '0xc'
+    TYPE_FAT32_LBA = '0xc'
     
     # Common partition filesystems
     
@@ -248,7 +248,7 @@ class SDCardPartition(Partition):
         :param bootable: Enables the bootable flag on this partition.
         :type bootable: boolean
         :param part_type: Partition type. Possible values:
-            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
+            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32_LBA`,
             :const:`TYPE_UNKNOWN`.
         :param filesystem: Partition filesystem. Possible values:
             :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
@@ -279,7 +279,7 @@ class SDCardPartition(Partition):
         
         friendly_type = cls.TYPE_UNKNOWN
         
-        if partition_type == cls.TYPE_FAT32:
+        if partition_type == cls.TYPE_FAT32_LBA:
             friendly_type = 'W95 FAT32 (LBA)'
         elif partition_type == cls.TYPE_LINUX_NATIVE:
             friendly_type = 'Linux Native'
@@ -321,7 +321,7 @@ class SDCardPartition(Partition):
     
     type = property(__get_type, __set_type,
                     doc="""Partition type. Possible values:
-                    :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
+                    :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32_LBA`,
                     :const:`TYPE_UNKNOWN`.""")
     
     def __set_filesystem(self, filesystem):
@@ -374,7 +374,7 @@ class LoopDevicePartition(SDCardPartition):
         :param bootable: Enables the bootable flag on this partition.
         :type bootable: boolean
         :param part_type: Partition type. Possible values:
-            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32`,
+            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32_LBA`,
             :const:`TYPE_UNKNOWN`.
         :param filesystem: Partition filesystem. Possible values:
             :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,

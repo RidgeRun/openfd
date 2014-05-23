@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2013 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
 #
 # Author: Jose Pablo Carballo <jose.carballo@ridgerun.com>
 #
@@ -38,7 +38,7 @@ class PartitionTestCase(unittest.TestCase):
         self._p.size = 100
         self._p.start = 100
         self._p.bootable = True
-        self._p.type = Partition.TYPE_FAT32
+        self._p.type = Partition.TYPE_FAT32_LBA
         self._p.filesystem = Partition.FILESYSTEM_VFAT
         self._p.components = components
         
@@ -46,7 +46,7 @@ class PartitionTestCase(unittest.TestCase):
         self.assertEqual(self._p.size, 100)
         self.assertEqual(self._p.start, 100)
         self.assertEqual(self._p.bootable, True)
-        self.assertEqual(self._p.type, Partition.TYPE_FAT32)
+        self.assertEqual(self._p.type, Partition.TYPE_FAT32_LBA)
         self.assertEqual(self._p.filesystem, Partition.FILESYSTEM_VFAT)
         self.assertEqual(self._p.components, components)
 
