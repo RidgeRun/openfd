@@ -9,7 +9,7 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# The Executer module is in charge of executing commands in the shell.
+# Device related operations.
 #
 # ==========================================================================
 
@@ -614,7 +614,7 @@ class LoopDevice(Device):
         i = 1
         for part in self._partitions:
             if part.filesystem == SDCardPartition.FILESYSTEM_VFAT:
-                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (part.device, part.name)
+                cmd = 'sudo mkfs.vfat %s -n %s' % (part.device, part.name)
             elif part.filesystem == SDCardPartition.FILESYSTEM_EXT3:
                 cmd = 'sudo mkfs.ext3 %s -L %s'  % (part.device, part.name)
             elif (part.filesystem == SDCardPartition.FILESYSTEM_EXT4 or
