@@ -9,15 +9,15 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# Definitions for the DM816x Z3 board.
+# Definitions for the DM816x board.
 #
 # ==========================================================================
 
 from board import Board
-from dm816x_z3_args import Dm816xZ3ArgsParser
-from dm816x_z3_comp import Dm816xZ3SdCompInstaller
+from dm816x_args import Dm816xArgsParser
+from dm816x_sd_comp import Dm816xSdCompInstaller
 
-BOARD_NAME = 'dm816x-z3'
+BOARD_NAME = 'dm816x'
 
 # Supported modes
 MODE_SD = 'sd'
@@ -34,13 +34,13 @@ COMP_BOOTLOADER = 'bootloader'
 COMP_KERNEL = 'kernel'
 COMP_FS = 'fs'
 
-class Dm816xZ3(Board):
+class Dm816x(Board):
     
     MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
              MODE_NAND, MODE_RAM, MODE_ENV]
     COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
     
-    mach_description = "DM816x Z3 Board"
+    mach_description = "DM816x Board"
     nand_block_size = 131072
     nand_page_size = 2048
     mkimage_arch = 'arm'
@@ -51,7 +51,7 @@ class Dm816xZ3(Board):
             but not executed.
         :type dryrun: boolean
         """
-        self._parser = Dm816xZ3ArgsParser()
+        self._parser = Dm816xArgsParser()
         self._comp_installer = None
         self._dryrun = dryrun 
     
@@ -152,7 +152,7 @@ class Dm816xZ3(Board):
             self._parser.check_args_env(args)
 
     def sd_init_comp_installer(self, args):
-        self._comp_installer = Dm816xZ3SdCompInstaller()
+        self._comp_installer = Dm816xSdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uboot_min_file = args.uboot_min_file
         self._comp_installer.uboot_file = args.uboot_file

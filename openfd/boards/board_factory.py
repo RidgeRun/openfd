@@ -20,7 +20,7 @@
 import os
 import importlib
 import dm36x_leopard
-import dm816x_z3
+import dm816x
 import dummy_evm
 import openfd.boards
 
@@ -44,8 +44,8 @@ class BoardFactory(object):
         
         if name == dm36x_leopard.BOARD_NAME:
             return dm36x_leopard.Dm36xLeopard()
-        if name == dm816x_z3.BOARD_NAME:
-            return dm816x_z3.Dm816xZ3()
+        if name == dm816x.BOARD_NAME:
+            return dm816x.Dm816x()
         elif name == dummy_evm.BOARD_NAME:
             return dummy_evm.DummyEvm()
         else:

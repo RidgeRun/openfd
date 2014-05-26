@@ -18,7 +18,7 @@ import logging
 import unittest
 import check_env
 from openfd.boards import dm36x_leopard
-from openfd.boards import dm816x_z3
+from openfd.boards import dm816x
 
 sys.path.insert(1, os.path.abspath('..'))
 
@@ -34,7 +34,7 @@ test_mmap_file = '%s/images/nand-mmap.config' % devdir
 test_in_file = 'external.txt.in'
 test_out_file = 'external.txt.out'
 #test_board = 'dm36x-leopard'
-test_board = 'dm816x-z3'
+test_board = 'dm816x'
 
 class ExternalInstallerTestCase(unittest.TestCase):
     
@@ -57,8 +57,8 @@ class ExternalInstallerTestCase(unittest.TestCase):
     def setUp(self):
         if test_board == 'dm36x-leopard':
             board = BoardFactory().make(dm36x_leopard.BOARD_NAME)
-        elif test_board == 'dm816x-z3':
-            board = BoardFactory().make(dm816x_z3.BOARD_NAME)
+        elif test_board == 'dm816x':
+            board = BoardFactory().make(dm816x.BOARD_NAME)
         self.inst = NandExternalInstaller(board=board)
         self.inst.read_partitions(test_mmap_file)
         

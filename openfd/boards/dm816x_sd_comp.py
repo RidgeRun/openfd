@@ -9,7 +9,7 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# Component-related operations
+# SD Component-related operations
 #
 # ==========================================================================
 
@@ -19,7 +19,6 @@
 
 import os
 import openfd.utils as utils
-import openfd.utils.hexutils as hexutils
 from openfd.storage import SDCardPartition
 from openfd.storage import LoopDevicePartition
 from board import BoardError
@@ -28,7 +27,7 @@ from board import BoardError
 # Public Classes
 # ==========================================================================
 
-class Dm816xZ3SdCompInstaller(object):
+class Dm816xSdCompInstaller(object):
     """
     Class to handle components-related operations.
     """

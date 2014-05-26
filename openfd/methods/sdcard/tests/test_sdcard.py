@@ -35,7 +35,7 @@ if not devdir: sys.exit(-1)
 test_device = '/dev/sdb'
 
 #test_board = 'dm36x-leopard'
-test_board = 'dm816x-z3'
+test_board = 'dm816x'
 
 class SDCardInstallerTestCase(unittest.TestCase):
     
@@ -92,7 +92,7 @@ class SDCardInstallerTestCase(unittest.TestCase):
 #            self._comp_installer.bootargs = bootargs
 #            self._comp_installer.workdir = workdir
         
-        if test_board == 'dm816x-z3':
+        if test_board == 'dm816x':
             uboot = 'u-boot-2010.06'
             self.args = argparse.Namespace()
             self.args.mmap_file = '%s/images/sd-mmap.config' % devdir

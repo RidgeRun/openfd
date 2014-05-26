@@ -16,7 +16,7 @@
 from openfd.utils import ArgChecker
 from openfd.methods.board import TftpRamLoader
 
-class Dm816xZ3ArgsParser(object):
+class Dm816xArgsParser(object):
     
     def __init__(self):
         self.checker = ArgChecker()

@@ -35,7 +35,7 @@ if not devdir: sys.exit(-1)
 test_device = '/dev/sdb'
 
 #test_board = 'dm36x-leopard'
-test_board = 'dm816x-z3'
+test_board = 'dm816x'
 
 class SDCardExternalInstallerTestCase(unittest.TestCase):
     
@@ -57,7 +57,7 @@ class SDCardExternalInstallerTestCase(unittest.TestCase):
         
     def setUp(self):
 
-        if test_board == 'dm816x-z3':
+        if test_board == 'dm816x':
             uboot = 'u-boot-2010.06'
             self.args = argparse.Namespace()
             self.args.mmap_file = '%s/images/sd-script-mmap.config' % devdir
