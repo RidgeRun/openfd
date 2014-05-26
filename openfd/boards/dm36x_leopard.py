@@ -15,7 +15,7 @@
 
 from board import Board
 from dm36x_leopard_args import Dm36xLeopardArgsParser
-from dm36x_leopard_comp import Dm36xLeopardSdCompInstaller
+from dm36x_leopard_sd_comp import Dm36xLeopardSdCompInstaller
 
 BOARD_NAME = 'dm36x-leopard'
 
