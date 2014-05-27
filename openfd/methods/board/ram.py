@@ -179,9 +179,9 @@ class TftpRamLoader(RamLoader):
             self._u.set_env('serverip', self._host_ipaddr)
 
     def _transfer_timeout(self, size_b):
-        # 10 secs per mb
+        # 15 secs per mb
         one_mb = 1 << 20
-        return ((size_b/one_mb) + 1) * 10
+        return ((size_b/one_mb) + 1) * 15
 
     def load_file_to_ram(self, filename, load_addr):
         """
