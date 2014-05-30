@@ -14,8 +14,10 @@
 # ==========================================================================
 
 import time
+import re
 import pexpect
 import openfd.utils as utils
+from openfd.utils.hexutils import to_hex
 
 # Serial settings
 DEFAULT_PORT = '/dev/ttyS0'
@@ -245,3 +247,45 @@ class UbootExpect(object):
                 found = True
             
         return found, line
+
+    def save_env(self):
+        """
+        Saves the uboot environment to persistent storage.
+        
+        :exception UbootTimeoutException: When a timeout is reached.
+        """
+        
+        self.cmd('saveenv')
+
+    def set_env(self, variable, value):
+        """
+        Sets an uboot env variable.
+        
+        :exception UbootTimeoutException: When a timeout is reached.
+        """
+        
+        value = value.strip()
+        if ' ' in value or ';' in value:
+            self.cmd("setenv %s '%s'" % (variable, value))
+        else:
+            if value.startswith('0x') and value.endswith('L'):
+                self.cmd("setenv %s %s" % (variable, to_hex(value)))
+            else:
+                self.cmd("setenv %s %s" % (variable, value))
+    
+    def get_env(self, variable):
+        """
+        Obtains a string with the value of the uboot env variable if found;
+        an empty string otherwise.
+        
+        :exception UbootTimeoutException: When a timeout is reached.
+        """
+        
+        value=''
+        self.cmd('printenv %s' % variable, prompt_timeout=None)
+        found, line = self.expect('%s=' % variable)
+        if found:
+            m = re.match('.*?=(?P<value>.*)', line)
+            if m:
+                value = m.group('value').strip()   
+        return value

@@ -71,6 +71,13 @@ class UbootExpectTestCase(unittest.TestCase):
         self.assertTrue(found)
         if found:
             print 'Found line: %s' % line
+    
+    def test_env(self):
+        var = 'foo'
+        value = 'bar'
+        self.uboot.set_env(var, value)
+        self.assertEqual(self.uboot.get_env(var), value)
+        self.uboot.save_env()
             
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
