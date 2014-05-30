@@ -62,6 +62,9 @@ class UbootExpectTestCase(unittest.TestCase):
     def test_cmd(self):
         cmd = 'nand info'
         self.uboot.cmd(cmd)
+        cmd = 'dhcp'
+        self.uboot.cmd(cmd, prompt_timeout=None)
+        self.uboot.cancel_cmd()
         
     def test_expect(self):
         cmd = 'nand info'

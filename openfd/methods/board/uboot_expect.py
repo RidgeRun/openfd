@@ -19,6 +19,12 @@ import pexpect
 import openfd.utils as utils
 from openfd.utils.hexutils import to_hex
 
+# ==========================================================================
+# Constants
+# ==========================================================================
+
+CTRL_C = '\x03'
+
 # Serial settings
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUDRATE = 115200
@@ -26,6 +32,10 @@ DEFAULT_READ_TIMEOUT = 2 # seconds
 
 # Uboot communication timeouts (seconds)
 DEFAULT_UBOOT_TIMEOUT = 5
+
+# ==========================================================================
+# Public Classes
+# ==========================================================================
 
 class UbootTimeoutException(Exception):
     """Uboot timeouts give an exception."""
@@ -181,7 +191,10 @@ class UbootExpect(object):
         :exception UbootTimeoutException: When a timeout is reached.
         """
         
-        self._l.info("%s <= '%s'" % (self._log_prefix, cmd.strip()))
+        if cmd == CTRL_C:
+            self._l.info("%s <= '<ctrl_c>'" % self._log_prefix)
+        else:
+            self._l.info("%s <= '%s'" % (self._log_prefix, cmd.strip()))
         
         if not self._dryrun:
         
@@ -289,3 +302,12 @@ class UbootExpect(object):
             if m:
                 value = m.group('value').strip()   
         return value
+
+    def cancel_cmd(self):
+        """
+        Cancels the command being executed by uboot (equivalent to CTRL+C).
+        
+        :exception UbootTimeoutException: When a timeout is reached.
+        """
+        
+        self.cmd(CTRL_C, echo_timeout=None, prompt_timeout=None)
