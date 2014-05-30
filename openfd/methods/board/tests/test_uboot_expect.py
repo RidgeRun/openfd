@@ -16,14 +16,16 @@
 import os, sys
 import unittest
 import logging
+from methods.board.uboot import UbootTimeoutException
 
 sys.path.insert(1, os.path.abspath('..'))
 
 import openfd.utils as utils
 from uboot_expect import UbootExpect
 
-test_telnet_host = '10.251.101.24'
-test_telnet_port = '3001'
+#test_telnet_host = '10.251.101.24'
+test_telnet_host = '127.0.0.1'
+test_telnet_port = '3002'
 
 class UbootExpectTestCase(unittest.TestCase):
     
@@ -47,15 +49,19 @@ class UbootExpectTestCase(unittest.TestCase):
         dryrun = False
         self.uboot = UbootExpect()
         self.uboot.dryrun = dryrun
-        cmd = 'telnet %s %s' % (test_telnet_host, test_telnet_port)
+        cmd = 'termnet %s %s' % (test_telnet_host, test_telnet_port)
         ret = self.uboot.open_comm(cmd)
+        self.assertTrue(ret)
+        ret = self.uboot.sync()
         self.assertTrue(ret)
     
     def tearDown(self):
         self.uboot.close_comm()
 
-    def test_comm(self):
-        pass
+    def test_cmd(self):
+        cmd = 'nand info'
+        self.uboot.cmd(cmd)
+            
 
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
