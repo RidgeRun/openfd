@@ -34,7 +34,8 @@ if not devdir: sys.exit(-1)
 test_host_ip_addr = '10.251.101.24'
 #test_host_ip_addr = '192.168.1.110'
 #test_board = 'dm36x-leopard'
-test_board = 'dm816x'
+#test_board = 'dm816x'
+test_board = 'dm814x'
 test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 test_mmap_file = '%s/images/nand-mmap.config' % devdir
@@ -187,6 +188,8 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             cmdline = "davinci_enc_mngr.ch0_output=COMPONENT davinci_enc_mngr.ch0_mode=1080I-30 davinci_display.cont2_bufsize=13631488 vpfe_capture.cont_bufoffset=13631488 vpfe_capture.cont_bufsize=12582912 video=davincifb:osd1=0x0x8:osd0=1920x1080x16,4050K@0,0:vid0=off:vid1=off console=ttyS0,115200n8 dm365_imp.oper_mode=0 mem=83M ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
         elif test_board == 'dm816x':
             cmdline = "console=ttyO2,115200n8 notifyk.vpssm3_sva=0xBF900000 ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mem=364M@0x80000000 mem=320M@0x9FC00000 vmalloc=512M vram=81M mtdparts=omap2-nand.0:256k@0k(UBOOT-MIN),256k@256k(UBOOT),4352k@2560k(KERNEL),63232k@6912k(ROOTFS)"
+        elif test_board == 'dm814x':
+            cmdline = "console=ttyO0,115200n8  notifyk.vpssm3_sva=0xBF900000 root=/dev/nfs nfsroot=%s:%s/fs/fs rw ip=dhcp  mem=364M@0x80000000 mem=320M@0x9FC00000 vmalloc=512M vram=81M  mtdparts=omap2-nand.0:128k@0k(UBOOT-MIN),256k@128k(UBOOT),4352k@2560k(KERNEL)" % (test_host_ip_addr, devdir)
         self.env_inst.install_variable('bootargs', cmdline)
         
     def install_bootcmd(self):
@@ -200,6 +203,8 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             mtdparts = "mtdparts=davinci_nand.0:128k@128k(UBL),384k@3200k(UBOOT),4736k@4096k(KERNEL),204800k@8832k(ROOTFS)"
         elif test_board == 'dm816x':
             mtdparts = "mtdparts=omap2-nand.0:256k@0k(UBOOT-MIN),256k@256k(UBOOT),4352k@2560k(KERNEL),63232k@6912k(ROOTFS)"
+        elif test_board == 'dm814x':
+            mtdparts = "mtdparts=omap2-nand.0:128k@0k(UBOOT-MIN),256k@128k(UBOOT),4352k@2560k(KERNEL)"
         self.env_inst.install_variable('mtdparts', mtdparts, force=True)
 
 # ==========================================================================

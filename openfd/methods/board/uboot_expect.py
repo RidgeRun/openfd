@@ -121,6 +121,7 @@ class UbootExpect(object):
         :exception ExceptionPexpect: On error while spawning the child program.
         """
         
+        self._l.debug("Spawning child program '%s'" % cmd)
         self._child = pexpect.spawn(cmd)
         self._open_cmd = cmd
         return True
