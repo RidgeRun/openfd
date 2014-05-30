@@ -38,6 +38,7 @@ class UbootExpect(object):
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._open_cmd = None
+        self._l_console = None
         self._prompt = ''
         self._log_prefix = '  Uboot'
         self._child = None
@@ -49,10 +50,9 @@ class UbootExpect(object):
         """
         Standard error message to report a failure communicating with uboot
         in the given port.
-             Default: "  Uboot" 
+             Default: "  Uboot"
         
-        :param port: The port for which communication failed (i.e.
-            `/dev/ttyS0`).
+        :param cmd: The command used to communicate with u-boot.
         :return: A string with the standard message.
         """
         
@@ -70,6 +70,33 @@ class UbootExpect(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                      doc="""Enable dryrun mode. System and uboot commands will
                      be logged, but not executed.""")
+
+    def __set_log_prefix(self, prefix):
+        self._log_prefix = prefix
+    
+    def __get_log_prefix(self):
+        return self._log_prefix
+    
+    log_prefix = property(__get_log_prefix, __set_log_prefix,
+             doc="""String to prefix log messages for commands.
+             Default: "  Uboot" """)
+
+    def __set_console_logger(self, logger):
+        self._l_console = logger
+    
+    def __get_console_logger(self):
+        return self._l_console
+    
+    console_logger = property(__get_console_logger, __set_console_logger,
+             doc=""":class:`Logger` instance to log the console's output.
+             Output will be logged on DEBUG level.""")
+
+    def _check_is_alive(self):
+        if not self._dryrun and not self._child.isalive():
+            self._l.error('No child program.')
+            return False
+        else:
+            return True
 
     def open_comm(self, cmd, timeout=DEFAULT_READ_TIMEOUT):
         """
@@ -105,12 +132,10 @@ class UbootExpect(object):
         
         self._l.debug("Synchronizing with uboot")
         
-        err_msg = UbootExpect.comm_error_msg(self._open_cmd)
-        if not self._child.isalive() and not self.dryrun:
-            self._l.error(err_msg)
-            return False
+        if self._check_is_alive() is False: return False
         
         # Use an echo command to sync
+        err_msg = UbootExpect.comm_error_msg(self._open_cmd)
         try:
             self.cmd('echo sync', prompt_timeout=False)
         except UbootTimeoutException:
@@ -146,7 +171,7 @@ class UbootExpect(object):
         
         :param cmd: Command.
         :param echo_timeout: Timeout to wait for the command to be echoed. Set
-            to None to avoid waiting for the echo.
+            to None to a_l_serialvoid waiting for the echo.
         :type echo_timeout: integer or none
         :param prompt_timeout: Timeout to wait for the prompt after sending
             the command. Set to None to avoid waiting for the prompt.
@@ -175,6 +200,48 @@ class UbootExpect(object):
                 try:
                     self._child.expect(self._prompt, timeout=prompt_timeout)
                 except (pexpect.TIMEOUT, pexpect.EOF):
-                    msg = ("Didn't get the uboot prompt back  after "
+                    msg = ("Didn't get the uboot prompt back after "
                                "executing the '%s' command." % cmd.strip())
                     raise UbootTimeoutException(msg)
+
+    def expect(self, response, timeout=DEFAULT_UBOOT_TIMEOUT,
+               log_console_output=False):
+        """
+        Expects a response from Uboot for no more than timeout seconds.
+        The lines read from the console will be stripped before being
+        compared with response.
+        
+        :param response: A string to expect in the console.
+        :param timeout: Timeout in seconds to wait for the response.
+        :param log_console_output: Logs (debug level INFO) the output from
+            the console while expecting the response.
+        :return: Returns a tuple with two items. The first item is true if the
+            response was found; false otherwise. The second item is the
+            complete line where the response was found, or the last line read
+            if the response wasn't found and the timeout reached. The line is
+            returned stripped.
+        """
+        
+        if self._check_is_alive() is False: return False, ''
+        if self._dryrun: return True, ''
+        
+        found = False
+        line = ''
+        start_time = time.time()
+        
+        while not found and (time.time() - start_time) < timeout:
+            try:
+                line = self._child.readline().strip(' \r\n')
+                if self._l_console:
+                    msg = "%s => '%s'" % (self._log_prefix, line)
+                    if log_console_output:
+                        self._l_console.info(msg)
+                    else:
+                        self._l_console.debug(msg)
+            except (pexpect.TIMEOUT, pexpect.EOF) as e:
+                self._l.error(e)
+                return False, ''
+            if response in line:
+                found = True
+            
+        return found, line

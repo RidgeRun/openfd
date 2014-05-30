@@ -23,9 +23,9 @@ sys.path.insert(1, os.path.abspath('..'))
 import openfd.utils as utils
 from uboot_expect import UbootExpect
 
-#test_telnet_host = '10.251.101.24'
-test_telnet_host = '127.0.0.1'
-test_telnet_port = '3002'
+#test_telnet_host = '127.0.0.1'
+test_telnet_host = '10.251.101.24'
+test_telnet_port = '3001'
 
 class UbootExpectTestCase(unittest.TestCase):
     
@@ -48,6 +48,7 @@ class UbootExpectTestCase(unittest.TestCase):
     def setUp(self):
         dryrun = False
         self.uboot = UbootExpect()
+        self.uboot.console_logger = utils.logger.get_global_logger()
         self.uboot.dryrun = dryrun
         cmd = 'termnet %s %s' % (test_telnet_host, test_telnet_port)
         ret = self.uboot.open_comm(cmd)
@@ -61,8 +62,16 @@ class UbootExpectTestCase(unittest.TestCase):
     def test_cmd(self):
         cmd = 'nand info'
         self.uboot.cmd(cmd)
+        
+    def test_expect(self):
+        cmd = 'nand info'
+        response = 'Device 0'
+        self.uboot.cmd(cmd, prompt_timeout=None)
+        found, line = self.uboot.expect(response)
+        self.assertTrue(found)
+        if found:
+            print 'Found line: %s' % line
             
-
 if __name__ == '__main__':
     loader = unittest.TestLoader() 
     suite = loader.loadTestsFromTestCase(UbootExpectTestCase)
