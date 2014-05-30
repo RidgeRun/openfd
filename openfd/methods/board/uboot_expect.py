@@ -123,6 +123,7 @@ class UbootExpect(object):
         
         self._l.debug("Spawning child program '%s'" % cmd)
         self._child = pexpect.spawn(cmd)
+        self._child.timeout = DEFAULT_READ_TIMEOUT
         self._open_cmd = cmd
         return True
         
@@ -254,9 +255,11 @@ class UbootExpect(object):
                         self._l_console.info(msg)
                     else:
                         self._l_console.debug(msg)
-            except (pexpect.TIMEOUT, pexpect.EOF) as e:
+            except pexpect.EOF as e:
                 self._l.error(e)
                 return False, ''
+            except pexpect.TIMEOUT:
+                pass
             if response in line:
                 found = True
             
@@ -280,12 +283,13 @@ class UbootExpect(object):
         
         value = value.strip()
         if ' ' in value or ';' in value:
-            self.cmd("setenv %s '%s'" % (variable, value))
+            self.cmd("setenv %s '%s'" % (variable, value), echo_timeout=None)
         else:
             if value.startswith('0x') and value.endswith('L'):
-                self.cmd("setenv %s %s" % (variable, to_hex(value)))
+                self.cmd("setenv %s %s" % (variable, to_hex(value)),
+                                            echo_timeout=None)
             else:
-                self.cmd("setenv %s %s" % (variable, value))
+                self.cmd("setenv %s %s" % (variable, value), echo_timeout=None)
     
     def get_env(self, variable):
         """
@@ -297,11 +301,12 @@ class UbootExpect(object):
         
         value=''
         self.cmd('printenv %s' % variable, prompt_timeout=None)
-        found, line = self.expect('%s=' % variable)
+        found, line = self.expect('%s=' % variable,
+                                    timeout=DEFAULT_READ_TIMEOUT)
         if found:
             m = re.match('.*?=(?P<value>.*)', line)
             if m:
-                value = m.group('value').strip()   
+                value = m.group('value').strip()
         return value
 
     def cancel_cmd(self):

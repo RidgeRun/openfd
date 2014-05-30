@@ -32,7 +32,7 @@ class UbootExpectTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         verbose = True
-        dryrun = True
+        dryrun = False
         logger = utils.logger.init_global_logger('UbootExpect')
         logger.setLevel(logging.DEBUG)
         streamhandler = logging.StreamHandler()
@@ -46,7 +46,7 @@ class UbootExpectTestCase(unittest.TestCase):
                                             verbose=verbose)
     
     def setUp(self):
-        dryrun = True
+        dryrun = False
         self.uboot = UbootExpect()
         self.uboot.console_logger = utils.logger.get_global_logger()
         self.uboot.dryrun = dryrun
@@ -80,7 +80,12 @@ class UbootExpectTestCase(unittest.TestCase):
         value = 'bar'
         self.uboot.set_env(var, value)
         if self.uboot.dryrun is False:
-            self.assertEqual(self.uboot.get_env(var), value)
+            self.assertEqual(self.uboot.get_env(var), value)        
+        var = "bootcmd"
+        value = "'nboot 0x82000000 0 \${kernel_offset}'"
+        self.uboot.set_env(var, value)
+        if self.uboot.dryrun is False:
+            self.assertEqual(self.uboot.get_env(var), 'nboot 0x82000000 0 ${kernel_offset}')
         self.uboot.save_env()
             
 if __name__ == '__main__':
