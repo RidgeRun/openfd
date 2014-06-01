@@ -177,7 +177,23 @@ def _check_sudo():
 # Installation modes
 # ==========================================================================
 
-def _get_uboot(args):
+def _get_uboot_telnet(args):
+    uboot = UbootExpect()
+    uboot.console_logger = _logger
+    uboot.dryrun = args.dryrun
+    try:
+        cmd = 'termnet %s %s' % (args.telnet_host, args.telnet_port)
+        ret = uboot.open_comm(cmd)
+        if ret is False: _abort_install()
+        ret = uboot.sync()
+        if ret is False: _abort_install()
+    except (pexpect.ExceptionPexpect, UbootTimeoutException) as e:
+        uboot.close_comm()
+        _logger.error(e)
+        _abort_install()
+    return uboot
+
+def _get_uboot_serial(args):
     uboot = Uboot()
     uboot.serial_logger = _logger
     uboot.dryrun = args.dryrun
@@ -191,6 +207,12 @@ def _get_uboot(args):
         _logger.error(e)
         _abort_install()
     return uboot
+
+def _get_uboot(args):
+    if args.serial_port:
+        return _get_uboot_serial(args)
+    elif args.telnet_host:
+        return _get_uboot_telnet(args)
 
 def _get_tftp_loader(args, uboot):
     tftp_loader = TftpRamLoader(uboot, args.board_net_mode)
