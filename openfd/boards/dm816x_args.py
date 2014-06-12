@@ -64,35 +64,34 @@ class Dm816xArgsParser(object):
         parser.add_argument('--kernel-file',
                            help='Path to the Kernel file to be installed.',
                            metavar='<file>',
-                           dest='kernel_file',
-                           required=True)
+                           dest='kernel_file')
     
     def check_args_sd_kernel(self, args):
-        self.checker.is_file(args.kernel_file, '--kernel-file')
+        if args.kernel_file:
+            self.checker.is_file(args.kernel_file, '--kernel-file')
     
     def add_args_sd_bootloader(self, parser):
         
         parser.add_argument('--uboot-min-file',
                            help='Path to the U-Boot MIN file',
                            metavar='<file>',
-                           dest='uboot_min_file',
-                           required=True)
+                           dest='uboot_min_file')
         
         parser.add_argument('--uboot-file',
                            help='Path to the U-Boot file',
                            metavar='<file>',
-                           dest='uboot_file',
-                           required=True)
+                           dest='uboot_file')
         
         parser.add_argument('--uboot-bootargs',
                            help="U-Boot bootargs environment variable",
                            metavar='<bootargs>',
-                           dest='uboot_bootargs',
-                           required=True)
+                           dest='uboot_bootargs')
         
     def check_args_sd_bootloader(self, args):
-        self.checker.is_file(args.uboot_min_file, '--uboot-min-file')
-        self.checker.is_file(args.uboot_file, '--uboot-file')
+        if args.uboot_min_file:
+            self.checker.is_file(args.uboot_min_file, '--uboot-min-file')
+        if args.uboot_file:
+            self.checker.is_file(args.uboot_file, '--uboot-file')
         
     def add_args_sd_fs(self, parser):
         
