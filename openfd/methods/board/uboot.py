@@ -20,6 +20,7 @@
 import time
 import re
 import serial
+import telnetlib
 import openfd.utils as utils
 from openfd.utils.hexutils import to_hex
 
@@ -29,10 +30,18 @@ from openfd.utils.hexutils import to_hex
 
 CTRL_C = '\x03'
 
+# Uboot communication mode
+DEFAULT_MODE = 'serial'
+
 # Serial settings
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUDRATE = 115200
 DEFAULT_READ_TIMEOUT = 2 # seconds
+
+# Telnet settings
+DEFAULT_TELNET_IP = '127.0.0.1'
+DEFAULT_TELNET_PORT = 3000
+
 
 # Uboot communication timeouts (seconds)
 DEFAULT_UBOOT_TIMEOUT = 5
@@ -66,6 +75,7 @@ class Uboot(object):
         self._l_serial = None
         self._log_prefix = '  Uboot'  
         self._port = None
+	self._connection = None
         self._prompt = ''
         self._dryrun = dryrun
         self._e.dryrun = dryrun
@@ -95,7 +105,7 @@ class Uboot(object):
     
     dryrun = property(__get_dryrun, __set_dryrun,
                      doc="""Enable dryrun mode. System and uboot commands will
-                     be logged, but not executed.""")
+                     be EOFErrorlogged, but not executed.""")
 
     def __set_log_prefix(self, prefix):
         self._log_prefix = prefix
@@ -124,9 +134,21 @@ class Uboot(object):
         else:
             return True
 
-    def open_comm(self, port=DEFAULT_PORT,
+    def _check_open_port(self):
+        if self._port is None and not self._dryrun:
+            self._l.error('No opened port.')
+            return False
+        else:
+            return True
+
+
+    def open_comm(self,
+		  mode=DEFAULT_MODE, 
+		  port=DEFAULT_PORT,
                   baud=DEFAULT_BAUDRATE,
-                  timeout=DEFAULT_READ_TIMEOUT):
+                  timeout=DEFAULT_READ_TIMEOUT,
+                  telnet_ip=DEFAULT_TELNET_IP,
+                  telnet_port=DEFAULT_TELNET_PORT):
         """
         Opens the communication with the Serial port where uboot is active.
         It's a good practice to call :func:`sync` after opening the port.
@@ -142,26 +164,48 @@ class Uboot(object):
         self._l.debug("Starting communication with uboot")
         
         if self._dryrun: return True
-        
-        # Terminal line settings
-        cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
-               'eol ^J start ^Q stop ^S -echo echoe echok -echonl echoke '
-               '-echoctl -istrip -icrnl -ocrnl -igncr -inlcr onlcr -opost '
-               '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
-               '-parenb -parodd -inpck' % (port, baud))
-        ret, output = self._e.check_output(cmd)
-        if ret != 0:
-            self._l.error(output)
-            return False
-        
-        try:
-            self._port = serial.Serial(port=port,
-                                       baudrate=baud,
-                                       timeout=timeout)
-        except serial.SerialException as e:
-            self._l.error(e)
-            raise e
-        
+       
+# Terminal line settings
+	if mode == 'serial':
+            cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
+                    'eol ^J start ^Q stop ^S -echo echoe echok -echonl echoke '
+                    '-echoctl -istrip -icrnl -ocrnl -igncr -inlcr onlcr -opost '
+                    '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
+                    '-parenb -parodd -inpck' % (port, baud))
+	    print cmd
+            ret, output = self._e.check_output(cmd)
+	    print output
+            if ret != 0:
+                self._l.error(output)
+                return False
+
+            try:
+                self._port = serial.Serial(port=port,
+                                           baudrate=baud,
+                                           timeout=timeout)
+            except serial.SerialException as e:
+                    self._l.error(e)
+                    raise e
+
+	if mode == 'telnet':
+	    print mode
+
+            cmd = ('termnet %s %s' %(telnet_ip, telnet_port))
+            ret, output = self._e.check_output(cmd)
+
+	    print mode
+	    if ret != 0:
+                self._l.error(output)
+                return False
+
+            try:
+		self._connection = telnetlib.Telnet(telnet_ip,
+						    telnet_port,
+						    timeout)
+	    except EOFError as e:
+                    self._l.error(e)
+                    raise e
+
         return True
 
     def close_comm(self):
