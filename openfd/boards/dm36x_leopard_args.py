@@ -274,10 +274,45 @@ class Dm36xLeopardArgsParser(object):
                            metavar='<baud>',
                            dest='serial_baud',
                            default=115200)
-    
+        
     def check_args_serial(self, args):
         self.checker.is_int(args.serial_baud, '--serial-baud')
     
+    #======================Adding TELNET support============================
+    def add_args_telnet(self, parser):
+
+        parser.add_argument('--telnet-ip-addr',
+                           help="Device name for telnet communica"
+                           "tion with U-Boot (i.e. '127.0.0.1')",
+                           metavar='<addr>',
+                           dest='telnet_ip',
+                           required=True)
+        
+        parser.add_argument('--telnet-port',
+                           help="Telnet port (default: 3000)",
+                           metavar='<port>',
+                           dest='telnet_port',
+                           default=3000)
+
+    def check_args_telnet(self, args):
+        self.checker.is_dir(args.telnet_ip, '--telnet-ip-addr')
+        self.checker.is_int(args.telnet_port,'--telnet-port')
+
+ # ============================== UBOOT COMMUNICATION =======================        
+    def add_args_uboot_commu(self, parser):
+
+        uboot_modes = ['serial', 'telnet']
+
+        parser.add_argument('--uboot-commu-mode',
+                           help="Uboot Communication Mode: %s (default: serial)" %
+                           ''.join('%s|' % mode for mode in uboot_modes).rstrip('|'),
+                           metavar='<mode>',
+                           choices=uboot_modes,
+                           dest='uboot_commu_mode',
+                           default='serial')
+
+ #===========================================================================
+
     def add_args_tftp(self, parser):
         
         net_modes = [TftpRamLoader.MODE_STATIC, TftpRamLoader.MODE_DHCP]
@@ -354,7 +389,10 @@ class Dm36xLeopardArgsParser(object):
                            required=True)
         
         self.add_args_nand_dimensions(parser)
+	self.add_args_uboot_commu(parser)
         self.add_args_serial(parser)
+	self.add_args_telnet(parser)
+	
         
         parser.add_argument('--ram-load-addr',
                            help='RAM address to load components (decimal or hex)',
