@@ -64,4 +64,12 @@ class Board(object):
     
     def ld_install_components_external(self, ld):
         raise NotImplementedError
+
+    # Method USB - Component installation
+    
+    def usb_init_comp_installer(self, args):
+        raise NotImplementedError
+    
+    def usb_install_components(self):
+        raise NotImplementedError
     

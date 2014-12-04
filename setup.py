@@ -19,5 +19,5 @@ setup(name='openfd',
       url='https://github.com/RidgeRun/openfd',
       packages=['openfd', 'openfd/boards', 'openfd/utils', 'openfd/methods',
                 'openfd/methods.board', 'openfd/methods.sdcard',
-                'openfd/storage'],
+                'openfd/methods.usb', 'openfd/storage'],
       scripts=['openfd/openfd'])

@@ -122,6 +122,40 @@ def read_loopdevice_partitions(filename):
             partitions.append(part)
     return partitions
 
+def read_usb_partitions(filename):
+    """
+    Reads the partitions information from the given file.
+    
+    :param filename: Path to the file with the partitions information.
+    :returns: Returns the list of partitions read from the given file.  
+    """
+    
+    partitions = []
+    config = ConfigParser.RawConfigParser()
+    config.readfp(open(filename))
+    for section in config.sections():
+        part = None
+        if config.has_option(section, 'name'):
+            part = USBPartition(config.get(section, 'name'))
+        if part:
+            if config.has_option(section, 'start'):
+                part.start = config.get(section, 'start')
+            if config.has_option(section, 'size'):
+                part.size = config.get(section, 'size')
+            if config.has_option(section, 'bootable'):
+                part.bootable = config.getboolean(section, 'bootable')
+            if config.has_option(section, 'type'):
+                part.type = config.get(section, 'type')
+            if config.has_option(section, 'filesystem'):
+                part.filesystem = config.get(section, 'filesystem')
+            if config.has_option(section, 'components'):
+                components = config.get(section, 'components')
+                components = components.strip(', ')
+                part.components = components.replace(' ','').split(',')
+            partitions.append(part)
+    return partitions
+
+
 # ==========================================================================
 # Classes
 # ==========================================================================
@@ -398,4 +432,152 @@ class LoopDevicePartition(SDCardPartition):
     device = property(__get_device, __set_device,
                     doc="""Loop device (string) which this partition is
                     associated to.""")
+
+class USBPartition(Partition):
+    """ Class that represents a file system partition. """
     
+    # Common partition types definitions that can be used in combination
+    # with the 'sfdisk' command.
+    
+    TYPE_UNKNOWN = 'unknown'
+    TYPE_LINUX_NATIVE = 'L'
+    TYPE_FAT32_LBA = '0xc'
+    
+    # Common partition filesystems
+    
+    FILESYSTEM_UNKNOWN = 'unknown'
+    FILESYSTEM_VFAT = 'vfat'
+    FILESYSTEM_EXT3 = 'ext3'
+    FILESYSTEM_EXT4 = 'ext4'
+    FILESYSTEM_EXT4_WRITEBACK = 'ext4-writeback'
+    
+    # Common partition components
+    
+    COMPONENT_BOOTLOADER = 'bootloader'
+    COMPONENT_KERNEL = 'kernel'
+    COMPONENT_ROOTFS = 'rootfs'
+    COMPONENT_BLANK = 'blank'
+    
+    def __init__(self, name, start_addr=0, size=0, bootable=False,
+                 part_type='', filesystem='', components=[]):
+        """    
+        :param name: Partition name.
+        :param start_addr: Partition start address (decimal).
+        :param size: Partition size in cylinders. Size can be '-' to indicate
+            the max size available.
+        :param bootable: Enables the bootable flag on this partition.
+        :type bootable: boolean
+        :param part_type: Partition type. Possible values:
+            :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32_LBA`,
+            :const:`TYPE_UNKNOWN`.
+        :param filesystem: Partition filesystem. Possible values:
+            :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
+            :const:`FILESYSTEM_EXT4`, :const:`FILESYSTEM_EXT4_WRITEBACK`,
+            :const:`FILESYSTEM_UNKNOWN`.
+        :param components: A list of partition components. Possible values:
+            :const:`COMPONENT_BOOTLOADER`, :const:`COMPONENT_KERNEL`,
+            :const:`COMPONENT_ROOTFS`, :const:`COMPONENT_BLANK`.
+        """
+        
+        self._name = name
+        self._start = start_addr
+        self._size = size
+        self._bootable = bootable
+        self._type = part_type
+        self._filesystem = filesystem
+        self._components = components
+    
+    @classmethod
+    def decode_partition_type(cls, partition_type):
+        """
+        Given a partition type, like :const:`TYPE_LINUX_NATIVE`, returns
+        a friendly name, such as 'Linux Native'.
+        
+        :param partition_type: Partition type.
+        :returns: Partition type friendly name.
+        """
+        
+        friendly_type = cls.TYPE_UNKNOWN
+        
+        if partition_type == cls.TYPE_FAT32_LBA:
+            friendly_type = 'W95 FAT32 (LBA)'
+        elif partition_type == cls.TYPE_LINUX_NATIVE:
+            friendly_type = 'Linux Native'
+        
+        return friendly_type
+    
+    @property
+    def name(self):
+        """
+        Partition name (read-only).
+        """
+        
+        return self._name
+       
+    def __set_start(self, start):
+        self._start = start
+        
+    def __get_start(self):
+        return self._start
+        
+    start = property(__get_start, __set_start,
+                     doc="""Partition start address (decimal).""")
+        
+    def __set_size(self, size):
+        self._size = size
+        
+    def __get_size(self):
+        return self._size
+    
+    size = property(__get_size, __set_size,
+                    doc="""Partition size in cylinders (decimal). Size can
+                    be '-' to indicate the max size available.""")
+    
+    def __set_type(self, partition_type):
+        self._type = partition_type
+        
+    def __get_type(self):
+        return self._type
+    
+    type = property(__get_type, __set_type,
+                    doc="""Partition type. Possible values:
+                    :const:`TYPE_LINUX_NATIVE`, :const:`TYPE_FAT32_LBA`,
+                    :const:`TYPE_UNKNOWN`.""")
+    
+    def __set_filesystem(self, filesystem):
+        self._filesystem = filesystem
+        
+    def __get_filesystem(self):
+        return self._filesystem
+    
+    filesystem = property(__get_filesystem, __set_filesystem,
+                          doc="""Partition filesystem. Possible values: 
+                          :const:`FILESYSTEM_VFAT`, :const:`FILESYSTEM_EXT3`,
+                          :const:`FILESYSTEM_EXT4`,
+                          :const:`FILESYSTEM_EXT4_WRITEBACK`,
+                          :const:`FILESYSTEM_UNKNOWN`.""")
+    
+    def __set_bootable(self, bootable):
+        self._bootable = bootable
+        
+    def __get_bootable(self):
+        return self._bootable
+    
+    bootable = property(__get_bootable, __set_bootable,
+                        doc="""Partition bootable flag.""")
+
+    is_bootable = bootable
+    
+    def __set_components(self, components):
+        self._components = components
+        
+    def __get_components(self):
+        return self._components
+    
+    components = property(__get_components, __set_components,
+                          doc="""List of components that
+                          will be installed on this partition. Possible values:
+                          :const:`COMPONENT_BOOTLOADER`,
+                          :const:`COMPONENT_KERNEL`,
+                          :const:`COMPONENT_ROOTFS`,
+                          :const:`COMPONENT_BLANK`.""")

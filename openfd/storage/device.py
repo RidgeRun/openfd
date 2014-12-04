@@ -22,6 +22,8 @@ import openfd.utils as utils
 from partition import SDCardPartition
 from partition import read_sdcard_partitions
 from partition import read_loopdevice_partitions
+from partition import USBPartition
+from partition import read_usb_partitions
 
 # ==========================================================================
 # Public classes
@@ -30,7 +32,7 @@ from partition import read_loopdevice_partitions
 class DeviceException(Exception):
     pass
 
-class DeviceGeometry(object):
+class SDCardGeometry(object):
     """Geometry for a given device."""
     
     #: Heads in the unit.
@@ -44,6 +46,29 @@ class DeviceGeometry(object):
     
     #: Cylinder byte size: 255 * 63 * 512 = 8225280 bytes.
     cyl_byte_size = 8225280.0
+    
+    #: String used to represent the max available size of a given storage device.
+    full_size = "-"
+    
+    def mb_to_cyl(self, size_mb):
+        size_b = int(size_mb) << 20
+        size_cyl = size_b / self.cyl_byte_size
+        return long(math.floor(size_cyl))
+
+class USBGeometry(object):
+    """Geometry for a given device."""
+    
+    #: Heads in the unit.
+    heads = 121.0
+    
+    #: Sectors in the unit.
+    sectors = 62.0
+    
+    #: Sector byte size.
+    sector_byte_size = 512.0
+    
+    #: Cylinder byte size: 121 * 62 * 512 = 3841024 bytes.
+    cyl_byte_size = 3841024.0
     
     #: String used to represent the max available size of a given storage device.
     full_size = "-"
@@ -68,7 +93,6 @@ class Device(object):
         """
         
         self._device = device
-        self._geometry = DeviceGeometry()
         self._size_b = 0
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
@@ -250,6 +274,7 @@ class SDCard(Device):
         """
         
         Device.__init__(self, device, dryrun)
+        self._geometry = SDCardGeometry()
         self._partitions = []
         
     @property
@@ -468,6 +493,7 @@ class LoopDevice(Device):
         self._e = utils.executer.get_global_executer()
         self._e.dryrun = dryrun
         Device.__init__(self, self._get_free_device(), dryrun)
+        self._geometry = SDCardGeometry()
         self._partitions = []
     
     def _get_free_device(self):
@@ -767,4 +793,225 @@ class LoopDevice(Device):
         
         self._partitions[:] = []
         self._partitions = read_loopdevice_partitions(filename)
+
+class USB(Device):
+
+    def __init__(self, device, dryrun=False):
+        """
+        :param device: Device associated with this instance, i.e. '/dev/sdb/'.
+        :param dryrun: Enable dryrun mode. Systems commands will be logged,
+            but not executed.
+        :type dryrun: boolean
+        """
+        
+        Device.__init__(self, device, dryrun)
+        self._geometry = USBGeometry()
+        self._partitions = []
+        
+    @property
+    def partitions(self):
+        """
+        Returns the list of partitions (:class:`USBPartition`) associated
+        with this USB drive.
+        """
+        
+        return self._partitions
+        
+    def min_cyl_size(self):
+        """
+        Sums all the partitions' sizes and returns the total. It is actually
+        the minimum size because there could be partitions which size is
+        unknown as they can be specified to take as much space as they can.
+        The size calculated for such partitions is 1 cylinder - their minimum,
+        and hence the total size is also minimum.
+        
+        Additionally to the partitions' size, the total includes 1 cylinder
+        for the Master Boot Record.
+        """
+        
+        # Leave room for the MBR
+        min_cyl_size = 1
+        for part in self._partitions:
+            if part.size == self.geometry.full_size:
+                # If size is unspecified, at least estimate 1 cylinder for
+                # that partition
+                min_cyl_size += 1
+            else:
+                min_cyl_size += int(part.size)
+        return min_cyl_size
+        
+    def partition_name(self, index):
+        return '%s%s' % (self.name, index)  # i.e. /dev/sdb1
+        
+    def create_partitions(self):
+        """
+        Create the partitions in the given device.
+        
+        :exception DeviceException: When unable to partition.
+        """
+        
+        cmd = ('sudo sfdisk -D' +
+              ' -C' + str(int(self.size_cyl)) +
+              ' -H' + str(int(self.geometry.heads)) +
+              ' -S' + str(int(self.geometry.sectors)) +
+              ' '   + self.name + ' << EOF\n')
+        for part in self._partitions:
+            cmd += str(part.start) + ','
+            cmd += str(part.size) + ','
+            cmd += str(part.type)
+            if part.is_bootable: cmd += ',*'
+            cmd += '\n'
+        cmd += 'EOF'
+        if self._e.check_call(cmd) != 0:
+            raise DeviceException('Unable to partition device %s' % self.name)
+        
+    def format_partitions(self):
+        """
+        Format the partitions in the given device, assuming these partitions
+        were already created (see create_partitions()). To register partitions
+        use read_partitions().
+        
+        :exception DeviceException: When unable to format.
+        """
+
+        i = 1
+        for part in self._partitions:
+            filename = self.partition_name(i)
+            if part.filesystem == USBPartition.FILESYSTEM_VFAT:
+                cmd = 'sudo mkfs.vfat -F 32 %s -n %s' % (filename, part.name)
+            elif part.filesystem == USBPartition.FILESYSTEM_EXT3:
+                cmd = 'sudo mkfs.ext3 %s -L %s'  % (filename, part.name)
+            elif (part.filesystem == USBPartition.FILESYSTEM_EXT4 or
+                  part.filesystem == USBPartition.FILESYSTEM_EXT4_WRITEBACK):
+                cmd = 'sudo mkfs.ext4 %s -L %s'  % (filename, part.name)
+            else:
+                raise DeviceException("Can't format partition %s, unknown "
+                              "filesystem: %s" % (part.name, part.filesystem))
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Unable to format %s into %s' %
+                                (part.name, filename))
+            i += 1   
+        if self._partitions:
+            self.sync()
+        
+    def mount(self, directory):
+        """
+        Mounts the partitions in the specified directory.
+        
+        I.e., if the partitions are called "boot" and "rootfs", and the given
+        directory is "/media", this function will mount:
+        
+           - /media/boot
+           - /media/rootfs
+        
+        :param directory: Directory where to mount the partitions.
+        :exception DeviceException: When unable to mount.
+        """
+        
+        i = 1
+        for part in self._partitions:
+            name = self.partition_name(i)
+            mnt_dir = "%s/%s" % (directory.rstrip('/'), part.name)
+            if self._e.check_call('mkdir -p %s' % mnt_dir) != 0:
+                raise DeviceException('Failed to create directory %s' % mnt_dir)
+            # Map the partition's fs to a type that the 'mount' understands
+            fs_type = None
+            if part.filesystem == USBPartition.FILESYSTEM_VFAT:
+                fs_type = 'vfat'
+            elif part.filesystem == USBPartition.FILESYSTEM_EXT3:
+                fs_type = 'ext3'
+            elif (part.filesystem == USBPartition.FILESYSTEM_EXT4 or 
+                  part.filesystem == USBPartition.FILESYSTEM_EXT4_WRITEBACK):
+                fs_type = 'ext4'
+            if fs_type:
+                cmd = 'sudo mount -t %s %s %s' % (fs_type, name, mnt_dir)
+            else:
+                cmd = 'sudo mount %s %s' % (name, mnt_dir) # let mount guess
+            if self._e.check_call(cmd) != 0:
+                raise DeviceException('Failed to mount %s in %s' % 
+                                      (name, mnt_dir))
+            i += 1
+
+    def optimize_filesystems(self):
+        """
+        Optimize the filesystems, if applies.
+        
+        Optimizations supported:
+          - FILESYSTEM_EXT4_WRITEBACK: Sets the data mode to "writeback",
+              disabling journaling.
+            
+        Note: The device should be unmounted before running optimizations.
+        
+        :exception DeviceException: When unable to optimize.
+        """
+        
+        i = 1
+        for part in self._partitions:
+            filename = self.partition_name(i)
+            if part.filesystem == USBPartition.FILESYSTEM_EXT4_WRITEBACK:
+                cmd = "sudo tune2fs -o journal_data_writeback %s" % filename
+                ret = self._e.check_call(cmd)
+                if ret != 0:
+                    raise DeviceException('Failed optimizing %s' % filename)
+                cmd = "sudo tune2fs -O ^has_journal %s" % filename
+                ret = self._e.check_call(cmd)
+                if ret != 0:
+                    raise DeviceException('Failed optimizing %s' % filename)
+            i = i + 1
+
+    def check_filesystems(self):
+        """
+        Checks the integrity of the filesystems in the given device. Upon 
+        error, tries to recover using the 'fsck' command.
+        
+        Note: The device should be unmounted before running this check.
+        
+        :exception DeviceException: When a filesystem has an error.
+        """
+        
+        # The exit code returned by fsck is the sum of the following conditions
+        fsck_outputs = {0    : 'No errors',
+                        1    : 'Filesystem errors corrected',
+                        2    : 'System should be rebooted',
+                        4    : 'Filesystem errors left uncorrected',
+                        8    : 'Operational error',
+                        16   : 'Usage or syntax error',
+                        32   : 'fsck canceled by user request',
+                        128  : 'Shared-library error'}
+        
+        fs_ok = True
+        for i in range(1, len(self._partitions) + 1):
+            states = []
+            filename = self.partition_name(i)
+            self.sync()
+            ret = self._e.check_call("sudo fsck -y %s" % filename)
+            if ret == 0:
+                states.append(fsck_outputs[ret])
+            else:
+                for i in range(len(fsck_outputs)):
+                    key = 2 ** i
+                    if ret & key:
+                        try:
+                            states.append(fsck_outputs[key])
+                            if key != 1: # keys not counted as fatal errors
+                                fs_ok = False
+                        except KeyError:
+                            pass
+            states_str = ''.join("'%s', " % s for s in states).rstrip(', ')
+            msg = ("Filesystem check in %s: %s (see 'man fsck', exit code: %s)"
+                   % (filename, states_str, ret))
+            if fs_ok:
+                self._l.debug(msg)
+            else:
+                raise DeviceException(msg)
+
+    def read_partitions(self, filename):
+        """
+        Reads the partitions information from the given file.
+        
+        :param filename: Path to the file with the partitions information.
+        """
+        
+        self._partitions[:] = []
+        self._partitions = read_usb_partitions(filename)
         

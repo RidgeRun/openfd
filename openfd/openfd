@@ -35,6 +35,7 @@ from openfd.utils.args import ArgCheckerError
 from openfd.boards import BoardFactory
 from openfd.methods.board import *
 from openfd.methods.sdcard import *
+from openfd.methods.usb import *
 from openfd.storage import DeviceException
 
 # ==========================================================================
@@ -55,6 +56,7 @@ MODE_SD_SCRIPT_IMG = 'sd-script-img'
 MODE_NAND = 'nand'
 MODE_RAM = 'ram'
 MODE_ENV = 'env'
+MODE_USB_SCRIPT = 'usb-script'
 
 # Components
 COMP_IPL = "ipl"
@@ -391,6 +393,35 @@ def _mode_sd_script_img(args):
         _logger.error(e)
         _abort_install()
 
+def _mode_usb_script(args):
+    _check_sudo()
+    board = BoardFactory().make(args.board)
+    ext_nand_installer = NandExternalInstaller(board=board)
+    ext_nand_installer.read_partitions(args.flash_mmap_file)
+    ext_nand_installer.install_boardinfo()
+    ext_nand_installer.install_ipl()
+    ext_nand_installer.install_bootloader()
+    ext_nand_installer.install_kernel()
+    ext_nand_installer.install_fs()
+    ext_nand_installer.write(args.template_file, args.output_file)
+    try:
+        board.usb_init_comp_installer(args)
+        usb_installer = USBInstaller(board=board)
+        usb_installer.interactive = args.interactive
+        usb_installer.dryrun = args.dryrun
+        usb_installer.device = args.device
+        usb_installer.read_partitions(args.usb_mmap_file)
+        usb_installer.format()
+        usb_installer.mount_partitions(args.workdir)
+        imgs = ext_nand_installer.get_imgs()
+        usb_installer.install_components(args.workdir, imgs,
+                                            args.mkimage_bin, args.output_file)
+        usb_installer.release()        
+    except (USBInstallerError, DeviceException) as e:
+        _logger.error(e)
+        _abort_install()
+
+
 # ==========================================================================
 # Main logic
 # ==========================================================================
@@ -422,6 +453,8 @@ def main():
         _mode_sd_script(args)
     if args.mode == MODE_SD_SCRIPT_IMG:
         _mode_sd_script_img(args)
+    if args.mode == MODE_USB_SCRIPT:
+        _mode_usb_script(args)
     _logger.info('Installation complete')
     _clean_exit(0)
     
