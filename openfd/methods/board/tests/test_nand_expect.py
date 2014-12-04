@@ -9,7 +9,7 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# Tests for the nand module.
+# Tests for the nand module, using UbootExpect.
 #
 # ==========================================================================
 
@@ -19,12 +19,12 @@ import unittest
 import check_env
 
 sys.path.insert(1, os.path.abspath('..'))
+from uboot_expect import UbootExpect
+from nand import NandInstaller
+from ram import TftpRamLoader
+from env import EnvInstaller
 
 import openfd.utils as utils
-from openfd.methods.board.nand import NandInstaller
-from openfd.methods.board.ram import TftpRamLoader
-from openfd.methods.board.env import EnvInstaller
-from openfd.methods.board.uboot import Uboot
 from openfd.boards import BoardFactory
 
 # DEVDIR environment variable
@@ -40,7 +40,7 @@ test_uboot_load_addr = '0x82000000'
 test_ram_load_addr = '0x82000000'
 test_mmap_file = '%s/images/nand-mmap.config' % devdir
 test_tftp_dir = '/srv/tftp'
-test_port = '/dev/ttyUSB0'
+test_port = '3001'
 
 class NandInstallerTFTPTestCase(unittest.TestCase):
     
@@ -62,10 +62,11 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
     
     def setUp(self):
         dryrun = False
-        self.uboot = Uboot()
-        self.uboot.serial_logger = utils.logger.get_global_logger()
+        self.uboot = UbootExpect()
+        self.uboot.console_logger = utils.logger.get_global_logger()
         self.uboot.dryrun = dryrun
-        ret = self.uboot.open_comm(port=test_port, baud=115200)
+        cmd = 'termnet %s %s' % (test_host_ip_addr, test_port)
+        ret = self.uboot.open_comm(cmd)
         self.assertTrue(ret)
         ret = self.uboot.sync()
         self.assertTrue(ret)
@@ -190,11 +191,11 @@ class NandInstallerTFTPTestCase(unittest.TestCase):
             cmdline = "console=ttyO2,115200n8 notifyk.vpssm3_sva=0xBF900000 ubi.mtd=ROOTFS root=ubi0:rootfs rootfstype=ubifs mem=364M@0x80000000 mem=320M@0x9FC00000 vmalloc=512M vram=81M mtdparts=omap2-nand.0:256k@0k(UBOOT-MIN),256k@256k(UBOOT),4352k@2560k(KERNEL),63232k@6912k(ROOTFS)"
         elif test_board == 'dm814x':
             cmdline = "console=ttyO0,115200n8  notifyk.vpssm3_sva=0xBF900000 root=/dev/nfs nfsroot=%s:%s/fs/fs rw ip=dhcp  mem=364M@0x80000000 mem=320M@0x9FC00000 vmalloc=512M vram=81M  mtdparts=omap2-nand.0:128k@0k(UBOOT-MIN),256k@128k(UBOOT),4352k@2560k(KERNEL)" % (test_host_ip_addr, devdir)
-        self.env_inst.install_variable('bootargs', cmdline)
+        self.env_inst.install_variable('bootargs', cmdline, force=True)
         
     def install_bootcmd(self):
         print "---- Installing bootcmd ----"
-        bootcmd = "'nboot 0x82000000 0 ${kernel_offset}'"
+        bootcmd = "'nboot 0x82000000 0 \${kernel_offset}'"
         self.env_inst.install_variable('bootcmd', bootcmd)
         
     def install_mtdparts(self):

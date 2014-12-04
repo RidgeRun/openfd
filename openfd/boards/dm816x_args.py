@@ -14,6 +14,7 @@
 # ==========================================================================
 
 from openfd.utils import ArgChecker
+from openfd.utils import ArgCheckerError
 from openfd.methods.board import TftpRamLoader
 
 class Dm816xArgsParser(object):
@@ -63,35 +64,34 @@ class Dm816xArgsParser(object):
         parser.add_argument('--kernel-file',
                            help='Path to the Kernel file to be installed.',
                            metavar='<file>',
-                           dest='kernel_file',
-                           required=True)
+                           dest='kernel_file')
     
     def check_args_sd_kernel(self, args):
-        self.checker.is_file(args.kernel_file, '--kernel-file')
+        if args.kernel_file:
+            self.checker.is_file(args.kernel_file, '--kernel-file')
     
     def add_args_sd_bootloader(self, parser):
         
         parser.add_argument('--uboot-min-file',
                            help='Path to the U-Boot MIN file',
                            metavar='<file>',
-                           dest='uboot_min_file',
-                           required=True)
+                           dest='uboot_min_file')
         
         parser.add_argument('--uboot-file',
                            help='Path to the U-Boot file',
                            metavar='<file>',
-                           dest='uboot_file',
-                           required=True)
+                           dest='uboot_file')
         
         parser.add_argument('--uboot-bootargs',
                            help="U-Boot bootargs environment variable",
                            metavar='<bootargs>',
-                           dest='uboot_bootargs',
-                           required=True)
+                           dest='uboot_bootargs')
         
     def check_args_sd_bootloader(self, args):
-        self.checker.is_file(args.uboot_min_file, '--uboot-min-file')
-        self.checker.is_file(args.uboot_file, '--uboot-file')
+        if args.uboot_min_file:
+            self.checker.is_file(args.uboot_min_file, '--uboot-min-file')
+        if args.uboot_file:
+            self.checker.is_file(args.uboot_file, '--uboot-file')
         
     def add_args_sd_fs(self, parser):
         
@@ -238,14 +238,26 @@ class Dm816xArgsParser(object):
     # General args
     # ==========================================================================
 
+    def add_args_comm(self, parser):
+        self.add_args_serial(parser)
+        self.add_args_telnet(parser)
+
+    def check_args_comm(self, args): 
+        if args.serial_port:
+            self.check_args_serial(args)
+        elif args.telnet_host:
+            self.check_args_telnet(args)
+        else:
+            raise ArgCheckerError('No communication method specified, use ' 
+                'either --serial-* or --telnet-* settings')
+
     def add_args_serial(self, parser):
         
         parser.add_argument('--serial-port',
                            help="Device name or port number for serial communica"
                            "tion with U-Boot (i.e. '/dev/ttyS0')",
                            metavar='<port>',
-                           dest='serial_port',
-                           required=True)
+                           dest='serial_port')
         
         parser.add_argument('--serial-baud',
                            help="Baud rate (default: 115200)",
@@ -255,7 +267,25 @@ class Dm816xArgsParser(object):
     
     def check_args_serial(self, args):
         self.checker.is_int(args.serial_baud, '--serial-baud')
-    
+
+    def add_args_telnet(self, parser):
+        
+        parser.add_argument('--telnet-host',
+                           help="Telnet host IPv4 address where the board is"
+                           "connected",
+                           metavar='<telnet_host>',
+                           dest='telnet_host')
+        
+        parser.add_argument('--telnet-port',
+                           help="Telnet port number (default: 23)",
+                           metavar='<telnet_port>',
+                           dest='telnet_port',
+                           default=23)
+
+    def check_args_telnet(self, args):
+        self.checker.is_valid_ipv4(args.telnet_host, '--telnet-host')
+        self.checker.is_int(args.telnet_port, '--telnet-port')
+
     def add_args_tftp(self, parser):
         
         net_modes = [TftpRamLoader.MODE_STATIC, TftpRamLoader.MODE_DHCP]
@@ -332,7 +362,7 @@ class Dm816xArgsParser(object):
                            required=True)
         
         self.add_args_nand_dimensions(parser)
-        self.add_args_serial(parser)
+        self.add_args_comm(parser)
         
         parser.add_argument('--ram-load-addr',
                            help='RAM address to load components (decimal or hex)',
@@ -354,7 +384,7 @@ class Dm816xArgsParser(object):
         if args.nand_uboot_file:
             self.checker.is_file(args.nand_uboot_file, '--uboot-file')
         self.checker.is_valid_addr(args.ram_load_addr, '--ram-load-addr')
-        self.check_args_serial(args)
+        self.check_args_comm(args)
         self.check_args_tftp(args)
     
     def add_args_nand_ipl(self, parser):
@@ -383,8 +413,6 @@ class Dm816xArgsParser(object):
                            dest='fs_force',
                            action='store_true',
                            default=False)
-    
-
     
     # ==========================================================================
     # RAM args
@@ -417,7 +445,7 @@ class Dm816xArgsParser(object):
                            dest='ram_boot_timeout',
                            required=True)
        
-        self.add_args_serial(parser)
+        self.add_args_comm(parser)
         self.add_args_tftp(parser)
     
     def check_args_ram(self, args):
@@ -425,7 +453,7 @@ class Dm816xArgsParser(object):
         self.checker.is_valid_addr(args.ram_load_addr, '--load-addr')
         self.checker.is_int(args.ram_boot_timeout, '--boot-timeout')
         args.ram_boot_timeout = int(args.ram_boot_timeout)
-        self.check_args_serial(args)
+        self.check_args_comm(args)
         self.check_args_tftp(args)
     
     # ==========================================================================
@@ -452,7 +480,7 @@ class Dm816xArgsParser(object):
                            action='store_true',
                            default=False)
         
-        self.add_args_serial(parser)
+        self.add_args_comm(parser)
 
     def check_args_env(self, args):
-        self.check_args_serial(args)
+        self.check_args_comm(args)

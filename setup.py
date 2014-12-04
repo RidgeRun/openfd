@@ -14,7 +14,7 @@
 from distutils.core import setup
 
 setup(name='openfd',
-      version='0.0.1',
+      version='0.0.3',
       description='Open Firmware Deployer',
       url='https://github.com/RidgeRun/openfd',
       packages=['openfd', 'openfd/boards', 'openfd/utils', 'openfd/methods',
