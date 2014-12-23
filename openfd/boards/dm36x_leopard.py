@@ -28,7 +28,7 @@ MODE_NAND = 'nand'
 MODE_RAM = 'ram'
 MODE_ENV = 'env'
 
-# Supported modes uboot communitation
+# Supported modes uboot communication
 MODE_UBOOT = 'uboot_comm'
 
 # Supported components
@@ -110,7 +110,6 @@ class Dm36xLeopard(Board):
         return ''
 
     def add_args(self, parser):
-	
 	subparsers = parser.add_subparsers(help="installation mode (help available)", dest="mode")
 
         parser_sd = subparsers.add_parser(MODE_SD)
