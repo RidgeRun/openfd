@@ -181,14 +181,13 @@ def _get_uboot(args):
     uboot = Uboot()
     uboot.serial_logger = _logger
     uboot.dryrun = args.dryrun
-
-    uboot.uboot_mode(mode=args.uboot_commu_mode)
+    uboot.uboot_mode(mode=args.uboot_comm_mode)
 
     try:
         ret = uboot.open_comm(port=args.serial_port, 
                               baud=args.serial_baud, 
-                              telnet_ip=args.telnet_ip, 
-                              telnet_port=args.telnet_port)
+                              termnet_host=args.termnet_host, 
+                              termnet_port=args.termnet_port)
 
         if ret is False: _abort_install()
         ret = uboot.sync()
