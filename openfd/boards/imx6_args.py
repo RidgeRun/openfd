@@ -16,7 +16,7 @@
 from openfd.utils import ArgChecker
 from openfd.methods.board import TftpRamLoader
 
-class Dm36xLeopardArgsParser(object):
+class Imx6ArgsParser(object):
     
     def __init__(self):
         self.checker = ArgChecker()
@@ -68,30 +68,12 @@ class Dm36xLeopardArgsParser(object):
         self.checker.is_file(args.kernel_file, '--kernel-file')
     
     def add_args_sd_bootloader(self, parser):
-        parser.add_argument('--uflash-bin',
-                           help='Path to the uflash tool',
-                           metavar='<file>',
-                           dest='uflash_bin',
-                           required=True)
-        
-        parser.add_argument('--ubl-file',
-                           help='Path to the UBL file',
-                           metavar='<file>',
-                           dest='ubl_file',
-                           required=True)
-        
         parser.add_argument('--uboot-file',
                            help='Path to the U-Boot file',
                            metavar='<file>',
                            dest='uboot_file',
                            required=True)
-        
-        parser.add_argument('--uboot-entry-addr',
-                           help='U-Boot entry address (decimal or hex)',
-                           metavar='<addr>',
-                           dest='uboot_entry_addr',
-                           required=True)
-        
+
         parser.add_argument('--uboot-load-addr',
                            help='U-Boot load address (decimal or hex)',
                            metavar='<addr>',
@@ -105,11 +87,7 @@ class Dm36xLeopardArgsParser(object):
                            required=True)
         
     def check_args_sd_bootloader(self, args):
-        self.checker.is_file(args.uflash_bin, '--uflash-bin')
-        self.checker.x_ok(args.uflash_bin, '--uflash-bin')
-        self.checker.is_file(args.ubl_file, '--ubl-file')
         self.checker.is_file(args.uboot_file, '--uboot-file')
-        self.checker.is_valid_addr(args.uboot_entry_addr, '--uboot-entry-addr')
         self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')
         
     def add_args_sd_fs(self, parser):
@@ -247,131 +225,6 @@ class Dm36xLeopardArgsParser(object):
     def check_args_sd_script_img(self, args):
         self.check_args_sd_script_files(args)      
         self.check_args_sd_bootloader(args)
-        self.checker.is_int(args.imagesize_mb, '--image-size-mb')
-        args.imagesize_mb = int(args.imagesize_mb)
-
-
-    # ==========================================================================
-    # Mode usb-script args
-    # ==========================================================================
-
-    def add_args_usb_script_files(self, parser):
-        
-        parser.add_argument('--usb-mmap-file',
-                           help='USB drive memory map config file',
-                           metavar='<file>',
-                           dest='usb_mmap_file',
-                           required=True)
-        
-        parser.add_argument('--flash-mmap-file',
-                           help='Flash memory map config file',
-                           metavar='<file>',
-                           dest='flash_mmap_file',
-                           required=True)
-        
-        parser.add_argument('--template-file',
-                           help='Template file for flash installer script',
-                           metavar='<file>',
-                           dest='template_file',
-                           required=True)
-        
-        parser.add_argument('--output-file',
-                           help='Output file generated from --template-file',
-                           metavar='<file>',
-                           dest='output_file',
-                           required=True)
-
-        parser.add_argument('--work-dir',
-                           help='Directory to perform temporary operations',
-                           metavar='<dir>',
-                           dest='workdir',
-                           required=True)
-        
-        parser.add_argument('--mkimage-bin',
-                           help='Path to the mkimage tool',
-                           metavar='<file>',
-                           dest='mkimage_bin',
-                           required=True)
-        
-    def check_args_usb_script_files(self, args):
-        self.checker.is_file(args.flash_mmap_file, '--flash-mmap-file')
-        self.checker.is_file(args.template_file, '--template-file')
-        self.checker.is_file(args.usb_mmap_file, '--usb-mmap-file')
-        self.checker.is_dir(args.workdir, '--work-dir')
-        args.workdir = args.workdir.rstrip('/')
-        self.checker.is_file(args.mkimage_bin, '--mkimage-bin')
-        self.checker.x_ok(args.mkimage_bin, '--mkimage-bin')
-
-
-    def add_args_usb_bootloader(self, parser):
-        
-        parser.add_argument('--uflash-bin',
-                           help='Path to the uflash tool',
-                           metavar='<file>',
-                           dest='uflash_bin',
-                           required=True)
-        
-        parser.add_argument('--uboot-file',
-                           help='Path to the U-Boot file',
-                           metavar='<file>',
-                           dest='uboot_file',
-                           required=True)
-        
-        parser.add_argument('--uboot-entry-addr',
-                           help='U-Boot entry address (decimal or hex)',
-                           metavar='<addr>',
-                           dest='uboot_entry_addr',
-                           required=True)
-        
-        parser.add_argument('--uboot-load-addr',
-                           help='U-Boot load address (decimal or hex)',
-                           metavar='<addr>',
-                           dest='uboot_load_addr',
-                           required=True)
-        
-        parser.add_argument('--uboot-bootargs',
-                           help="U-Boot bootargs environment variable",
-                           metavar='<bootargs>',
-                           dest='uboot_bootargs',
-                           required=True)
-        
-    def check_args_usb_bootloader(self, args):
-        self.checker.is_file(args.uflash_bin, '--uflash-bin')
-        self.checker.x_ok(args.uflash_bin, '--uflash-bin')
-        self.checker.is_file(args.uboot_file, '--uboot-file')
-        self.checker.is_valid_addr(args.uboot_entry_addr, '--uboot-entry-addr')
-        self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')
-    
-    def add_args_usb_script(self, parser):
-        self.add_args_usb_script_files(parser)
-        parser.add_argument('--device',
-                           help="Device to install",
-                           metavar='<dev>',
-                           dest='device',
-                           required=True)
-        self.add_args_usb_bootloader(parser)
-    
-    def check_args_usb_script(self, args):
-        self.check_args_usb_script_files(args)      
-        self.check_args_usb_bootloader(args)
-
-    def add_args_usb_script_img(self, parser):
-        self.add_args_usb_script_files(parser)
-        self.add_args_usb_bootloader(parser)
-        parser.add_argument('--image',
-                           help="Filename of the USB drive image to create",
-                           metavar='<file>',
-                           dest='image',
-                           required=True)
-        parser.add_argument('--image-size-mb',
-                           help="Size in MB of the USB drive image file to create",
-                           metavar='<size>',
-                           dest='imagesize_mb',
-                           required=True)
-
-    def check_args_usb_script_img(self, args):
-        self.check_args_usb_script_files(args)      
-        self.check_args_usb_bootloader(args)
         self.checker.is_int(args.imagesize_mb, '--image-size-mb')
         args.imagesize_mb = int(args.imagesize_mb)
 

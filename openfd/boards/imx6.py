@@ -14,11 +14,10 @@
 # ==========================================================================
 
 from board import Board
-from dm36x_leopard_args import Dm36xLeopardArgsParser
-from dm36x_leopard_sd_comp import Dm36xLeopardSdCompInstaller
-from dm36x_leopard_usb_comp import Dm36xLeopardUSBCompInstaller
+from imx6_args import Imx6ArgsParser
+from imx6_sd_comp import Imx6SdCompInstaller
 
-BOARD_NAME = 'dm36x-leopard'
+BOARD_NAME = 'imx6'
 
 # Supported modes
 MODE_SD = 'sd'
@@ -39,13 +38,13 @@ COMP_BOOTLOADER = 'bootloader'
 COMP_KERNEL = 'kernel'
 COMP_FS = 'fs'
 
-class Dm36xLeopard(Board):
+class Imx6(Board):
     
     MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
              MODE_NAND, MODE_RAM, MODE_ENV, MODE_USB_SCRIPT]
     COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
     
-    mach_description = "Leopard Board DM36x"
+    mach_description = "IMX6 Board"
     nand_block_size = 131072
     nand_page_size = 2048
     mkimage_arch = 'arm'
@@ -56,7 +55,7 @@ class Dm36xLeopard(Board):
             but not executed.
         :type dryrun: boolean
         """
-        self._parser = Dm36xLeopardArgsParser()
+        self._parser = Imx6ArgsParser()
         self._comp_installer = None
         self._dryrun = dryrun 
     
@@ -162,7 +161,7 @@ class Dm36xLeopard(Board):
             self._parser.check_args_usb_script(args)
 
     def sd_init_comp_installer(self, args):
-        self._comp_installer = Dm36xLeopardSdCompInstaller()
+        self._comp_installer = Imx6SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uflash_bin = args.uflash_bin
         self._comp_installer.ubl_file = args.ubl_file
@@ -176,16 +175,6 @@ class Dm36xLeopard(Board):
             self._comp_installer.rootfs = args.rootfs
         self._comp_installer.workdir = args.workdir
 
-    def usb_init_comp_installer(self, args):
-        self._comp_installer = Dm36xLeopardUSBCompInstaller()
-        self._comp_installer.dryrun = self._dryrun
-        self._comp_installer.uflash_bin = args.uflash_bin
-        self._comp_installer.uboot_file = args.uboot_file
-        self._comp_installer.uboot_entry_addr = args.uboot_entry_addr
-        self._comp_installer.uboot_load_addr = args.uboot_load_addr
-        self._comp_installer.bootargs = args.uboot_bootargs
-        self._comp_installer.workdir = args.workdir
-
     def sd_install_components(self, sd):
         self._comp_installer.install_sd_components(sd)
 
@@ -197,6 +186,3 @@ class Dm36xLeopard(Board):
 
     def ld_install_components_external(self, ld):
         self._comp_installer.install_ld_components_external(ld)
-
-    def usb_install_components(self, usb):
-        self._comp_installer.install_usb_components(usb)
