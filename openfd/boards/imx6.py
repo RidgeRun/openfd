@@ -27,7 +27,6 @@ MODE_SD_SCRIPT_IMG = 'sd-script-img'
 MODE_NAND = 'nand'
 MODE_RAM = 'ram'
 MODE_ENV = 'env'
-MODE_USB_SCRIPT = 'usb-script'
 
 # Supported modes uboot communication
 MODE_UBOOT = 'uboot_comm'
@@ -41,7 +40,7 @@ COMP_FS = 'fs'
 class Imx6(Board):
     
     MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
-             MODE_NAND, MODE_RAM, MODE_ENV, MODE_USB_SCRIPT]
+             MODE_NAND, MODE_RAM, MODE_ENV]
     COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
     
     mach_description = "IMX6 Board"
@@ -120,7 +119,6 @@ class Imx6(Board):
         parser_ram = subparsers.add_parser(MODE_RAM)
         parser_env = subparsers.add_parser(MODE_ENV)
         parser_nand = subparsers.add_parser(MODE_NAND)
-        parser_usb_script = subparsers.add_parser(MODE_USB_SCRIPT)
         
         subparsers_nand = parser_nand.add_subparsers(help="component (--help available)", dest="component")
         
@@ -140,7 +138,6 @@ class Imx6(Board):
         self._parser.add_args_nand_fs(parser_nand_fs)
         self._parser.add_args_ram(parser_ram)
         self._parser.add_args_env(parser_env)
-        self._parser.add_args_usb_script(parser_usb_script)
 
     def check_args(self, args):
         if args.mode == MODE_SD:
@@ -157,16 +154,11 @@ class Imx6(Board):
             self._parser.check_args_ram(args)
         elif args.mode == MODE_ENV:
             self._parser.check_args_env(args)
-        elif args.mode == MODE_USB_SCRIPT:
-            self._parser.check_args_usb_script(args)
 
     def sd_init_comp_installer(self, args):
         self._comp_installer = Imx6SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
-        self._comp_installer.uflash_bin = args.uflash_bin
-        self._comp_installer.ubl_file = args.ubl_file
         self._comp_installer.uboot_file = args.uboot_file
-        self._comp_installer.uboot_entry_addr = args.uboot_entry_addr
         self._comp_installer.uboot_load_addr = args.uboot_load_addr
         self._comp_installer.bootargs = args.uboot_bootargs
         if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
