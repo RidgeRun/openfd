@@ -29,7 +29,7 @@ from board import BoardError
 # Public Classes
 # ==========================================================================
 
-class Dm36xLeopardSdCompInstaller(object):
+class Imx6SdCompInstaller(object):
     """
     Class to handle components-related operations.
     """
@@ -44,10 +44,7 @@ class Dm36xLeopardSdCompInstaller(object):
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._workdir = None
-        self._uflash_bin = None
-        self._ubl_file = None
         self._uboot_file = None
-        self._uboot_entry_addr = None
         self._uboot_load_addr = None
         self._bootargs = None
         self._kernel_image = None
@@ -65,25 +62,7 @@ class Dm36xLeopardSdCompInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
-        
-    def __set_uflash_bin(self, uflash_bin):
-        self._uflash_bin = uflash_bin
-        
-    def __get_uflash_bin(self):
-        return self._uflash_bin
-    
-    uflash_bin = property(__get_uflash_bin, __set_uflash_bin,
-                          doc="""Path to the uflash tool.""")
-    
-    def __set_ubl_file(self, ubl_file):
-        self._ubl_file = ubl_file
-        
-    def __get_ubl_file(self):
-        return self._ubl_file
-    
-    ubl_file = property(__get_ubl_file, __set_ubl_file,
-                        doc="""Path to the UBL file.""")
-    
+                    
     def __set_uboot_file(self, uboot_file):
         self._uboot_file = uboot_file
         
@@ -92,21 +71,7 @@ class Dm36xLeopardSdCompInstaller(object):
     
     uboot_file = property(__get_uboot_file, __set_uboot_file,
                           doc="""Path to the uboot file.""")
-    
-    def __set_uboot_entry_addr(self, uboot_entry_addr):
-        if hexutils.is_valid_addr(uboot_entry_addr):
-            self._uboot_entry_addr = uboot_entry_addr
-        else:
-            self._l.error('Invalid u-boot entry address: %s' % uboot_entry_addr)
-            self._uboot_entry_addr = None
         
-    def __get_uboot_entry_addr(self):
-        return self._uboot_entry_addr
-    
-    uboot_entry_addr = property(__get_uboot_entry_addr, __set_uboot_entry_addr,
-                                doc="""Uboot entry address, in decimal or
-                                hexadecimal (`'0x'` prefix).""")
-    
     def __set_uboot_load_addr(self, uboot_load_addr):
         if hexutils.is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr
@@ -161,27 +126,22 @@ class Dm36xLeopardSdCompInstaller(object):
     
     def install_uboot(self, device):
         """
-        Flashes UBL and uboot to the given device, using the uflash tool.
+        Flashes  uboot to the given device, using dd.
         
-        This method needs :attr:`uflash_bin`, :attr:`ubl_file`, 
-        :attr:`uboot_file`, :attr:`uboot_entry_addr`, and  
-        :attr:`uboot_load_addr` to be already set.
+        This method needs`, 
+        :attr:`uboot_file` to be already set.
         
         :param device: Device where to flash UBL and uboot (i.e. '/dev/sdb').
         :exception BoardError: On error.
         """
         
-        uboot_load_addr = hexutils.str_to_hex(self._uboot_load_addr)
-        uboot_entry_addr = hexutils.str_to_hex(self._uboot_entry_addr)
         self._l.info('Installing uboot')
-        cmd = ('sudo ' + self._uflash_bin +
-              ' -d ' + device +
-              ' -u ' + self._ubl_file + 
-              ' -b ' + self._uboot_file + 
-              ' -e ' + uboot_entry_addr + 
-              ' -l ' + uboot_load_addr)
+        cmd = ('sudo dd' + 
+              ' if=' + self._uboot_file + 
+              ' of=' + device +
+               ' seek=2 bs=512' )
         if self._e.check_call(cmd) != 0:
-            raise BoardError('Failed to flash UBL and uboot into %s' % device)
+            raise BoardError('Failed to flash uboot into %s' % device)
     
     def install_uboot_env(self, mount_point):
         """
