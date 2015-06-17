@@ -30,6 +30,9 @@ MODE_RAM = 'ram'
 MODE_ENV = 'env'
 MODE_USB_SCRIPT = 'usb-script'
 
+# Supported modes uboot communication
+MODE_UBOOT = 'uboot_comm'
+
 # Supported components
 COMP_IPL = 'ipl'
 COMP_BOOTLOADER = 'bootloader'
@@ -61,7 +64,6 @@ class Dm36xLeopard(Board):
     def parser(self):
         """CLI args parser."""
         return self._parser
-
     @property
     def sd_comp_installer(self):
         """Component installer for sdcard method."""
@@ -110,7 +112,7 @@ class Dm36xLeopard(Board):
         return ''
 
     def add_args(self, parser):
-        subparsers = parser.add_subparsers(help="installation mode (--help available)", dest="mode")
+	subparsers = parser.add_subparsers(help="installation mode (help available)", dest="mode")
 
         parser_sd = subparsers.add_parser(MODE_SD)
         parser_sd_img = subparsers.add_parser(MODE_SD_IMG)
@@ -122,7 +124,8 @@ class Dm36xLeopard(Board):
         parser_usb_script = subparsers.add_parser(MODE_USB_SCRIPT)
         
         subparsers_nand = parser_nand.add_subparsers(help="component (--help available)", dest="component")
-        parser_nand_ipl = subparsers_nand.add_parser(COMP_IPL, help="Initial Program Loader (UBL)")
+        
+	parser_nand_ipl = subparsers_nand.add_parser(COMP_IPL, help="Initial Program Loader (UBL)")
         parser_nand_bootloader = subparsers_nand.add_parser(COMP_BOOTLOADER, help="Bootloader (U-Boot)")
         parser_nand_kernel = subparsers_nand.add_parser(COMP_KERNEL, help="Kernel")
         parser_nand_fs = subparsers_nand.add_parser(COMP_FS, help="Filesystem")

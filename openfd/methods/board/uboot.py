@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#//!/usr/bin/env python
 # ==========================================================================
 #
 # Copyright (C) 2013-2014 RidgeRun, LLC (http://www.ridgerun.com)
@@ -20,6 +20,7 @@
 import time
 import re
 import serial
+import telnetlib
 import openfd.utils as utils
 from openfd.utils.hexutils import to_hex
 
@@ -29,10 +30,18 @@ from openfd.utils.hexutils import to_hex
 
 CTRL_C = '\x03'
 
+# Uboot communication mode
+DEFAULT_MODE = 'serial'
+
 # Serial settings
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUDRATE = 115200
 DEFAULT_READ_TIMEOUT = 2 # seconds
+
+# Termnet settings
+DEFAULT_TERMNET_IP = '127.0.0.1'
+DEFAULT_TERMNET_PORT = 3000
+
 
 # Uboot communication timeouts (seconds)
 DEFAULT_UBOOT_TIMEOUT = 5
@@ -60,12 +69,15 @@ class Uboot(object):
             logged, but not executed.
         :type dryrun: boolean
         """
-        
+
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._l_serial = None
-        self._log_prefix = '  Uboot'  
+        self._l_termnet = None
+        self._log_prefix = '  Uboot'
+        self._uboot_mode = None
         self._port = None
+        self._termnet = None
         self._prompt = ''
         self._dryrun = dryrun
         self._e.dryrun = dryrun
@@ -81,11 +93,11 @@ class Uboot(object):
             `/dev/ttyS0`).
         :return: A string with the standard message.
         """
-        
+     
         return ('Failed to handshake with uboot.\n'
                'Be sure uboot is active on port %s and you have terminal '
                'programs like minicom closed.' % port)
-    
+
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
         self._e.dryrun = dryrun
@@ -112,21 +124,48 @@ class Uboot(object):
     
     def __get_serial_logger(self):
         return self._l_serial
+
+    def __set_termnet_logger(self, logger):
+	self._l_termnet = logger
+
+    def __get_termnet_logger(self):
+        return self._l_termnet
     
     serial_logger = property(__get_serial_logger, __set_serial_logger,
              doc=""":class:`Logger` instance to log the serial port's output.
              Output will be logged on DEBUG level.""")
 
+    termnet_logger = property(__get_termnet_logger, __set_termnet_logger,
+             doc=""":class:`Logger` instance to log the termnet communication's output.
+		Output will be logged on DEBUG level.""")
+
     def _check_open_port(self):
         if self._port is None and not self._dryrun:
-            self._l.error('No opened port.')
             return False
         else:
             return True
 
-    def open_comm(self, port=DEFAULT_PORT,
+    def _check_open_termnet(self):
+        if self._termnet is None and not self._dryrun:
+            return False
+        else:
+            return True
+
+    def uboot_mode(self, mode=DEFAULT_MODE):
+        """
+        Set the Uboot mode (serial and termnet)
+               Default: "serial"
+        :param mode: serial and termnet
+        """
+        self._uboot_mode = mode
+    
+    
+    def open_comm(self,
+                  port=DEFAULT_PORT,
                   baud=DEFAULT_BAUDRATE,
-                  timeout=DEFAULT_READ_TIMEOUT):
+                  timeout=DEFAULT_READ_TIMEOUT,
+                  termnet_host=DEFAULT_TERMNET_IP,
+                  termnet_port=DEFAULT_TERMNET_PORT):
         """
         Opens the communication with the Serial port where uboot is active.
         It's a good practice to call :func:`sync` after opening the port.
@@ -138,43 +177,58 @@ class Uboot(object):
         :return: Returns true on success; false otherwise.
         :exception SerialException: On error while opening the serial port.
         """
-        
+
         self._l.debug("Starting communication with uboot")
-        
+
         if self._dryrun: return True
         
         # Terminal line settings
-        cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
-               'eol ^J start ^Q stop ^S -echo echoe echok -echonl echoke '
-               '-echoctl -istrip -icrnl -ocrnl -igncr -inlcr onlcr -opost '
-               '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
-               '-parenb -parodd -inpck' % (port, baud))
-        ret, output = self._e.check_output(cmd)
-        if ret != 0:
-            self._l.error(output)
-            return False
-        
-        try:
-            self._port = serial.Serial(port=port,
-                                       baudrate=baud,
-                                       timeout=timeout)
-        except serial.SerialException as e:
-            self._l.error(e)
-            raise e
-        
+	if self._uboot_mode == 'serial':
+            cmd = ('stty -F %s %s intr ^C quit ^D erase ^H kill ^U eof ^Z '
+                    'eol ^J start ^Q stop ^S -echo echoe echok -echonl echoke '
+                    '-echoctl -istrip -icrnl -ocrnl -igncr -inlcr onlcr -opost '
+                    '-isig -icanon cs8 -cstopb clocal -crtscts -ixoff -ixon '
+                    '-parenb -parodd -inpck' % (port, baud))
+
+            ret, output = self._e.check_output(cmd)
+            if ret != 0:
+                self._l.error(output)
+                return False
+
+            try:
+                self._port = serial.Serial(port=port,
+                                           baudrate=baud,
+                                           timeout=timeout)
+            except serial.SerialException as e:
+                self._l.error(e)
+                raise e
+
+	if self._uboot_mode == 'termnet':
+            try:
+		self._termnet = telnetlib.Telnet(termnet_host,
+			                        termnet_port,
+						timeout)
+	    except EOFError as e:
+                self._l.error(e)
+                raise e
+
         return True
 
     def close_comm(self):
         """
-        Closes the communication with the Serial port immediately.
+        Closes the communication with the Serial port and Termnet immediately.
         """
         
         if self._port:
             self._port.close()
             self._port = None
+	
+	if self._termnet:
+	    self._termnet.close()
+	    self._termnet = None 
 
     def expect(self, response, timeout=DEFAULT_UBOOT_TIMEOUT,
-               log_serial_output=False):
+               log_output=False):
         """
         Expects a response from Uboot for no more than timeout seconds.
         The lines read from the serial port will be stripped before being
@@ -190,29 +244,52 @@ class Uboot(object):
             if the response wasn't found and the timeout reached. The line is
             returned stripped.
         """
-        
-        if self._check_open_port() is False: return False, ''
+
+        if self._uboot_mode == 'termnet':
+            if self._check_open_termnet() is False: return False, ''
+        if self._uboot_mode == 'serial':
+            if self._check_open_port() is False: return False, ''
+
         if self._dryrun: return True, ''
         
         found = False
         line = ''
         start_time = time.time()
         
-        while not found and (time.time() - start_time) < timeout:
-            try:
-                line = self._port.readline().strip(' \r\n')
-                if self._l_serial:
-                    msg = "%s => '%s'" % (self._log_prefix, line)
-                    if log_serial_output:
-                        self._l_serial.info(msg)
-                    else:
-                        self._l_serial.debug(msg)
-            except (serial.SerialException, OSError) as e:
-                self._l.error(e)
-                return False, ''
-            if response in line:
-                found = True
-            
+        if self._uboot_mode == 'termnet':
+            while not found and (time.time() - start_time) < timeout:
+                try:
+                    line = self._termnet.read_until('\n',1).strip('\r\n')
+		    if not line:
+                        line = self._termnet.read_until('#',1).strip('\r\n')
+                    if self._l_termnet:
+                        msg = "%s => '%s'" % (self._log_prefix, line)
+                        if log_output:
+                            self._l_termnet.info(msg)
+                        else:
+                            self._l_termnet.debug(msg)
+                except EOFError as e:
+                    self._l.error(e)
+                    return False, ''
+                if response in line:
+                    found = True
+
+        if self._uboot_mode == 'serial':
+            while not found and (time.time() - start_time) < timeout:
+                try:
+                    line = self._port.readline().strip(' \r\n')
+                    if self._l_serial:
+                        msg = "%s => '%s'" % (self._log_prefix, line)
+                        if log_output:
+                            self._l_serial.info(msg)
+                        else:
+                            self._l_serial.debug(msg)
+                except (serial.SerialException, OSError) as e:
+                    self._l.error(e)
+                    return False, ''
+                if response in line:
+                    found = True
+
         return found, line
 
     def _identify_prompt(self, line):
@@ -233,16 +310,22 @@ class Uboot(object):
         
         :return: Returns true on success; false otherwise.
         """
-        
         self._l.debug("Synchronizing with uboot")
         
-        if self._check_open_port() is False: return False
-        
+        if self._uboot_mode == 'termnet':
+            if self._check_open_termnet() is False: return False, ''
+        if self._uboot_mode == 'serial':
+            if self._check_open_port() is False: return False, ''
+
         port_name = ''
         if not self._dryrun:
-            self._port.flush()
-            port_name = self._port.port
-        
+            if self._uboot_mode == 'termnet':
+                self._termnet.read_eager()
+                port_name = self._termnet.host 
+            if self._uboot_mode == 'serial':
+                self._port.flush()
+                port_name = self._port.port
+
         # Use an echo command to sync
         err_msg = Uboot.comm_error_msg(port_name)
         try:
@@ -250,7 +333,6 @@ class Uboot(object):
         except UbootTimeoutException as e:
             self._l.error(err_msg)
             return False
-        
         found_echo = self.expect('sync', timeout=1)[0]
         if not found_echo:
             self._l.error(err_msg)
@@ -258,15 +340,26 @@ class Uboot(object):
         
         # Identify the prompt in the following line
         if not self._dryrun:
-            try:
-                line = self._port.readline().strip('\r\n')
-                if self._l_serial:
-                    self._l_serial.debug("%s => '%s'" % (self._log_prefix,
+            if self._uboot_mode == 'termnet':
+                try:
+                    line = self._termnet.read_until('# ').strip('\r\n')
+                    if self._l_termnet:
+                        self._l_termnet.debug("%s => '%s'" % (self._log_prefix,
+                                                             line))
+                except  EOFError as e:
+                    self._l.error(e)
+                    return False
+
+            if self._uboot_mode == 'serial':
+                try:
+                    line = self._port.readline().strip('\r\n')
+                    if self._l_serial:
+                        self._l_serial.debug("%s => '%s'" % (self._log_prefix,
                                                          line))
-            except (serial.SerialException, OSError) as e:
-                self._l.error(e)
-                return False
-            
+                except (serial.SerialException, OSError) as e:
+                    self._l.error(e)
+                    return False
+
             ret = self._identify_prompt(line)
             if ret is False: return False
 
@@ -293,10 +386,12 @@ class Uboot(object):
             self._l.info("%s <= '%s'" % (self._log_prefix, cmd.strip()))
         
         if not self._dryrun:
-        
-            self._port.write('%s\n' % cmd)
-            time.sleep(0.1)
+	    if self._uboot_mode == 'termnet':
+		self._termnet.write('%s\n' % cmd)
+	    if self._uboot_mode == 'serial':        
+            	self._port.write('%s\n' % cmd)
             
+	    time.sleep(0.1)
             # Wait for the echo
             if echo_timeout:
                 found_echo, line = self.expect(cmd.strip(), echo_timeout)
@@ -306,7 +401,7 @@ class Uboot(object):
                     if line:
                         msg += "This is the log of the last line: %s" % line
                     raise UbootTimeoutException(msg)
-            
+
             # Wait for the prompt
             if self._prompt and prompt_timeout:
                 found_prompt, line = self.expect(self._prompt, timeout=prompt_timeout)
@@ -316,7 +411,6 @@ class Uboot(object):
                     if line:
                         msg += "This is the log of the last line: %s" % line
                     raise UbootTimeoutException(msg)
-    
     def cancel_cmd(self):
         """
         Cancels the command being executed by uboot (equivalent to CTRL+C).
@@ -341,7 +435,6 @@ class Uboot(object):
         
         :exception UbootTimeoutException: When a timeout is reached.
         """
-        
         value = value.strip()
         if ' ' in value or ';' in value:
             self.cmd("setenv %s '%s'" % (variable, value))

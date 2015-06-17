@@ -26,7 +26,6 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
     
     def add_args_sd(self, parser):
-        
         parser.add_argument('--device',
                            help="Device to install",
                            metavar='<dev>',
@@ -59,7 +58,6 @@ class Dm36xLeopardArgsParser(object):
         self.check_args_sd_fs(args) 
         
     def add_args_sd_kernel(self, parser):
-        
         parser.add_argument('--kernel-file',
                            help='Path to the Kernel file to be installed.',
                            metavar='<file>',
@@ -70,7 +68,6 @@ class Dm36xLeopardArgsParser(object):
         self.checker.is_file(args.kernel_file, '--kernel-file')
     
     def add_args_sd_bootloader(self, parser):
-        
         parser.add_argument('--uflash-bin',
                            help='Path to the uflash tool',
                            metavar='<file>',
@@ -116,7 +113,6 @@ class Dm36xLeopardArgsParser(object):
         self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')
         
     def add_args_sd_fs(self, parser):
-        
         parser.add_argument('--rootfs',
                            help='Path to the rootfs that will be installed.',
                            metavar='<dir>',
@@ -132,7 +128,6 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
     
     def add_args_sd_img(self, parser):
-        
         parser.add_argument('--mmap-file',
                            help='Memory map config file',
                            metavar='<file>',
@@ -177,7 +172,6 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
 
     def add_args_sd_script_files(self, parser):
-        
         parser.add_argument('--sd-mmap-file',
                            help='SD card memory map config file',
                            metavar='<file>',
@@ -386,25 +380,51 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
 
     def add_args_serial(self, parser):
-        
         parser.add_argument('--serial-port',
                            help="Device name or port number for serial communica"
                            "tion with U-Boot (i.e. '/dev/ttyS0')",
                            metavar='<port>',
-                           dest='serial_port',
-                           required=True)
+                           dest='serial_port')
         
         parser.add_argument('--serial-baud',
                            help="Baud rate (default: 115200)",
                            metavar='<baud>',
                            dest='serial_baud',
                            default=115200)
-    
+        
     def check_args_serial(self, args):
         self.checker.is_int(args.serial_baud, '--serial-baud')
     
-    def add_args_tftp(self, parser):
+    def add_args_termnet(self, parser):
+        parser.add_argument('--termnet-host',
+                           help="Device name for termnet communica"
+                           "tion with U-Boot (i.e. '127.0.0.1')",
+                           metavar='<addr>',
+                           dest='termnet_host')
+
         
+        parser.add_argument('--termnet-port',
+                           help="Termnet port (default: 3000)",
+                           metavar='<port>',
+                           dest='termnet_port')
+
+    def check_args_termnet(self, args):
+        self.checker.is_dir(args.termnet_host, '--termnet-host')
+        self.checker.is_int(args.termnet_port,'--termnet-port')
+
+    def add_args_uboot_comm(self, parser):
+        uboot_modes = ['serial', 'termnet']
+
+        parser.add_argument('--uboot-comm-mode',
+                           help="Uboot Communication Mode: %s (default: serial)" %
+                           ''.join('%s|' % mode for mode in uboot_modes).rstrip('|'),
+                           metavar='<mode>',
+                           choices=uboot_modes,
+                           dest='uboot_comm_mode',
+                           default='serial')
+
+
+    def add_args_tftp(self, parser):
         net_modes = [TftpRamLoader.MODE_STATIC, TftpRamLoader.MODE_DHCP]
         
         parser.add_argument('--board-net-mode',
@@ -452,7 +472,6 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
     
     def add_args_nand_dimensions(self, parser):
-    
         parser.add_argument('--nand-blk-size',
                            help="NAND block size (bytes)",
                            metavar='<size>',
@@ -479,7 +498,10 @@ class Dm36xLeopardArgsParser(object):
                            required=True)
         
         self.add_args_nand_dimensions(parser)
+	self.add_args_uboot_comm(parser)
         self.add_args_serial(parser)
+	self.add_args_termnet(parser)
+	
         
         parser.add_argument('--ram-load-addr',
                            help='RAM address to load components (decimal or hex)',
@@ -505,7 +527,6 @@ class Dm36xLeopardArgsParser(object):
         self.check_args_tftp(args)
     
     def add_args_nand_ipl(self, parser):
-        
         parser.add_argument('--force',
                            help='Force component installation',
                            dest='ipl_force',
@@ -516,7 +537,6 @@ class Dm36xLeopardArgsParser(object):
         pass
     
     def add_args_nand_kernel(self, parser):
-            
         parser.add_argument('--force',
                            help='Force component installation',
                            dest='kernel_force',
@@ -524,7 +544,6 @@ class Dm36xLeopardArgsParser(object):
                            default=False)
     
     def add_args_nand_fs(self, parser):
-        
         parser.add_argument('--force',
                            help='Force component installation',
                            dest='fs_force',
@@ -538,7 +557,6 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
     
     def add_args_ram(self, parser):
-    
         parser.add_argument('--file',
                            help='Path to the file to load in RAM (at --load-addr)',
                            metavar='<file>',
@@ -580,7 +598,6 @@ class Dm36xLeopardArgsParser(object):
     # ==========================================================================
     
     def add_args_env(self, parser):
-        
         parser.add_argument('--variable',
                            help="U-Boot's environment variable",
                            metavar='<var>',
@@ -600,6 +617,8 @@ class Dm36xLeopardArgsParser(object):
                            default=False)
         
         self.add_args_serial(parser)
+        self.add_args_uboot_comm(parser)
+        self.add_args_termnet(parser)
 
     def check_args_env(self, args):
         self.check_args_serial(args)
