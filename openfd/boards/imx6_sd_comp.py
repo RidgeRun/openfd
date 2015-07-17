@@ -50,6 +50,8 @@ class Imx6SdCompInstaller(object):
         self._bootargs = None
         self._bootscript = None
         self._kernel_image = None
+        self._kernel_tftp = False
+        self._tftp_loader = None
         self._rootfs = None
         self._dryrun = dryrun
         self._e.dryrun = dryrun
@@ -65,6 +67,14 @@ class Imx6SdCompInstaller(object):
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
 
+    def __set_tftp_loader(self, loader):
+        self._tftp_loader = loader
+    
+    def __get_tftp_loader(self):
+        return self._tftp_loader
+    
+    tftp_loader = property(__get_tftp_loader, __set_tftp_loader)
+
     def __set_uboot_file(self, uboot_file):
         self._uboot_file = uboot_file
         
@@ -73,7 +83,7 @@ class Imx6SdCompInstaller(object):
     
     uboot_file = property(__get_uboot_file, __set_uboot_file,
                           doc="""Path to the uboot file.""")
-
+        
     def __set_uboot_load_addr(self, uboot_load_addr):
         if hexutils.is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr
@@ -114,6 +124,15 @@ class Imx6SdCompInstaller(object):
     
     kernel_image = property(__get_kernel_image, __set_kernel_image,
                             doc="""Path to the kernel image.""")
+    
+    def __set_kernel_tftp(self, kernel_tftp):
+        self._kernel_tftp = kernel_tftp
+        
+    def __get_kernel_tftp(self):
+        return self._kernel_tftp
+    
+    kernel_tftp = property(__get_kernel_tftp, __set_kernel_tftp,
+                            doc="""Enable kernel tftp.""")
     
     def __set_rootfs(self, rootfs):
         self._rootfs = rootfs
@@ -171,8 +190,16 @@ class Imx6SdCompInstaller(object):
         if not self._dryrun:
             with open(uenv_file, "w") as uenv:
                 bootargs = 'bootargs=%s' % self._bootargs.strip()
-                uenvcmd = ('uenvcmd=echo Running uenvcmd ...; run loaduimage; '
-                           'bootm %s' % uboot_load_addr)
+                if self._kernel_tftp:
+                    loadtftpimage = 'loadtftpimage=%s'% self._tftp_loader.get_env_load_file_to_ram(
+                        self._kernel_image, uboot_load_addr)
+                    self._l.debug("  uEnv.txt <= '%s'" % loadtftpimage)
+                    uenv.write("%s\n" % loadtftpimage)
+                    kernel_load = 'run loadtftpimage'
+                else:
+                    kernel_load = 'run loaduimage'
+                uenvcmd = ('uenvcmd=echo Running uenvcmd ...; %s; '
+                           'bootm %s' % (kernel_load, uboot_load_addr))
                 self._l.debug("  uEnv.txt <= '%s'" % bootargs)
                 uenv.write("%s\n" % bootargs)
                 self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)
@@ -258,7 +285,8 @@ class Imx6SdCompInstaller(object):
                     self.install_uboot_env(mount_point)
                     self.install_uboot_bootscript(mount_point)
                 elif comp == SDCardPartition.COMPONENT_KERNEL:
-                    self.install_kernel(mount_point)
+                    if not self._kernel_tftp:
+                        self.install_kernel(mount_point)
                 elif comp == SDCardPartition.COMPONENT_ROOTFS:
                     self.install_rootfs(mount_point)
                 else:

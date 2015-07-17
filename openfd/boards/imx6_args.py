@@ -14,6 +14,7 @@
 # ==========================================================================
 
 from openfd.utils import ArgChecker
+from openfd.utils import ArgCheckerError
 from openfd.methods.board import TftpRamLoader
 
 class Imx6ArgsParser(object):
@@ -40,7 +41,8 @@ class Imx6ArgsParser(object):
     
         self.add_args_sd_bootloader(parser)
         self.add_args_sd_kernel(parser)
-        
+        self.add_args_tftp(parser)
+
         parser.add_argument('--work-dir',
                            help='Directory to perform temporary operations',
                            metavar='<dir>',
@@ -63,10 +65,19 @@ class Imx6ArgsParser(object):
                            metavar='<file>',
                            dest='kernel_file',
                            required=True)
+        parser.add_argument('--kernel-tftp',
+                           help='Sets the kernel to be loaded to ram from a ' 
+                                'tftp server every time the board starts.',
+                           dest='kernel_tftp',
+                           action='store_true',
+                           default=False,
+                           required=False)
     
     def check_args_sd_kernel(self, args):
         self.checker.is_file(args.kernel_file, '--kernel-file')
-    
+        if args.kernel_tftp:
+            self.check_args_tftp(args)
+
     def add_args_sd_bootloader(self, parser):
         parser.add_argument('--uboot-file',
                            help='Path to the U-Boot file',
@@ -304,13 +315,13 @@ class Imx6ArgsParser(object):
                            help="Host IPv4 address",
                            metavar='<addr>',
                            dest='host_ip_addr',
-                           required=True)
+                           required=False)
     
         parser.add_argument('--tftp-dir',
                            help="TFTP server root directory",
                            metavar='<dir>',
                            dest='tftp_dir',
-                           required=True)
+                           required=False)
     
         parser.add_argument('--tftp-port',
                            help="TFTP server port (default: 69)",
@@ -319,6 +330,13 @@ class Imx6ArgsParser(object):
                            default=69)
         
     def check_args_tftp(self, args):
+        if args.tftp_dir is None:
+            raise ArgCheckerError('error: No TFTP server root directory specified, '
+                                  '--tftp-dir is required')
+        if args.host_ip_addr is None:
+            raise ArgCheckerError('error: No TFTP host IPv4 address specified, '
+                                  '--host-ip-addr is required')
+
         self.checker.is_dir(args.tftp_dir, '--tftp-dir')
         self.checker.is_int(args.tftp_port, '--tftp-port')
         args.tftp_port = int(args.tftp_port)

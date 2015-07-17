@@ -16,6 +16,7 @@
 from board import Board
 from imx6_args import Imx6ArgsParser
 from imx6_sd_comp import Imx6SdCompInstaller
+from openfd.methods.board import TftpRamLoader
 
 BOARD_NAME = 'imx6'
 
@@ -155,17 +156,34 @@ class Imx6(Board):
         elif args.mode == MODE_ENV:
             self._parser.check_args_env(args)
 
+    def _get_tftp_loader(self, args):
+        tftp_loader = TftpRamLoader(None, args.board_net_mode)
+        tftp_loader.dir = args.tftp_dir
+        tftp_loader.port = args.tftp_port
+        tftp_loader.host_ipaddr = args.host_ip_addr
+        tftp_loader.net_mode = args.board_net_mode
+        if args.board_net_mode == TftpRamLoader.MODE_STATIC:
+            tftp_loader.board_ipaddr = args.board_ip_addr
+            tftp_loader.dryrun = args.dryrun
+        return tftp_loader
+
     def sd_init_comp_installer(self, args):
         self._comp_installer = Imx6SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uboot_file = args.uboot_file
         self._comp_installer.uboot_load_addr = args.uboot_load_addr
         self._comp_installer.bootargs = args.uboot_bootargs
+        self._comp_installer.bootscript = args.uboot_bootscript
         if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
             self._comp_installer.kernel_image = args.kernel_file
+        if hasattr(args, 'kernel_tftp'):
+            self._comp_installer.kernel_tftp = args.kernel_tftp
         if hasattr(args, 'rootfs'): # sd-script mode doesn't need this
             self._comp_installer.rootfs = args.rootfs
         self._comp_installer.workdir = args.workdir
+        if args.kernel_tftp:
+            self._comp_installer.tftp_loader = self._get_tftp_loader(args)
+
 
     def sd_install_components(self, sd):
         self._comp_installer.install_sd_components(sd)
