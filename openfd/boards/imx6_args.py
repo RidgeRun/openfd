@@ -85,7 +85,13 @@ class Imx6ArgsParser(object):
                            metavar='<bootargs>',
                            dest='uboot_bootargs',
                            required=True)
-        
+
+        parser.add_argument('--uboot-bootscript',
+                            help="U-Boot bootscript file",
+                            metavar='<file>',
+                            dest='uboot_bootscript',
+                            required=False)
+
     def check_args_sd_bootloader(self, args):
         self.checker.is_file(args.uboot_file, '--uboot-file')
         self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')

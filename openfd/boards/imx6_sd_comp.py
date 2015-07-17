@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # ==========================================================================
 #
@@ -47,6 +48,7 @@ class Imx6SdCompInstaller(object):
         self._uboot_file = None
         self._uboot_load_addr = None
         self._bootargs = None
+        self._bootscript = None
         self._kernel_image = None
         self._rootfs = None
         self._dryrun = dryrun
@@ -62,7 +64,7 @@ class Imx6SdCompInstaller(object):
     dryrun = property(__get_dryrun, __set_dryrun,
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
-                    
+
     def __set_uboot_file(self, uboot_file):
         self._uboot_file = uboot_file
         
@@ -71,7 +73,7 @@ class Imx6SdCompInstaller(object):
     
     uboot_file = property(__get_uboot_file, __set_uboot_file,
                           doc="""Path to the uboot file.""")
-        
+
     def __set_uboot_load_addr(self, uboot_load_addr):
         if hexutils.is_valid_addr(uboot_load_addr):
             self._uboot_load_addr = uboot_load_addr
@@ -94,7 +96,16 @@ class Imx6SdCompInstaller(object):
     
     bootargs = property(__get_bootargs, __set_bootargs,
                         doc="""Uboot environment variable 'bootargs'.""")
+
+    def __set_bootscript(self,bootscript):
+        self._bootscript = bootscript
     
+    def __get_bootscript(self):
+        return self._bootscript
+    
+    bootscript = property(__get_bootscript, __set_bootscript,
+                        doc="""Path to the bootscript file.""")
+
     def __set_kernel_image(self, kernel_image):
         self._kernel_image = kernel_image
         
@@ -169,7 +180,28 @@ class Imx6SdCompInstaller(object):
         cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed to install uboot env file.')
+
+    def install_uboot_bootscript(self, mount_point):
+        """
+        Installs the uboot script (bootscript) to the given mount point.
         
+        This methods needs :attr:`uboot_bootscript` to be already set.
+        
+        :param mount_point: Path where to install the uboot script.
+        :exception BoardError: On error.
+        """
+
+        if self._bootscript:
+            self._l.info('Installing uboot script')
+
+            cmd = 'sudo cp %s %s/' % (self._bootscript, mount_point)
+            if self._e.check_call(cmd) != 0:
+                raise BoardError('Failed copying %s to %s' %
+                                 (self._bootscript, mount_point))
+        else:
+            self._l.warning('No bootscript file, omitting...')
+
+
     def install_kernel(self, mount_point):
         """
         Installs the kernel image on the given mount point.
@@ -224,6 +256,7 @@ class Imx6SdCompInstaller(object):
                 if comp == SDCardPartition.COMPONENT_BOOTLOADER:
                     self.install_uboot(sd.name)
                     self.install_uboot_env(mount_point)
+                    self.install_uboot_bootscript(mount_point)
                 elif comp == SDCardPartition.COMPONENT_KERNEL:
                     self.install_kernel(mount_point)
                 elif comp == SDCardPartition.COMPONENT_ROOTFS:
@@ -247,6 +280,7 @@ class Imx6SdCompInstaller(object):
                 if comp == LoopDevicePartition.COMPONENT_BOOTLOADER:
                     self.install_uboot(ld.name)
                     self.install_uboot_env(mount_point)
+                    self.install_uboot_bootscript(mount_point)
                 elif comp == LoopDevicePartition.COMPONENT_KERNEL:
                     self.install_kernel(mount_point)
                 elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
