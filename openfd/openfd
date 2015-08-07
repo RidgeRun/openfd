@@ -247,7 +247,7 @@ def _mode_sd(args):
         sd_installer.mount_partitions(args.workdir)
         sd_installer.install_components()
         sd_installer.release()
-    except (SDCardInstallerError, DeviceException) as e:
+    except (SDCardInstallerError, DeviceException, RamLoaderException) as e:
         _logger.error(e)
         _abort_install()
 
@@ -269,7 +269,7 @@ def _mode_sd_img(args):
         _logger.info("    2. Unmount it ('sudo umount' should help)")
         _logger.info("    3. Flash: sudo dd bs=1M if=%s of=/dev/sdX" % args.image)
         _logger.info("</hint>")
-    except (LoopDeviceInstallerError, DeviceException) as e:
+    except (LoopDeviceInstallerError, DeviceException, RamLoaderException) as e:
         _logger.error(e)
         _abort_install()        
     

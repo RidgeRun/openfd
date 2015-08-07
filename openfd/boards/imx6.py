@@ -183,6 +183,7 @@ class Imx6(Board):
         self._comp_installer.workdir = args.workdir
         if args.kernel_tftp:
             self._comp_installer.tftp_loader = self._get_tftp_loader(args)
+            self._comp_installer.tftp_loader.check_tftp_settings()
 
 
     def sd_install_components(self, sd):

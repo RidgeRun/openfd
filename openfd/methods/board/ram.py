@@ -132,7 +132,7 @@ class TftpRamLoader(RamLoader):
     host_ipaddr = property(__get_host_ipaddr, __set_host_ipaddr,
                      doc="""Host IP address.""")
 
-    def _check_tftp_settings(self):
+    def check_tftp_settings(self):
         cmd = 'netstat -an | grep udp | grep -q :%d' % self._port
         ret = self._e.check_call(cmd)
         if ret != 0:
@@ -167,7 +167,7 @@ class TftpRamLoader(RamLoader):
         self._l.info('Configuring uboot network')
         if self._net_mode == TftpRamLoader.MODE_STATIC and not self._board_ipaddr:
             raise RamLoaderException('No IP address specified for the board.')
-        self._check_tftp_settings()
+        self.check_tftp_settings()
         # Don't configure the network if we have an IP address and we can reach
         # the host already
         board_ipaddr = self._u.get_env('ipaddr')
