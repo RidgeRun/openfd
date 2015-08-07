@@ -130,6 +130,7 @@ class Imx6ArgsParser(object):
                            required=True)
     
         self.add_args_sd_kernel(parser)
+        self.add_args_tftp(parser)
         self.add_args_sd_bootloader(parser)
         
         parser.add_argument('--work-dir',
