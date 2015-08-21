@@ -50,6 +50,7 @@ class Imx6SdCompInstaller(object):
         self._bootargs = None
         self._bootscript = None
         self._kernel_image = None
+        self._kernel_devicetree = None
         self._kernel_tftp = False
         self._tftp_loader = None
         self._rootfs = None
@@ -124,7 +125,16 @@ class Imx6SdCompInstaller(object):
     
     kernel_image = property(__get_kernel_image, __set_kernel_image,
                             doc="""Path to the kernel image.""")
+
+    def __set_kernel_devicetree(self, kernel_devicetree):
+        self._kernel_devicetree = kernel_devicetree
+        
+    def __get_kernel_devicetree(self):
+        return self._kernel_devicetree
     
+    kernel_devicetree = property(__get_kernel_devicetree, __set_kernel_devicetree,
+                            doc="""Path to the kernel devicetree(.dtb) file.""")
+
     def __set_kernel_tftp(self, kernel_tftp):
         self._kernel_tftp = kernel_tftp
         
@@ -198,10 +208,17 @@ class Imx6SdCompInstaller(object):
                     kernel_load = 'run loadtftpimage'
                 else:
                     kernel_load = 'run loaduimage'
-                uenvcmd = ('uenvcmd=echo Running uenvcmd ...; %s; '
-                           'bootm %s' % (kernel_load, uboot_load_addr))
+                    
+                uenvcmd = ('uenvcmd=echo Running uenvcmd ...; %s; ' % kernel_load)
+                if self._kernel_devicetree:
+                    uenvcmd = uenvcmd + ' run loadfdt; bootm ${loadaddr} - ${fdt_addr}'
+                else:
+                    uenvcmd = uenvcmd + ' bootm'
+
                 self._l.debug("  uEnv.txt <= '%s'" % bootargs)
                 uenv.write("%s\n" % bootargs)
+                self._l.debug("  uEnv.txt <= 'autostart=no")
+                uenv.write("autostart=no\n")
                 self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)
                 uenv.write("%s\n" % uenvcmd)
         cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
@@ -244,7 +261,24 @@ class Imx6SdCompInstaller(object):
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))
-    
+            
+    def install_kernel_devicetree(self, mount_point):
+        """
+        Installs the kernel devicetree on the given mount point.
+        
+        This methods needs :attr:`kernel_devicetree` to be already set.
+        
+        :param mount_point: Path to where install the kernel image.
+        :exception BoardError: On error.
+        """
+
+        
+        self._l.info('Installing kernel devicetree')
+        cmd = 'sudo cp %s %s' % (self._kernel_devicetree, mount_point)
+        if self._e.check_call(cmd) != 0:
+            raise BoardError('Failed copying %s to %s' %
+                             (self._kernel_devicetree, mount_point))
+
     def install_rootfs(self, mount_point):
         """
         If any, installs :attr:`rootfs` to the given mount point.
@@ -287,6 +321,8 @@ class Imx6SdCompInstaller(object):
                 elif comp == SDCardPartition.COMPONENT_KERNEL:
                     if not self._kernel_tftp:
                         self.install_kernel(mount_point)
+                    if self._kernel_devicetree:
+                        self.install_kernel_devicetree(mount_point)
                 elif comp == SDCardPartition.COMPONENT_ROOTFS:
                     self.install_rootfs(mount_point)
                 else:
@@ -311,6 +347,8 @@ class Imx6SdCompInstaller(object):
                     self.install_uboot_bootscript(mount_point)
                 elif comp == LoopDevicePartition.COMPONENT_KERNEL:
                     self.install_kernel(mount_point)
+                    if self._kernel_devicetree:
+                        self.install_kernel_devicetree(mount_point)
                 elif comp == LoopDevicePartition.COMPONENT_ROOTFS:
                     self.install_rootfs(mount_point)
                 else:

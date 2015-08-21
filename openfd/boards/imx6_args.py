@@ -65,6 +65,11 @@ class Imx6ArgsParser(object):
                            metavar='<file>',
                            dest='kernel_file',
                            required=True)
+        parser.add_argument('--kernel-devicetree',
+                           help='Path to the Kernel devicetree file.',
+                           metavar='<file>',
+                           dest='kernel_devicetree',
+                           required=False)
         parser.add_argument('--kernel-tftp',
                            help='Sets the kernel to be loaded to ram from a ' 
                                 'tftp server every time the board starts.',
