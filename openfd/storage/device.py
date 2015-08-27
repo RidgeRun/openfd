@@ -244,7 +244,7 @@ class Device(object):
             confirmed = self._e.prompt_user(msg, color=self.WARN_COLOR)
             if not confirmed:
                 return False
-        self._size_b = long(self.geometry.max_size)
+            self._size_b = long(self.geometry.max_size)
         return True
 
     def confirmed_unmount(self):
