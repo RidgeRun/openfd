@@ -29,7 +29,7 @@ from openfd.boards.board import BoardError
 # ==========================================================================
 
 #: Warn the user when manipulating a device above this size.
-WARN_DEVICE_SIZE_GB = 128
+WARN_DEVICE_SIZE_GB = 64
 
 #: Color for dangerous warning messages.
 WARN_COLOR = 'yellow'
@@ -180,7 +180,7 @@ class USBInstaller(object):
     def _format_confirms(self):
         if self._usb.confirm_size_gb(WARN_DEVICE_SIZE_GB) is False:
             raise USBInstallerError('User canceled')
-        msg = ('You are about to repartition %s (all your data will be lost)' 
+        msg = ('You are about to format %s (all your data will be lost)' 
                % self._usb.name)
         confirmed = self._e.prompt_user(msg, WARN_COLOR)
         if not confirmed:

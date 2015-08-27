@@ -70,8 +70,12 @@ class USBGeometry(object):
     #: Cylinder byte size: 121 * 62 * 512 = 3841024 bytes.
     cyl_byte_size = 3841024.0
     
-    #: String used to represent the max available size of a given storage device.
+    #: String used to represent the max available size of a given storage device 
+    #: On the command line it means all the cylinders byte available.
     full_size = "-"
+    
+    #: Max size in Bytes of a given storage device supported
+    max_size = 68719476736.0
     
     def mb_to_cyl(self, size_mb):
         size_b = int(size_mb) << 20
@@ -234,11 +238,13 @@ class Device(object):
         """
         
         if self.size_gb > size_gb:
-            msg = ('Device %s has %d gigabytes, are you sure this is the right '
-                   'device' % (self.name, self.size_gb))
+            msg = ('Device %s has %d GB, this is above the 64 GB size limit\n'
+                   'The device will be repartitioned, please make sure this '
+                   'is the right device' % (self.name, self.size_gb))
             confirmed = self._e.prompt_user(msg, color=self.WARN_COLOR)
             if not confirmed:
                 return False
+        self._size_b = long(self.geometry.max_size)
         return True
 
     def confirmed_unmount(self):
@@ -857,7 +863,7 @@ class USB(Device):
               ' '   + self.name + ' << EOF\n')
         for part in self._partitions:
             cmd += str(part.start) + ','
-            cmd += str(part.size) + ','
+            cmd += str(int(self.size_cyl)) + ','
             cmd += str(part.type)
             if part.is_bootable: cmd += ',*'
             cmd += '\n'
