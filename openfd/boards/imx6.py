@@ -171,6 +171,9 @@ class Imx6(Board):
         self._comp_installer = Imx6SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
         self._comp_installer.uboot_file = args.uboot_file
+	self._comp_installer.uboot_spl = args.uboot_spl
+	self._comp_installer.uboot_bs = args.uboot_bs
+	self._comp_installer.uboot_seek = args.uboot_seek
         self._comp_installer.uboot_load_addr = args.uboot_load_addr
         self._comp_installer.bootargs = args.uboot_bootargs
         self._comp_installer.bootscript = args.uboot_bootscript

@@ -108,6 +108,24 @@ class Imx6ArgsParser(object):
                             dest='uboot_bootscript',
                             required=False)
 
+	parser.add_argument('--uboot-bs',
+			    help="bs argument of the 'dd' command",
+			    metavar='<value>',
+			    dest='uboot_bs',
+			    required=True)
+
+	parser.add_argument('--uboot-seek',
+			    help="seek argument of the 'dd' command",
+			    metavar='<value>',
+			    dest='uboot_seek',
+			    required=True)
+
+	parser.add_argument('--spl-file',
+			    help="Path to the U-Boot SPL file",
+			    metavar='<file>',
+			    dest='uboot_spl',
+			    required=False)
+
     def check_args_sd_bootloader(self, args):
         self.checker.is_file(args.uboot_file, '--uboot-file')
         self.checker.is_valid_addr(args.uboot_load_addr, '--uboot-load-addr')

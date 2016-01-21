@@ -56,6 +56,36 @@ class Imx6SdCompInstaller(object):
         self._rootfs = None
         self._dryrun = dryrun
         self._e.dryrun = dryrun
+	self._uboot_spl = None
+	self._uboot_bs = None
+	self._uboot_seek = None
+
+    def __set_uboot_spl(self, uboot_spl):
+	self._uboot_spl = uboot_spl
+
+    def __get_uboot_spl(self):
+	return self._uboot_spl
+
+    uboot_spl = property(__get_uboot_spl, __set_uboot_spl,
+                          doc="""Path to the SPL file.""")
+
+    def __set_uboot_bs(self, uboot_bs):
+	self._uboot_bs = uboot_bs
+
+    def __get_uboot_bs(self):
+	return self._uboot_bs
+
+    uboot_bs = property(__get_uboot_bs, __set_uboot_bs,
+			doc="""Byte value""")
+
+    def __set_uboot_seek(self, uboot_seek):
+	self._uboot_seek = uboot_seek
+
+    def __get_uboot_seek(self):
+	return self._uboot_seek
+
+    uboot_seek = property(__get_uboot_seek, __set_uboot_seek,
+			   doc="""Seek value""")
 
     def __set_dryrun(self, dryrun):
         self._dryrun = dryrun
@@ -170,6 +200,9 @@ class Imx6SdCompInstaller(object):
         
         This method needs`, 
         :attr:`uboot_file` to be already set.
+	:attr:`uboot_spl` to be already set.
+	:attr:`uboot_seek` to be already set.
+	:attr:`uboot_bs` to be already set.
         
         :param device: Device where to flash UBL and uboot (i.e. '/dev/sdb').
         :exception BoardError: On error.
@@ -179,9 +212,17 @@ class Imx6SdCompInstaller(object):
         cmd = ('sudo dd' + 
               ' if=' + self._uboot_file + 
               ' of=' + device +
-               ' seek=2 bs=512' )
+               ' seek=' + self._uboot_seek + ' bs=' + self._uboot_bs ) #The default values are: seek=2 bs=512
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed to flash uboot into %s' % device)
+	
+	if self._uboot_spl != None:
+	    cmd = ('sudo dd' + 
+		' if=' + self._uboot_spl + 
+		' of=' + device + 
+		' seek=1 bs=1K')
+	    if self._e.check_call(cmd) != 0:
+		raise BoardError('Failed to flash SPL into %s' % device)
     
     def install_uboot_env(self, mount_point):
         """
