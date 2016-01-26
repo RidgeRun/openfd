@@ -59,6 +59,7 @@ class Imx6SdCompInstaller(object):
 	self._uboot_spl = None
 	self._uboot_bs = None
 	self._uboot_seek = None
+	self._kernel_file_type = None
 
     def __set_uboot_spl(self, uboot_spl):
 	self._uboot_spl = uboot_spl
@@ -155,6 +156,15 @@ class Imx6SdCompInstaller(object):
     
     kernel_image = property(__get_kernel_image, __set_kernel_image,
                             doc="""Path to the kernel image.""")
+
+    def __set_kernel_file_type(self, kernel_file_type):
+	self._kernel_file_type = kernel_file_type
+
+    def __get_kernel_file_type(self):
+	return self._kernel_file_type
+
+    kernel_file_type = property(__get_kernel_file_type, __set_kernel_file_type,
+				doc="""Type of kernel image""")
 
     def __set_kernel_devicetree(self, kernel_devicetree):
         self._kernel_devicetree = kernel_devicetree
@@ -298,7 +308,7 @@ class Imx6SdCompInstaller(object):
         """
 
         self._l.info('Installing kernel')
-        cmd = 'sudo cp %s %s/uImage' % (self._kernel_image, mount_point)
+        cmd = 'sudo cp %s %s/%s' % (self._kernel_image, mount_point, self.kernel_file_type)
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed copying %s to %s' %
                                (self._kernel_image, mount_point))

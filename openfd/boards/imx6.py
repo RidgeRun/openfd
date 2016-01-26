@@ -179,6 +179,8 @@ class Imx6(Board):
         self._comp_installer.bootscript = args.uboot_bootscript
         if hasattr(args, 'kernel_file'): # sd-script mode doesn't need this
             self._comp_installer.kernel_image = args.kernel_file
+	if hasattr(args, 'kernel_file_type'):
+	    self._comp_installer.kernel_file_type = args.kernel_file_type
         if hasattr(args, 'kernel_devicetree'):
             self._comp_installer.kernel_devicetree = args.kernel_devicetree
         if hasattr(args, 'kernel_tftp'):
