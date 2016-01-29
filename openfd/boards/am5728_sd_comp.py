@@ -27,7 +27,7 @@ from board import BoardError
 # Public Classes
 # ==========================================================================
 
-class Am5728SdCompInstaller(object):
+class AM5728SdCompInstaller(object):
     """
     Class to handle components-related operations.
     """
