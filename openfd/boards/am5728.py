@@ -75,7 +75,7 @@ class AM5728(Board):
 
     def comp_name(self, comp):
         self._check_comp(comp)
-        if comp is COMP_IPL: return 'uboot-min'
+        if comp is COMP_IPL: return 'uboot-MLO'
         elif comp is COMP_BOOTLOADER: return 'uboot'
         elif comp is COMP_KERNEL: return 'kernel'
         elif comp is COMP_FS: return 'rootfs'
@@ -99,7 +99,7 @@ class AM5728(Board):
     def sd_init_comp_installer(self, args):
         self._comp_installer = AM5728SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
-        self._comp_installer.uboot_min_file = args.uboot_min_file
+        self._comp_installer.uboot_MLO_file = args.uboot_MLO_file
         self._comp_installer.uboot_file = args.uboot_file
         if hasattr(args, 'uboot_bootargs'): # sd-script mode doesn't need this
             self._comp_installer.bootargs = args.uboot_bootargs
