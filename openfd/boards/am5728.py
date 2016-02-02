@@ -22,11 +22,6 @@ BOARD_NAME = 'am5728'
 # Supported modes
 MODE_SD = 'sd'
 MODE_SD_IMG = 'sd-img'
-MODE_SD_SCRIPT = 'sd-script'
-MODE_SD_SCRIPT_IMG = 'sd-script-img'
-MODE_NAND = 'nand'
-MODE_RAM = 'ram'
-MODE_ENV = 'env'
 
 # Supported components
 COMP_IPL = 'ipl'
@@ -40,8 +35,6 @@ class AM5728(Board):
     COMPONENTS = [COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
     
     mach_description = "AM5728 EVM"
-    nand_block_size = 131072
-    nand_page_size = 2048
     mkimage_arch = 'arm'
 
     def __init__(self, dryrun=False):
@@ -87,68 +80,21 @@ class AM5728(Board):
         elif comp is COMP_KERNEL: return 'kernel'
         elif comp is COMP_FS: return 'rootfs'
 
-    def erase_cmd(self, comp):
-        self._check_comp(comp)
-        return 'nand erase'
-    
-    def pre_write_cmd(self, comp):
-        self._check_comp(comp)
-        if comp is COMP_IPL: return 'nandecc hw 2'
-        return ''
-    
-    def write_cmd(self, comp):
-        self._check_comp(comp)
-        return 'nand write'
-    
-    def post_write_cmd(self, comp):
-        self._check_comp(comp)
-        if comp is COMP_IPL: return 'nandecc sw'
-        else: return ''
 
     def add_args(self, parser):
         subparsers = parser.add_subparsers(help="installation mode (--help available)", dest="mode")
 
         parser_sd = subparsers.add_parser(MODE_SD)
         parser_sd_img = subparsers.add_parser(MODE_SD_IMG)
-        parser_sd_script = subparsers.add_parser(MODE_SD_SCRIPT)
-        parser_sd_script_img = subparsers.add_parser(MODE_SD_SCRIPT_IMG)
-        parser_ram = subparsers.add_parser(MODE_RAM)
-        parser_env = subparsers.add_parser(MODE_ENV)
-        parser_nand = subparsers.add_parser(MODE_NAND)
-        
-        subparsers_nand = parser_nand.add_subparsers(help="component (--help available)", dest="component")
-        parser_nand_ipl = subparsers_nand.add_parser(COMP_IPL, help="Initial Program Loader")
-        parser_nand_bootloader = subparsers_nand.add_parser(COMP_BOOTLOADER, help="Bootloader (U-Boot)")
-        parser_nand_kernel = subparsers_nand.add_parser(COMP_KERNEL, help="Kernel")
-        parser_nand_fs = subparsers_nand.add_parser(COMP_FS, help="Filesystem")
-        
+
         self._parser.add_args_sd(parser_sd)
         self._parser.add_args_sd_img(parser_sd_img)
-        self._parser.add_args_sd_script(parser_sd_script)
-        self._parser.add_args_sd_script_img(parser_sd_script_img)
-        self._parser.add_args_nand(parser_nand)
-        self._parser.add_args_nand_ipl(parser_nand_ipl)
-        self._parser.add_args_nand_bootloader(parser_nand_bootloader)
-        self._parser.add_args_nand_kernel(parser_nand_kernel)
-        self._parser.add_args_nand_fs(parser_nand_fs)
-        self._parser.add_args_ram(parser_ram)
-        self._parser.add_args_env(parser_env)
 
     def check_args(self, args):
         if args.mode == MODE_SD:
             self._parser.check_args_sd(args)
         elif args.mode == MODE_SD_IMG:
             self._parser.check_args_sd_img(args)
-        elif args.mode == MODE_SD_SCRIPT:
-            self._parser.check_args_sd_script(args)
-        elif args.mode == MODE_SD_SCRIPT_IMG:
-            self._parser.check_args_sd_script_img(args)
-        if args.mode == MODE_NAND:
-            self._parser.check_args_nand(args)
-        elif args.mode == MODE_RAM:
-            self._parser.check_args_ram(args)
-        elif args.mode == MODE_ENV:
-            self._parser.check_args_env(args)
 
     def sd_init_comp_installer(self, args):
         self._comp_installer = AM5728SdCompInstaller()
