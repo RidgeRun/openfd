@@ -53,7 +53,7 @@ class BoardFactory(object):
         if name == imx6.BOARD_NAME:
             return imx6.Imx6()
         if name == am5728.BOARD_NAME:
-			return am5728.AM5728()
+	    return am5728.AM5728()
         else:
             raise BoardFactoryException("Don't know which Board instance " 
                                           "to create with name '%s'" % name)
