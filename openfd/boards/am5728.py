@@ -14,8 +14,8 @@
 # ==========================================================================
 
 from board import Board
-from am5728_args import AM5728ArgsParser
-from am5728_sd_comp import AM5728SdCompInstaller
+from am5728_args import Am5728ArgsParser
+from am5728_sd_comp import Am728SdCompInstaller
 
 BOARD_NAME = 'am5728'
 
@@ -29,10 +29,10 @@ COMP_BOOTLOADER = 'bootloader'
 COMP_KERNEL = 'kernel'
 COMP_FS = 'fs'
 
-class AM5728(Board):
+class Am5728(Board):
     
     MODES = [MODE_SD, MODE_SD_IMG]
-    COMPONENTS = [COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
+    COMPONENTS = [COMP_BOOTLOADER, COMP_KERNEL, COMP_FS, COMP_IPL]
     
     mach_description = "AM5728 EVM"
     mkimage_arch = 'arm'
@@ -43,7 +43,7 @@ class AM5728(Board):
             but not executed.
         :type dryrun: boolean
         """
-        self._parser = AM5728ArgsParser()
+        self._parser = Am5728ArgsParser()
         self._comp_installer = None
         self._dryrun = dryrun 
     
@@ -97,9 +97,9 @@ class AM5728(Board):
             self._parser.check_args_sd_img(args)
 
     def sd_init_comp_installer(self, args):
-        self._comp_installer = AM5728SdCompInstaller()
+        self._comp_installer = Am5728SdCompInstaller()
         self._comp_installer.dryrun = self._dryrun
-        self._comp_installer.uboot_MLO_file = args.uboot_MLO_file
+        self._comp_installer.uboot_mlo_file = args.uboot_mlo_file
         self._comp_installer.uboot_file = args.uboot_file
         if hasattr(args, 'uboot_bootargs'): # sd-script mode doesn't need this
             self._comp_installer.bootargs = args.uboot_bootargs

@@ -15,9 +15,8 @@
 
 from openfd.utils import ArgChecker
 from openfd.utils import ArgCheckerError
-from openfd.methods.board import TftpRamLoader
 
-class AM5728ArgsParser(object):
+class Am5728ArgsParser(object):
     
     def __init__(self):
         self.checker = ArgChecker()
@@ -98,8 +97,8 @@ class AM5728ArgsParser(object):
                            dest='uboot_bootargs')
         
     def check_args_sd_bootloader(self, args):
-        if args.uboot_MLO_file:
-            self.checker.is_file(args.uboot_MLO_file, '--uboot-MLO-file')
+        if args.uboot_mlo_file:
+            self.checker.is_file(args.uboot_mlo_file, '--uboot-MLO-file')
         if args.uboot_file:
             self.checker.is_file(args.uboot_file, '--uboot-file')
         
