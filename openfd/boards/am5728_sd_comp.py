@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # ==========================================================================
 #
-# Copyright (C) 2014 RidgeRun, LLC (http://www.ridgerun.com)
+# Copyright (C) 2016 RidgeRun, LLC (http://www.ridgerun.com)
 #
-# Authors: Jose Pablo Carballo <jose.carballo@ridgerun.com>
+# Author: Daniel Garbanzo Hidalgo <daniel.garbanzo@ridgerun.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
