@@ -411,6 +411,28 @@ class NandInstaller(object):
             if part.name == self._board.comp_name('kernel'):
                 self._install_img(part.image, 'kernel', part.start_blk,
                                          part.size_blks, force=force)
+
+    def install_dtb(self, force=False):
+        """
+        Installs the kernel devicetree to NAND. After installing the image it
+        will save in uboot's environment the following variables:
+
+        * `dtboffset`: Kernel devicetree offset address, hexadecimal.
+        * `dtbmd5sum`: Kernel devicetree file md5sum.
+        * `dtbsize`: Kernel devicetree size, in bytes.
+        * `dtbpartitionsize`: Kernel devicetree size, block aligned, in bytes.
+
+        This information is also used to avoid re-installing the image if it is
+        not necessary, unless `force` is specified.
+
+        :param force: Forces the kernel installation.
+        :type force: boolean
+        :exception RamLoaderException: On failure when loading to RAM.
+        """
+        for part in self._partitions:
+            if part.name == self._board.comp_name('dtb'):
+                self._install_img(part.image, 'dtb', part.start_blk,
+                                         part.size_blks, force=force)
     
     def install_fs(self, force=False):
         """

@@ -62,6 +62,7 @@ MODE_USB_SCRIPT = 'usb-script'
 COMP_IPL = "ipl"
 COMP_BOOTLOADER = "bootloader"
 COMP_KERNEL = "kernel"
+COMP_DTB = "dtb"
 COMP_FS = "fs"
 
 # ==========================================================================
@@ -288,6 +289,7 @@ def _mode_nand(args):
         nand_installer.ram_load_addr = args.ram_load_addr
         nand_installer.dryrun = args.dryrun
         nand_installer.read_partitions(args.mmap_file)
+
         if args.nand_uboot_file:
             nand_installer.load_uboot_to_ram(args.nand_uboot_file,
                                              args.ram_load_addr)
@@ -298,6 +300,8 @@ def _mode_nand(args):
             nand_installer.install_bootloader()
         if args.component == COMP_KERNEL:
             nand_installer.install_kernel(force=args.kernel_force)
+        if args.component == COMP_DTB:
+            nand_installer.install_dtb()
         if args.component == COMP_FS:
             nand_installer.install_fs(force=args.fs_force)
         if uboot.get_env('autostart') == 'no':
