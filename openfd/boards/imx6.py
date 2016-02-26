@@ -34,6 +34,7 @@ MODE_UBOOT = 'uboot_comm'
 
 # Supported components
 COMP_IPL = 'ipl'
+COMP_DTB = 'dtb'
 COMP_BOOTLOADER = 'bootloader'
 COMP_KERNEL = 'kernel'
 COMP_FS = 'fs'
@@ -42,7 +43,7 @@ class Imx6(Board):
     
     MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
              MODE_NAND, MODE_RAM, MODE_ENV]
-    COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
+    COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_DTB, COMP_KERNEL, COMP_FS]
     
     mach_description = "IMX6 Board"
     nand_block_size = 131072
@@ -88,6 +89,7 @@ class Imx6(Board):
         self._check_comp(comp)
         if comp is COMP_IPL: return 'ubl'
         elif comp is COMP_BOOTLOADER: return 'uboot'
+        elif comp is COMP_DTB: return 'dtb'
         elif comp is COMP_KERNEL: return 'kernel'
         elif comp is COMP_FS: return 'rootfs'
 
@@ -125,6 +127,7 @@ class Imx6(Board):
         
 	parser_nand_ipl = subparsers_nand.add_parser(COMP_IPL, help="Initial Program Loader (UBL)")
         parser_nand_bootloader = subparsers_nand.add_parser(COMP_BOOTLOADER, help="Bootloader (U-Boot)")
+        parser_nand_dtb = subparsers_nand.add_parser(COMP_DTB, help="DTB")
         parser_nand_kernel = subparsers_nand.add_parser(COMP_KERNEL, help="Kernel")
         parser_nand_fs = subparsers_nand.add_parser(COMP_FS, help="Filesystem")
         
@@ -135,6 +138,7 @@ class Imx6(Board):
         self._parser.add_args_nand(parser_nand)
         self._parser.add_args_nand_ipl(parser_nand_ipl)
         self._parser.add_args_nand_bootloader(parser_nand_bootloader)
+        self._parser.add_args_nand_kernel(parser_nand_dtb)
         self._parser.add_args_nand_kernel(parser_nand_kernel)
         self._parser.add_args_nand_fs(parser_nand_fs)
         self._parser.add_args_ram(parser_ram)
