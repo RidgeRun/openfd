@@ -9,13 +9,13 @@
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
 #
-# Definitions for the AM4728 EVM.
+# Definitions for the AM5728 EVM.
 #
 # ==========================================================================
 
 from board import Board
 from am5728_args import Am5728ArgsParser
-from am5728_sd_comp import Am728SdCompInstaller
+from am5728_sd_comp import Am5728SdCompInstaller
 
 BOARD_NAME = 'am5728'
 
