@@ -75,7 +75,7 @@ class Am5728(Board):
 
     def comp_name(self, comp):
         self._check_comp(comp)
-        if comp is COMP_IPL: return 'uboot-MLO'
+        if comp is COMP_IPL: return 'uboot-mlo'
         elif comp is COMP_BOOTLOADER: return 'uboot'
         elif comp is COMP_KERNEL: return 'kernel'
         elif comp is COMP_FS: return 'rootfs'

@@ -42,7 +42,7 @@ class Am5728SdCompInstaller(object):
         self._l = utils.logger.get_global_logger()
         self._e = utils.executer.get_global_executer()
         self._workdir = None
-        self._uboot_MLO_file = None
+        self._uboot_mlo_file = None
         self._uboot_file = None
         self._bootargs = None
         self._kernel_image = None
@@ -61,13 +61,13 @@ class Am5728SdCompInstaller(object):
                       doc="""Enable dryrun mode. Systems commands will be
                      logged, but not executed.""")
   
-    def __set_uboot_MLO_file(self, uboot_MLO_file):
-        self._uboot_MLO_file = uboot_MLO_file
+    def __set_uboot_mlo_file(self, uboot_mlo_file):
+        self._uboot_mlo_file = uboot_mlo_file
         
-    def __get_uboot_MLO_file(self):
-        return self._uboot_MLO_file
+    def __get_uboot_mlo_file(self):
+        return self._uboot_mlo_file
     
-    uboot_MLO_file = property(__get_uboot_MLO_file, __set_uboot_MLO_file,
+    uboot_mlo_file = property(__get_uboot_mlo_file, __set_uboot_mlo_file,
                           doc="""Path to the uboot MLO file.""")
   
     def __set_uboot_file(self, uboot_file):
@@ -144,10 +144,10 @@ class Am5728SdCompInstaller(object):
         """
         
         self._l.info('Installing uboot')
-        cmd = 'sudo cp %s %s/MLO' % (self._uboot_MLO_file, mount_point)
+        cmd = 'sudo cp %s %s/MLO' % (self._uboot_mlo_file, mount_point)
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed copying %s to %s' %
-                               (self._uboot_MLO_file, mount_point))
+                               (self._uboot_mlo_file, mount_point))
         cmd = 'sudo cp %s %s/u-boot.img' % (self._uboot_file, mount_point)
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed copying %s to %s' %

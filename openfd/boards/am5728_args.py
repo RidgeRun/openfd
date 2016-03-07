@@ -81,10 +81,10 @@ class Am5728ArgsParser(object):
     
     def add_args_sd_bootloader(self, parser):
         
-        parser.add_argument('--uboot-MLO-file',
+        parser.add_argument('--uboot-mlo-file',
                            help='Path to the U-Boot MLO file',
                            metavar='<file>',
-                           dest='uboot_MLO_file')
+                           dest='uboot_mlo_file')
         
         parser.add_argument('--uboot-file',
                            help='Path to the U-Boot file',
@@ -98,7 +98,7 @@ class Am5728ArgsParser(object):
         
     def check_args_sd_bootloader(self, args):
         if args.uboot_mlo_file:
-            self.checker.is_file(args.uboot_mlo_file, '--uboot-MLO-file')
+            self.checker.is_file(args.uboot_mlo_file, '--uboot-mlo-file')
         if args.uboot_file:
             self.checker.is_file(args.uboot_file, '--uboot-file')
         
