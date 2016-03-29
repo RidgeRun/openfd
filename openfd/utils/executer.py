@@ -159,7 +159,7 @@ class Executer(object):
             print message
         confirmation = ''
         try:
-            confirmation = raw_input('Do you want to continue [Y/n]: ')
+            confirmation = raw_input('Do you want to continue [y/N]: ')
         except (EOFError, KeyboardInterrupt):
             pass
         return confirmation.strip().upper() == 'Y'
