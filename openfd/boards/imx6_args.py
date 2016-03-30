@@ -69,7 +69,8 @@ class Imx6ArgsParser(object):
                            help='The type of kernel image.',
                            metavar='<type>',
                            dest='kernel_file_type',
-                           required=True)
+                           default='uImage',
+                           required=False)
         parser.add_argument('--kernel-devicetree',
                            help='Path to the Kernel devicetree file.',
                            metavar='<file>',
