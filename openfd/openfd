@@ -113,6 +113,10 @@ def _abort_install():
     _logger.error('Installation aborted')
     _clean_exit(-1)
 
+def _abort_install_user():
+    _logger.error('Installation aborted by user interaction')
+    _clean_exit(0)
+
 def _sigint_handler(signal, frame):
     _logger.error('\nInstallation interrupted')
     _clean_exit(0)
@@ -249,7 +253,7 @@ def _mode_sd(args):
         sd_installer.release()
     except (SDCardInstallerError, DeviceException, RamLoaderException) as e:
         _logger.error(e)
-        _abort_install()
+        _abort_install_user()
 
 def _mode_sd_img(args):
     _check_sudo()
@@ -271,7 +275,7 @@ def _mode_sd_img(args):
         _logger.info("</hint>")
     except (LoopDeviceInstallerError, DeviceException, RamLoaderException) as e:
         _logger.error(e)
-        _abort_install()        
+        _abort_install_user()
     
 def _mode_nand(args):
     uboot = _get_uboot(args)
