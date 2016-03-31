@@ -40,6 +40,9 @@ WARN_COLOR = 'yellow'
 class SDCardInstallerError(Exception):
     """Exceptions for SDCardInstaller"""
 
+class SDCardInstallerCanceled(Exception):
+    """Exceptions for SDCardInstaller when user cancels"""
+
 class LoopDeviceInstallerError(Exception):
     """Exceptions for LoopDeviceInstaller"""
 
