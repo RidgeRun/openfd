@@ -118,14 +118,14 @@ class Imx6ArgsParser(object):
 			    help="bs argument of the 'dd' command",
 			    metavar='<value>',
 			    dest='uboot_bs',
-                            default=512,
+                default='512',
 			    required=False)
 
 	parser.add_argument('--uboot-seek',
 			    help="seek argument of the 'dd' command",
 			    metavar='<value>',
 			    dest='uboot_seek',
-                            default=2,
+                default='2',
 			    required=False)
 
 	parser.add_argument('--spl-file',
