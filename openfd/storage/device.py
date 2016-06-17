@@ -17,6 +17,7 @@
 # Imports
 # ==========================================================================
 
+import os
 import math
 import openfd.utils as utils
 from partition import SDCardPartition
@@ -83,7 +84,15 @@ class Device(object):
 
     #: Color for dangerous warning messages.
     WARN_COLOR = 'yellow'
-    
+
+    #: Ubuntu-16.04 comes with sfdisk from util-linux 2.27.1 which doesn't support -D option
+    try:
+        #: So, try to use sfdisk from util-linux 2.22 in host-apps (Ridgerun SDK)
+        SDK_SFDISK_PATH = os.environ["DEVDIR"] + '/bsp/local/sbin/sfdisk'
+    except KeyError:
+        #: If for some reason $DEVDIR is not defined, then use sfdisk from host system hoping to have -D option
+        SDK_SFDISK_PATH = 'sfdisk'
+
     def __init__(self, device, dryrun=False):
         """
         :param device: Device associated with this instance, i.e. '/dev/sdb/'.
@@ -322,7 +331,7 @@ class SDCard(Device):
         :exception DeviceException: When unable to partition.
         """
         
-        cmd = ('sudo sfdisk -D' +
+        cmd = ('sudo ' + Device.SDK_SFDISK_PATH + ' -D' +
               ' -C' + str(int(self.size_cyl)) +
               ' -H' + str(int(self.geometry.heads)) +
               ' -S' + str(int(self.geometry.sectors)) +
@@ -613,7 +622,7 @@ class LoopDevice(Device):
         """
         
         self._l.info("Creating partitions")
-        cmd = ('sudo sfdisk -D' +
+        cmd = ('sudo ' + Device.SDK_SFDISK_PATH + ' -D' +
               ' -C' + str(int(self.size_cyl)) +
               ' -H' + str(int(self.geometry.heads)) +
               ' -S' + str(int(self.geometry.sectors)) +
@@ -850,7 +859,7 @@ class USB(Device):
         :exception DeviceException: When unable to partition.
         """
         
-        cmd = ('sudo sfdisk -D' +
+        cmd = ('sudo ' + Device.SDK_SFDISK_PATH + ' -D' +
               ' -C' + str(int(self.size_cyl)) +
               ' -H' + str(int(self.geometry.heads)) +
               ' -S' + str(int(self.geometry.sectors)) +
