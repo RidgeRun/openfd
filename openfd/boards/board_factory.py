@@ -24,6 +24,7 @@ import dm816x
 import dm814x
 import imx6
 import am5728
+import tx1
 import openfd.boards
 
 # ==========================================================================
@@ -54,6 +55,8 @@ class BoardFactory(object):
             return imx6.Imx6()
         if name == am5728.BOARD_NAME:
 	    return am5728.Am5728()
+        if name == tx1.BOARD_NAME:
+            return tx1.Tx1()
         else:
             raise BoardFactoryException("Don't know which Board instance " 
                                           "to create with name '%s'" % name)
