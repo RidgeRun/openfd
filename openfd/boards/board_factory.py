@@ -54,7 +54,7 @@ class BoardFactory(object):
         if name == imx6.BOARD_NAME:
             return imx6.Imx6()
         if name == am5728.BOARD_NAME:
-	    return am5728.Am5728()
+            return am5728.Am5728()
         if name == tx1.BOARD_NAME:
             return tx1.Tx1()
         else:
