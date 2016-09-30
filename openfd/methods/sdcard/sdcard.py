@@ -175,6 +175,7 @@ class SDCardInstaller(object):
         if self._interactive:
             self._format_confirms()
         self._l.info('Formatting %s (this may take a while)' % self._sd.name)
+        self._sd.wipe_bootloader_env()
         self._sd.create_partitions()
         self._sd.format_partitions()
 
