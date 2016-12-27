@@ -24,6 +24,7 @@ import dm816x
 import dm814x
 import imx6
 import am5728
+import ultrascale_zcu102
 import openfd.boards
 
 # ==========================================================================
@@ -53,7 +54,9 @@ class BoardFactory(object):
         if name == imx6.BOARD_NAME:
             return imx6.Imx6()
         if name == am5728.BOARD_NAME:
-	    return am5728.Am5728()
+			return am5728.Am5728()
+        if name == ultrascale_zcu102.BOARD_NAME:
+			return ultrascale_zcu102.Ultrascale_Zcu102()	    
         else:
             raise BoardFactoryException("Don't know which Board instance " 
                                           "to create with name '%s'" % name)
