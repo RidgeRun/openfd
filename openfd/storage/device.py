@@ -323,6 +323,18 @@ class SDCard(Device):
             return '%sp%s' % (self.name, index) # i.e. /dev/mmbclk0p1
         else:
             return '%s%s' % (self.name, index)  # i.e. /dev/sdb1
+            
+    def wipe_bootloader_env(self):
+        """
+		Wipe U-boot environment data
+		
+		:exception DeviceException: When unable to erase the first 16M of raw data
+        """        
+        
+        cmd = ('sudo dd if=/dev/zero ' + 'of=' + self.name + ' bs=1M count=16')
+        
+        if self._e.check_call(cmd) != 0:
+            raise DeviceException('Unable to erase the u-boot environment')
         
     def create_partitions(self):
         """
