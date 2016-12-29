@@ -200,11 +200,11 @@ class Ultrascale_Zcu102SdCompInstaller(object):
                     uenv.write("%s\n" % loadtftpimage)
                     kernel_load = 'run loadtftpimage'
                 else:
-                    kernel_load = 'run loaduimage'
+                    kernel_load = 'run load_sd_image'
                     
                 uenvcmd = ('uenvcmd=echo Running uenvcmd ...; %s; ' % kernel_load)
                 if self._kernel_devicetree:
-                    uenvcmd = uenvcmd + ' run loadfdt; bootm ${loadaddr} - ${fdt_addr}'
+                    uenvcmd = uenvcmd + ' run load_dtb_image; booti ${kernel_load_addr} - ${dtb_load_addr}'
                 else:
                     uenvcmd = uenvcmd + ' bootm'
 
@@ -212,6 +212,8 @@ class Ultrascale_Zcu102SdCompInstaller(object):
                 uenv.write("%s\n" % bootargs)
                 self._l.debug("  uEnv.txt <= 'autostart=no")
                 uenv.write("autostart=no\n")
+                self._l.debug("  uEnv.txt <= 'autoload=no")
+                uenv.write("autoload=no\n")                
                 self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)
                 uenv.write("%s\n" % uenvcmd)
         cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
