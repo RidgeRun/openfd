@@ -193,19 +193,42 @@ class Ultrascale_Zcu102SdCompInstaller(object):
         if not self._dryrun:
             with open(uenv_file, "w") as uenv:
                 bootargs = 'bootargs=%s' % self._bootargs.strip()
+                
                 if self._kernel_tftp:
-                    loadtftpimage = 'loadtftpimage=%s'% self._tftp_loader.get_env_load_file_to_ram(
-                        self._kernel_image, uboot_load_addr)
-                    self._l.debug("  uEnv.txt <= '%s'" % loadtftpimage)
-                    uenv.write("%s\n" % loadtftpimage)
-                    kernel_load = 'run loadtftpimage'
-                else:
-                    kernel_load = 'run load_sd_image'
+                    loadtftpkernel = 'load_tftp_kernel=%s'% self._tftp_loader.get_env_load_file_to_ram(
+                        self._kernel_image) + '; tftpboot ${kernel_load_addr} ${kernel_img}' 
+                    self._l.debug("  uEnv.txt <= '%s'" % loadtftpkernel)
+                    uenv.write("%s\n" % loadtftpkernel)
                     
+                    kernel_load = 'run load_tftp_kernel'
+                else:   
+                    loadsdkernel = 'load_sd_kernel=fatload mmc ${mmc_dev} ${kernel_load_addr} ${kernel_img}'
+                    self._l.debug("  uEnv.txt <= '%s'" % loadsdkernel)
+                    uenv.write("%s\n" % loadsdkernel)
+                                        
+                    kernel_load = 'run load_sd_kernel'					
+					                                 
+                
                 uenvcmd = ('uenvcmd=echo Running uenvcmd ...; %s; ' % kernel_load)
-                if self._kernel_devicetree:
-                    uenvcmd = uenvcmd + ' run load_dtb_image; booti ${kernel_load_addr} - ${dtb_load_addr}'
-                else:
+                
+		if self._kernel_devicetree:
+				if self._kernel_tftp:
+					loadtftpdtb = 'load_tftp_dtb=%s'% self._tftp_loader.get_env_load_file_to_ram( 
+						self._kernel_devicetree) + '; tftpboot ${dtb_load_addr} ${dtb_img}' 
+					self._l.debug("  uEnv.txt <= '%s'" % loadtftpdtb)
+					uenv.write("%s\n" % loadtftpdtb)
+							
+					dtb_load = 'run load_tftp_dtb'						
+						
+				else:
+					loadsddtb = 'load_sd_dtb=fatload mmc ${mmc_dev} ${dtb_load_addr} ${dtb_img}'
+					self._l.debug("  uEnv.txt <= '%s'" % loadsddtb)
+					uenv.write("%s\n" % loadsddtb)	
+                    
+					dtb_load = 'run load_sd_dtb'
+					
+				uenvcmd = uenvcmd + '%s; booti ${kernel_load_addr} - ${dtb_load_addr}' % dtb_load
+		else:
                     uenvcmd = uenvcmd + ' bootm'
 
                 self._l.debug("  uEnv.txt <= '%s'" % bootargs)
@@ -216,7 +239,7 @@ class Ultrascale_Zcu102SdCompInstaller(object):
                 uenv.write("autoload=no\n")                
                 self._l.debug("  uEnv.txt <= '%s'" % uenvcmd)
                 uenv.write("%s\n" % uenvcmd)
-        cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
+		cmd = 'sudo cp %s %s' % (uenv_file, mount_point)
         if self._e.check_call(cmd) != 0:
             raise BoardError('Failed to install uboot env file.')
         

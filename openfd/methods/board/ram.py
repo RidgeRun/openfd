@@ -45,7 +45,8 @@ class RamLoader(object):
 
     def get_load_file_to_ram_env(self):
         raise NotImplementedError
-
+        
+        
 class RamLoaderException(Exception):
     """RAM loader exceptions."""
 
@@ -211,7 +212,7 @@ class TftpRamLoader(RamLoader):
         hex_load_addr = hexutils.to_hex(load_addr)
         self._l.debug("Starting TFTP transfer from file '%s' to RAM address "
                       "'%s'" % (tftp_filename, hex_load_addr))
-        cmd = 'tftp %s %s' % (to_hex(hex_load_addr), basename)
+        cmd = 'tftpboot %s %s' % (to_hex(hex_load_addr), basename)
         try:
             self._u.cmd(cmd, prompt_timeout=self._transfer_timeout(size_b))
         except UbootTimeoutException:
@@ -275,13 +276,13 @@ class TftpRamLoader(RamLoader):
             raise RamLoaderException("Didn't encountered boot line '%s' "
                                 "after %s seconds" %(boot_line, boot_timeout))
         
-    def get_env_load_file_to_ram(self, filename, load_addr):
+
+    def get_env_load_file_to_ram(self, filename):
         """
         Set the tftp file to be transfer and returns the loadtftp 
         uboot enviroment variable
         
         :param filename: File to load.
-        :param load_addr: RAM address where to load the file.
         :exception RamLoaderException: Error loading to RAM.
         """
         
@@ -302,13 +303,8 @@ class TftpRamLoader(RamLoader):
         size_b = os.path.getsize(tftp_filename)
         if size_b == 0:
             raise RamLoaderException("Size of file %s is 0" % filename)
-
-        hex_load_addr = hexutils.to_hex(load_addr)        
-        cmd = '%s;setenv serverip %s; setenv loadaddr %s;tftp %s' % (ip_method,
-                                                                     self._host_ipaddr,
-                                                                     hex_load_addr,
-                                                                     basename)
-        self._l.debug("Setting TFTP transfer from file '%s' to RAM address "
-                      "'%s'" % (tftp_filename, hex_load_addr))
+      
+        cmd = '%s;setenv serverip %s' % (ip_method,self._host_ipaddr)
+        self._l.debug("Setting TFTP transfer from file '%s' to RAM address " % (tftp_filename))
 
         return cmd
