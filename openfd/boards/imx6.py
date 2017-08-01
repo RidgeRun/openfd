@@ -37,12 +37,13 @@ COMP_IPL = 'ipl'
 COMP_BOOTLOADER = 'bootloader'
 COMP_KERNEL = 'kernel'
 COMP_FS = 'fs'
+COMP_MIN_FS = 'min-fs'
 
 class Imx6(Board):
     
     MODES = [MODE_SD, MODE_SD_IMG, MODE_SD_SCRIPT, MODE_SD_SCRIPT_IMG,
              MODE_NAND, MODE_RAM, MODE_ENV]
-    COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS]
+    COMPONENTS = [COMP_IPL, COMP_BOOTLOADER, COMP_KERNEL, COMP_FS, COMP_MIN_FS]
     
     mach_description = "IMX6 Board"
     nand_block_size = 131072
@@ -90,6 +91,7 @@ class Imx6(Board):
         elif comp is COMP_BOOTLOADER: return 'uboot'
         elif comp is COMP_KERNEL: return 'kernel'
         elif comp is COMP_FS: return 'rootfs'
+        elif comp is COMP_MIN_FS: return 'min_rootfs'
 
     def erase_cmd(self, comp):
         self._check_comp(comp)
@@ -187,6 +189,9 @@ class Imx6(Board):
             self._comp_installer.kernel_tftp = args.kernel_tftp
         if hasattr(args, 'rootfs'): # sd-script mode doesn't need this
             self._comp_installer.rootfs = args.rootfs
+        if hasattr(args, 'min_rootfs'):
+            self._comp_installer.min_rootfs = args.min_rootfs
+
         self._comp_installer.workdir = args.workdir
         if args.kernel_tftp:
             self._comp_installer.tftp_loader = self._get_tftp_loader(args)

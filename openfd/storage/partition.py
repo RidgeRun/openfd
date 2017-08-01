@@ -270,6 +270,7 @@ class SDCardPartition(Partition):
     COMPONENT_BOOTLOADER = 'bootloader'
     COMPONENT_KERNEL = 'kernel'
     COMPONENT_ROOTFS = 'rootfs'
+    COMPONENT_MINROOTFS = 'min-rootfs'
     COMPONENT_BLANK = 'blank'
     
     def __init__(self, name, start_addr=0, size=0, bootable=False,
@@ -394,6 +395,7 @@ class SDCardPartition(Partition):
                           :const:`COMPONENT_BOOTLOADER`,
                           :const:`COMPONENT_KERNEL`,
                           :const:`COMPONENT_ROOTFS`,
+                          :const:`COMPONENT_MINROOTFS`,
                           :const:`COMPONENT_BLANK`.""")
 
 class LoopDevicePartition(SDCardPartition):

@@ -54,6 +54,7 @@ class Imx6SdCompInstaller(object):
         self._kernel_tftp = False
         self._tftp_loader = None
         self._rootfs = None
+        self._min_rootfs = None
         self._dryrun = dryrun
         self._e.dryrun = dryrun
 	self._uboot_spl = None
@@ -190,8 +191,18 @@ class Imx6SdCompInstaller(object):
     def __get_rootfs(self):
         return self._rootfs
     
+    def __set_min_rootfs(self, min_rootfs):
+        self._min_rootfs = min_rootfs
+
+    def __get_min_rootfs(self):
+        return self._min_rootfs
+    
     rootfs = property(__get_rootfs, __set_rootfs,
                       doc="""Path to the rootfs directory. Set to None if this
+            installation does not require a rootfs, i.e. NFS will be used.""")
+    
+    min_rootfs = property(__get_min_rootfs, __set_min_rootfs,
+                      doc="""Path to the minimal rootfs directory. Set to None if this
             installation does not require a rootfs, i.e. NFS will be used.""")
     
     def __set_workdir(self, workdir):
@@ -350,7 +361,27 @@ class Imx6SdCompInstaller(object):
         else:
             self._l.warning('No directory for "%s", omitting...'
                                         % (SDCardPartition.COMPONENT_ROOTFS))
-
+            
+    def install_min_rootfs(self, mount_point):
+        """
+        If any, installs :attr:`rootfs` to the given mount point.
+        
+        :param mount_point: Path to where install rootfs.
+        :exception BoardError: On error.
+        """
+                                 
+        if self._min_rootfs:
+            self._l.info('Installing minimal rootfs (this may take a while)')
+            cmd = 'cd %s ; find . | sudo cpio -pdum %s' % (self._min_rootfs,
+                                                           mount_point)
+            if self._e.check_call(cmd) != 0:
+                raise BoardError('Failed installing minimal rootfs '
+                                              'into %s' % mount_point)
+            if self._e.check_call('sync') != 0:
+                raise BoardError('Unable  to sync')
+        else:
+            self._l.warning('No directory for "%s", omitting...'
+                                        % (SDCardPartition.COMPONENT_MINROOTFS))
 
     def install_sd_components(self, sd):
         """
@@ -376,6 +407,8 @@ class Imx6SdCompInstaller(object):
                         self.install_kernel_devicetree(mount_point)
                 elif comp == SDCardPartition.COMPONENT_ROOTFS:
                     self.install_rootfs(mount_point)
+                elif comp == SDCardPartition.COMPONENT_MINROOTFS:
+                    self.install_min_rootfs(mount_point)                    
                 else:
                     raise BoardError('Invalid component: %s' % comp)
             i += 1

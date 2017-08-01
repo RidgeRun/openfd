@@ -50,6 +50,7 @@ class Imx6ArgsParser(object):
                            required=True)
         
         self.add_args_sd_fs(parser)
+        self.add_args_sd_min_fs(parser)
         
     def check_args_sd(self, args):
         self.checker.is_file(args.mmap_file, '--mmap-file')
@@ -57,7 +58,8 @@ class Imx6ArgsParser(object):
         self.check_args_sd_kernel(args)
         self.checker.is_dir(args.workdir, '--work-dir')
         args.workdir = args.workdir.rstrip('/')
-        self.check_args_sd_fs(args) 
+        self.check_args_sd_fs(args)
+        self.check_args_sd_min_fs(args) 
         
     def add_args_sd_kernel(self, parser):
         parser.add_argument('--kernel-file',
@@ -148,6 +150,17 @@ class Imx6ArgsParser(object):
     def check_args_sd_fs(self, args):
         if args.rootfs:
             self.checker.is_dir(args.rootfs, '--rootfs')
+            
+    def add_args_sd_min_fs(self, parser):
+        parser.add_argument('--min-rootfs',
+                           help='Path to the minimal rootfs that will be installed.',
+                           metavar='<dir>',
+                           dest='min_rootfs',
+                           default=None)
+        
+    def check_args_sd_min_fs(self, args):
+        if args.min_rootfs:
+            self.checker.is_dir(args.min_rootfs, '--min-rootfs')
         
     # ==========================================================================
     # Mode sd-img args
